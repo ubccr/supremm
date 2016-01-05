@@ -1,8 +1,5 @@
-include gen-pmlogger-control.py
-include pcp_daily_log_check.py
-include pcp_daily_summary.py
+include supremm/gen-pmlogger-control.py
 include setup.py
-include slurm_tool_dump.py
 include supremm/Job.py
 include supremm/__init__.py
 include supremm/account.py
