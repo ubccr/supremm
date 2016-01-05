@@ -36,6 +36,5 @@ var sdef = {
     }
 };
 
-conn = new Mongo();
-db = conn.getDB("supremm");
+db = db.getSiblingDB("supremm");
 db.schema.insert(sdef)
