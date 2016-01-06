@@ -1,0 +1,55 @@
+#!/bin/sh
+
+#-------------------------------------------------------------------------
+# Configurable settigns
+
+PREFIX=/data/xdtas
+LOCKFILE=/var/tmp/supremm_summary.lock
+INSTALLPATH=$PREFIX/opt
+
+GITHUBKEY=$HOME/.ssh/id_rsa_github
+
+THREADS=`nproc --ignore=2`
+
+ulimit -n4096
+
+#-------------------------------------------------------------------------
+#  Main script
+
+reportfail()
+{
+    echo "Not running due to another process holding the lock"
+    exit 1
+}
+
+(
+    flock -n 9 || reportfail
+
+    set -e
+
+    #-------------------------------------------------------------------------
+    # Pull the latest from git and install package from source
+    
+    ssh-agent sh -c "ssh-add $GITHUBKEY 2> /dev/null && cd $PREFIX/ccr-pcp && git pull -q" > /dev/null
+    
+    cd $PREFIX/ccr-pcp/scripts
+    python setup.py install --prefix=$INSTALLPATH > /dev/null
+    
+    #-------------------------------------------------------------------------
+    # Run index and ingest
+    
+    PATH=$INSTALLPATH/bin:$PATH
+    PYTHONPATH=$INSTALLPATH/lib64/python2.7/site-packages
+    
+    export PYTHONPATH PATH
+    
+    if [ "$1" != "process" ]; then
+        indexarchives.py
+        account.py
+        summarize_jobs.py -t $THREADS -q
+    else
+        summarize_jobs.py -t $THREADS -d
+    fi
+
+) 9>${LOCKFILE}
+

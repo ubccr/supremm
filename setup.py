@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+""" setup script for SUPReMM summarization package """
+from distutils.core import setup, Extension
+import sys
+import os
+
+# For rpm-based builds want the configuration files to
+# go in the standard location
+if 'bdist_rpm' in sys.argv or 'RPM_BUILD_ROOT' in os.environ:
+    confpath = '/etc/supremm'
+else:
+    confpath = 'etc/supremm'
+
+
+setup(name='supremm',
+      version='0.9.0',
+      description='Python Distribution Utilities',
+      author='Joseph P White',
+      author_email='jpwhite4@buffalo.edu',
+      url='https://github.com/ubccr/ccr-pcp',
+      packages=['supremm', 'supremm.pcpfast', 'supremm.plugins', 'supremm.preprocessors'],
+      data_files=[(confpath,                         ['config/example.conf',                  'config/config.json']),
+                  ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
+                  ('share/supremm/templates/pmlogger',    ['config/templates/pmlogger/control',    'config/templates/pmlogger/pmlogger-supremm.config']),
+                  ('share/supremm/templates/pmie',        ['config/templates/pmie/control',        'config/templates/pmie/pmie-supremm.config',
+                                                           'config/templates/pmie/pcp-restart.sh', 'config/templates/pmie/procpmda_check.sh']),
+                  ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
+                  ('share/supremm/setup/', ['assets/modw_supremm.sql', 'assets/mongo_setup.js'])
+      ],
+      scripts=['gen-pmlogger-control.py', 
+               'supremm/summarize_jobs.py', 
+               'supremm/indexarchives.py',
+               'supremm/account.py',
+               'supremm/supremmconf.py',
+               'supremm/supremm_update',
+               'supremm/ingest_jobscripts.py'],
+      requires=['numpy',
+                'MySQLdb',
+                'pcp'],
+      ext_modules=[Extension('supremm.pcpfast.libpcpfast', ['supremm/pcpfast/pcpfast.c'], libraries=['pcp'])]
+     )

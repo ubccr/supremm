@@ -1,0 +1,15 @@
+#!/usr/bin/perl
+
+use strict;
+use Sys::Hostname;
+use POSIX qw(strftime);
+
+my $jobid = $ENV{SLURM_JOB_ID};
+my $jobdatelong = strftime "%Y%m%d.%H.%M.%S", localtime;
+my $fullhost = hostname();
+
+# PCP End of job logging
+
+system("env PMLOGGER_EPILOG=yes pmlogger -c /etc/pcp/pmlogger/pmlogger-supremm.config -s 1 -l /tmp/job-$jobid-end-$jobdatelong.log /var/log/pcp/pmlogger/$fullhost/job-$jobid-end-$jobdatelong &> /dev/null");
+
+exit(0);

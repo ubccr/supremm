@@ -1,0 +1,37 @@
+#!/bin/sh
+
+#-------------------------------------------------------------------------
+# Configurable settigns
+
+LOCKFILE=/var/tmp/supremm_summary.lock
+
+THREADS=`nproc --ignore=2`
+
+ulimit -n4096
+
+#-------------------------------------------------------------------------
+#  Main script
+
+reportfail()
+{
+    echo "Not running due to another process holding the lock"
+    exit 1
+}
+
+(
+    flock -n 9 || reportfail
+
+    set -e
+
+    #-------------------------------------------------------------------------
+    # Run index and ingest
+    
+    if [ "$1" != "process" ]; then
+        indexarchives.py
+        summarize_jobs.py -t $THREADS -q
+    else
+        summarize_jobs.py -t $THREADS -d
+    fi
+
+) 9>${LOCKFILE}
+

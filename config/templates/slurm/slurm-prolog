@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+
+use strict;
+use Sys::Hostname;
+use POSIX qw(strftime setsid);
+
+my $jobdatelong = strftime "%Y%m%d.%H.%M.%S", localtime;
+my $host = ( split('\.', hostname()) )[0];
+my $jobid = $ENV{SLURM_JOB_ID};
+
+# PCP job Start Logging
+
+my $fullhost = hostname();
+
+# This is the every 10 seconds for a total of 30 second log, after job start time
+# Slurm kills child processes of the prolog so we need to start our own process group to keep this running for 30 seconds after prolog is done
+
+$SIG{CHLD} = 'IGNORE';        # Configure to autoreap zombies
+exit(0) unless defined ( my $child = fork );  # fork, or just exit if failed
+exit(0) if $child;      # Main prolog exits with success
+
+# Below this is now the child
+setsid();                     # Become session leader
+open( STDIN,  "</dev/null" ); # Detach STDIN from shell
+open( STDOUT, ">/dev/null" ); # Detach STDOUT from shell
+open( STDERR, ">&STDOUT"   ); # Detach STDERR from shell
+chdir '/tmp';                 # Change working directory
+umask(0);                     # Reset umask
+
+# The prolog config runs every 10 seconds, starting at t==0, we exit after 4 samples
+my $cmd ="env PMLOGGER_PROLOG=yes pmlogger -c /etc/pcp/pmlogger/pmlogger-supremm.config -s 4 -l /tmp/job-$jobid-postbegin-$jobdatelong.log /var/log/pcp/pmlogger/$fullhost/job-$jobid-postbegin-$jobdatelong";
+
+exec( $cmd );
+
+exit(0)

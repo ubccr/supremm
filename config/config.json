@@ -1,0 +1,47 @@
+{
+    // Configuration settings for job data input
+    // The database configuration below assumes everything
+    //   is running on localhost.  A more complex configuration
+    //   could have multiple hosts and different credentials.
+    "xdmodroot": "/var/www/html/xdmod",
+    "accountdatabase": {
+        "db_engine": "MySQLDB",
+        "dbhost": "localhost",
+        "dbname": "modw_pcp",
+        "defaultsfile": "~/.my.cnf"
+    },
+    "datawarehouse": {
+        "db_engine": "MySQLDB",
+        "host": "localhost",
+        "defaultsfile": "~/.my.cnf"
+    },
+    // Configuration setting for summary document output
+    "outputdatabase": {
+        "db_engine": "mongodb",
+        "dbhost": "localhost",
+        "dbname": "supremm"
+    },
+    "summary": {
+        // The archive out directory should be writable by the process that runs
+        // the summaries.
+        "archive_out_dir": "/dev/shm/supremm_test",
+        // The following substitutions are defined for the job archive subdirectory:
+        //  %r means the resource name
+        //  %j the local job id
+        //  the rest is sent to strftime with the end time of the job
+        //  Common examples:
+        //  %Y-%m-%d/%r/%j  includes the date/resource/jobid in the path
+        "subdir_out_format": "%r/%j"
+    },
+    "resources": {
+        // Edit the below to match your cluster name and data locations
+        "my_cluster_name": {
+            "enabled": true,
+            "resource_id": 1,
+            "batch_system": "XDMoD",
+            "hostname_mode": "hostname",
+            "pcp_log_dir": "/data/pcp-logs/my_cluster_name",
+            "script_dir": "/data/jobscripts/my_cluster_name"
+        }
+    }
+}
