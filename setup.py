@@ -27,7 +27,7 @@ setup(name='supremm',
                   ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
                   ('share/supremm/setup/', ['assets/modw_supremm.sql', 'assets/mongo_setup.js'])
       ],
-      scripts=['gen-pmlogger-control.py', 
+      scripts=['supremm/gen-pmlogger-control.py',
                'supremm/summarize_jobs.py', 
                'supremm/indexarchives.py',
                'supremm/account.py',
