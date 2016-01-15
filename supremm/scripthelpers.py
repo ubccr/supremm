@@ -24,7 +24,7 @@ def parsetime(strtime):
 
     return datetime.datetime.strptime(strtime, "%c")
 
-def getdbconnection(configsection, as_dict=False):
+def getdbconnection(configsection, as_dict=False, dbargs={}):
     """ Helper function that gets a database connection object from a config dictionary """
 
     dbengine = configsection['dbengine'] if 'dbengine' in configsection else 'MySQLDB'
@@ -38,7 +38,6 @@ def getdbconnection(configsection, as_dict=False):
                      "pass": "passwd",
                      "port": "port"}
 
-        dbargs = {}
         for confval, myval in translate.iteritems():
             if confval in configsection:
                 dbargs[myval] = configsection[confval]

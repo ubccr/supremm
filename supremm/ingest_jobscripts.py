@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 import os
 import re
-import MySQLdb as mdb
+from supremm.scripthelpers import getdbconnection
 import sys
 import logging
 import glob
@@ -17,10 +17,10 @@ MAX_SCRIPT_LEN = (64 * 1024) - 1
 class DbHelper(object):
     """ Helper class to interact with the database """
 
-    def __init__(self, dbname, tablename, mydefaults):
+    def __init__(self, dwconfig, tablename):
 
         # The database schema should be created with utf8-unicode encoding.
-        self.con = mdb.connect(db=dbname, read_default_file=mydefaults, charset='utf8', use_unicode=True)
+        self.con = getdbconnection(dwconfig, False, {'charset': 'utf8', 'use_unicode': True})
         self.tablename = tablename
         self.query = "INSERT IGNORE INTO " + tablename + " (resource_id,local_job_id,script) VALUES(%s,%s,%s)"
         self.buffered = 0
@@ -28,11 +28,7 @@ class DbHelper(object):
     def insert(self, data):
         """ try to insert a record """
         cur = self.con.cursor()
-        try:
-            cur.execute(self.query, data)
-        except mdb.IntegrityError as exc:
-            if exc[0] != 1062:
-                raise exc
+        cur.execute(self.query, data)
 
         self.buffered += 1
         if self.buffered > 100:
@@ -175,7 +171,7 @@ def main():
     config = Config(opts['config'])
 
     dwconfig = config.getsection("datawarehouse")
-    dbif = DbHelper(dwconfig['dbname'], dwconfig['tablename'], dwconfig['defaultsfile'])
+    dbif = DbHelper(dwconfig, 'modw_supremm.batchscripts')
 
     for resourcename, settings in config.resourceconfigs():
 
@@ -190,6 +186,7 @@ def main():
             else:
                 logging.debug("Skip resource %s no script dir defined", resourcename)
 
+    dbif.postinsert()
 
 if __name__ == "__main__":
     main()
