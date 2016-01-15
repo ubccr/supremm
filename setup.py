@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" setup script for SUPReMM summarization package """
+""" setup script for SUPReMM job summarization utilities """
 from distutils.core import setup, Extension
 import sys
 import os
@@ -13,11 +13,13 @@ else:
 
 
 setup(name='supremm',
-      version='0.9.0',
-      description='Python Distribution Utilities',
+      version='0.9.1',
+      description='SUPReMM Job Summarization Utilities',
+      long_description='Utilities for generating job-level summary data from host level PCP archives.\nAlso includes template configuration files for running PCP on an HPC system.',
+      license='LGPLv3',
       author='Joseph P White',
       author_email='jpwhite4@buffalo.edu',
-      url='https://github.com/ubccr/ccr-pcp',
+      url='https://github.com/ubccr/supremm',
       packages=['supremm', 'supremm.pcpfast', 'supremm.plugins', 'supremm.preprocessors'],
       data_files=[(confpath,                         ['config/config.json']),
                   ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),

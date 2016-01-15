@@ -25,6 +25,20 @@ For more information, questions, feedback or bug reports send email to
 Want to be notified about SUPReMM package releases and news? Subscribe to the
 [XDMoD mailing list][listserv].
 
+Software Build Requirements 
+---------------------------
+
+### Centos 6 & 7
+
+Install the PCP repository configuration following the instructions on the [pcp packages
+page][pcpbintray]. Install the EPEL repository configuration:
+
+    yum install epel-release
+
+Install the build dependencies:
+
+    yum install rpm-build pcp-libs-devel gcc python-devel
+
 Installation
 ------------
 
@@ -61,3 +75,4 @@ the [GNU Lesser General Public License ("LGPL") Version 3.0][lgpl3].
 [listserv]:   http://listserv.buffalo.edu/cgi-bin/wa?SUBED1=ccr-xdmod-list&A=1
 [ghpr]:       https://help.github.com/articles/using-pull-requests/
 [pydist]:     https://docs.python.org/2.7/distutils/index.html
+[pcpbintray]: https://bintray.com/pcp/
