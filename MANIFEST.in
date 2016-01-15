@@ -49,7 +49,6 @@ include supremm/plugins/__init__.py
 include supremm/preprocessors/__init__.py
 include supremm/preprocessors/SlurmProc.py
 include config/config.json
-include config/example.conf
 include config/templates/slurm/slurm-epilog
 include config/templates/slurm/slurm-prolog
 include config/templates/pmlogger/control

@@ -1,19 +1,14 @@
 {
     // Configuration settings for job data input
-    // The database configuration below assumes everything
-    //   is running on localhost.  A more complex configuration
-    //   could have multiple hosts and different credentials.
-    "xdmodroot": "/var/www/html/xdmod",
-    "accountdatabase": {
-        "db_engine": "MySQLDB",
-        "dbhost": "localhost",
-        "dbname": "modw_pcp",
-        "defaultsfile": "~/.my.cnf"
-    },
+    // The database configuration below assumes everything on the same host and
+    // XDMoD is installed on the host too.
+    //
+    // It is not necessary for all databases to run locally. A more complex
+    // configuration could have multiple hosts and different credentials for
+    // each DB.
+    "xdmodroot": "/etc/xdmod",
     "datawarehouse": {
-        "db_engine": "MySQLDB",
-        "host": "localhost",
-        "defaultsfile": "~/.my.cnf"
+        "include": "xdmod://datawarehouse"
     },
     // Configuration setting for summary document output
     "outputdatabase": {
