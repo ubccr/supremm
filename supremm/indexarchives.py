@@ -178,7 +178,8 @@ def runindexing():
 
     logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
                         datefmt='%Y-%m-%dT%H:%M:%S', level=opts['log'])
-    logging.captureWarnings(True)
+    if sys.version.startswith("2.7"):
+        logging.captureWarnings(True)
 
     config = Config(opts['config'])
 
