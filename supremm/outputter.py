@@ -12,7 +12,7 @@ class factory(object):
         elif outconf['db_engine'] == "stdout":
             self._impl = StdoutOutput(outconf, resconf)
         else:
-            raise Exception("Unsupported output mechanism {}".format(outconf['db_engine']))
+            raise Exception("Unsupported output mechanism {0}".format(outconf['db_engine']))
 
     def __enter__(self):
         return self._impl.__enter__()

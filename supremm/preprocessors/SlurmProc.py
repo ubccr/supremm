@@ -95,7 +95,7 @@ class SlurmProc(PreProcessor):
 
         for pid, idx in currentpids.iteritems():
             if pid not in description[1]:
-                self.logerror("missing process name for pid {}".format(pid))
+                self.logerror("missing process name for pid {0}".format(pid))
                 continue
 
             command = " ".join(description[1][pid].split(" ")[1:])
