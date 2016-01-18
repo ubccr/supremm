@@ -24,7 +24,7 @@ class factory(object):
 class MongoOutput(object):
     """ Support for mongodb output """
     def __init__(self, outconf, resconf):
-        self._host = outconf['dbhost']
+        self._uri = outconf['uri']
         self._dname = outconf['dbname']
         self._collection = "resource_" + str(resconf['resource_id'])
         self._timeseries = "timeseries-" + self._collection
@@ -32,7 +32,7 @@ class MongoOutput(object):
         self._outdb = None
 
     def __enter__(self):
-        self._client = MongoClient(host=self._host)
+        self._client = MongoClient(host=self._uri)
         self._outdb = self._client[self._dname]
         return self
 

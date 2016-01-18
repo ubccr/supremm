@@ -13,7 +13,10 @@
     // Configuration setting for summary document output
     "outputdatabase": {
         "db_engine": "mongodb",
-        "dbhost": "localhost",
+        "uri": "mongodb://localhost:27017/supremm",
+        //"uri": "mongodb://username:password@localhost/supremm",
+        //"uri": "mongodb://mongodb-server1:27017,mongodb-server2:27017/supremm?replicaSet=foo",
+        //"uri": "mongodb://username:password@mongodb-server1:27017,mongodb-server2:27017/supremm?replicaSet=foo",
         "dbname": "supremm"
     },
     "summary": {
