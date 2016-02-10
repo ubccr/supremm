@@ -24,13 +24,14 @@ def parsetime(strtime):
 
     return datetime.datetime.strptime(strtime, "%c")
 
-def getdbconnection(configsection, as_dict=False, dbargs={}):
+def getdbconnection(configsection, as_dict=False, defaultargs={}):
     """ Helper function that gets a database connection object from a config dictionary """
 
     dbengine = configsection['dbengine'] if 'dbengine' in configsection else 'MySQLDB'
 
     if dbengine == 'MySQLDB':
 
+        dbargs = defaultargs.copy()
         # Convert the external configuration names to python PEP-249 config names
         translate = {"host": "host", 
                      "defaultsfile": "read_default_file",
