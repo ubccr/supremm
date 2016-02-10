@@ -101,7 +101,7 @@ def processfor(resource_id, respath, dbif, timedeltadays):
 
                 with open(os.path.join(root, filename), "rb") as scriptfile:
                     # Note: if non utf-8 characters are present in the file, they are encoded
-                    scriptdata = scriptfile.read(MAX_SCRIPT_LEN).decode("utf-8", errors="replace")
+                    scriptdata = scriptfile.read(MAX_SCRIPT_LEN).decode("utf-8", "replace")
                     if len(scriptdata) > MAX_SCRIPT_LEN:
                         # Could happen if the script contains non-utf-8 chars
                         scriptdata = scriptdata[:MAX_SCRIPT_LEN]
