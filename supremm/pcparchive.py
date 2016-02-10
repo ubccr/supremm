@@ -7,6 +7,7 @@ import datetime
 import os
 import shutil
 import subprocess
+import math
 
 from pcp import pmapi
 import cpmapi as c_pmapi
@@ -26,6 +27,29 @@ def get_datetime_from_timeval(tv):
     dt = dt.replace(microsecond=tv.tv_usec)
     return dt
 
+def adjust_job_start_end(job):
+    """ Set the job node start and end times based on the presence of the special
+     job-X-begin and job-X-end archives. Do nothing if these archives are absent
+    """
+
+    startarchive = "job-{0}-begin".format(job.job_id)
+    endarchive = "job-{0}-end".format(job.job_id)
+
+    for nodename, filepaths in job.rawarchives():
+        begin = None
+        end = None
+        for fname in filepaths:
+            filename = os.path.basename(fname)
+            if filename.startswith(startarchive):
+                context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
+                mdata = context.pmGetArchiveLabel()
+                begin = datetime.datetime.utcfromtimestamp(math.floor(mdata.start))
+
+            if filename.startswith(endarchive):
+                context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
+                end = datetime.datetime.utcfromtimestamp(math.ceil(context.pmGetArchiveEnd()))
+
+        job.setnodebeginend(nodename, begin, end)
 
 def get_datetime_from_pmResult(result):
     """
@@ -38,66 +62,11 @@ def get_datetime_from_pmResult(result):
     """
     return get_datetime_from_timeval(result.contents.timestamp)
 
-
-def process_slurm_metadata(context, job, nodename):
-    """
-    Check the archive for the slurm pmda data and use it to update the
-    job end timestamp.
-    """
-    newbegin = None
-    newend = None
-
-    try:
-        mdata = context.pmGetArchiveLabel()
-        context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.start, 0)
-        slurmmetric = context.pmLookupName("slurm.node.job.state")
-
-        done = False
-
-        while not done:
-            result = context.pmFetch(slurmmetric)
-
-            for i in xrange(result.contents.numpmid):
-                if result.contents.get_pmid(i) != slurmmetric[0]:
-                    continue
-                for j in xrange(result.contents.get_numval(i)):
-                    sjobid = str(result.contents.get_inst(i, j))
-                    if sjobid == job.job_id:
-                        atom = context.pmExtractValue(result.contents.get_valfmt(i),
-                                                      result.contents.get_vlist(i, j),
-                                                      c_pmapi.PM_TYPE_STRING,
-                                                      c_pmapi.PM_TYPE_STRING)
-                        value = atom.cp
-                        if value == "begin":
-                            newbegin = get_datetime_from_pmResult(result)
-                        elif value == "end":
-                            newend = get_datetime_from_pmResult(result)
-                            done = True
-
-            context.pmFreeResult(result)
-
-    except pmapi.pmErr as e:
-        if e.args[0] == c_pmapi.PM_ERR_EOL:
-            # Ok, just reached the end of file
-            pass
-        elif e.args[0] == c_pmapi.PM_ERR_NAME:
-            # No slurm metrics available
-            return None
-        else:
-            logging.warning("Failed to process slurm metrics for job %s. %s", job.job_id, e.message())
-            return None
-
-    job.setnodebeginend(nodename, newbegin, newend)
-
-
 def extract_and_merge_logs(job, conf, resconf):
     """ merge all of the raw pcp archives into one archive per node for each
         node in the job """
 
-    for nodename, filepaths in job.rawarchives():
-        for fname in filepaths:
-            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
-            process_slurm_metadata(context, job, nodename)
+    adjust_job_start_end(job)
 
     return pmlogextract(job, conf, resconf)
 
