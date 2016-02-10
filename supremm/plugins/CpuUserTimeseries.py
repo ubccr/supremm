@@ -26,22 +26,42 @@ class CpuUserTimeseries(Plugin):
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
         self._hostdevnames = {}
+        self._cpusallowed = None
+
+    def initcpus(self):
+        if self._job.getdata('proc'):
+            self._cpusallowed = self._job.getdata('proc')['cpusallowed']
+        else:
+            self._cpusallowed = {}
 
     def process(self, nodemeta, timestamp, data, description):
+
+        if self._cpusallowed == None:
+            self.initcpus()
 
         if len(data[0]) == 0:
             # Skip datapoints that have no values
             return True
 
+        if nodemeta.nodename in self._cpusallowed and 'error' not in self._cpusallowed[nodemeta.nodename]:
+            cpudata = data[0][self._cpusallowed[nodemeta.nodename]]
+        else:
+            cpudata = data[0]
+
         hostidx = nodemeta.nodeindex
 
         if nodemeta.nodeindex not in self._hostdata:
-            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[0])))
-            self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[0][0], description[0][1]))
+            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(cpudata)))
+            if nodemeta.nodename in self._cpusallowed and 'error' not in self._cpusallowed[nodemeta.nodename]:
+                self._hostdevnames[hostidx] = {}
+                for i, cpuidx in enumerate(self._cpusallowed[nodemeta.nodename]):
+                    self._hostdevnames[hostidx][str(i)] = description[0][1][cpuidx]
+            else:
+                self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[0][0], description[0][1]))
 
-        insertat = self._data.adddata(hostidx, timestamp, numpy.mean(data[0])/10.0)
+        insertat = self._data.adddata(hostidx, timestamp, numpy.mean(cpudata)/10.0)
         if insertat != None:
-            self._hostdata[hostidx][insertat] = data[0] / 10.0
+            self._hostdata[hostidx][insertat] = cpudata / 10.0
 
         return True
 
