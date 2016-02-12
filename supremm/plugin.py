@@ -120,7 +120,8 @@ class PreProcessor(object):
     """
     Preprocessors are called on each archive before all of the plugins are
     run. The results of the preprocessor are therefore available to the plugins.
-    The preprocessor results should be added to the job object.
+    The preprocessor results should be added to the job object by the preprocessor
+    using the job.addata() function.
     """
     __metaclass__ = ABCMeta
 
@@ -151,6 +152,13 @@ class PreProcessor(object):
         """ Called by the framework for all datapoints collected for the host
             referenced in the preceeding call to hoststart. It a host has no data
             then this will not be called.
+        """
+        pass
+
+    @abstractmethod
+    def results(self):
+        """ preprocessors may return a results object that will be added to the summary
+        document.
         """
         pass
 
