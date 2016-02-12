@@ -36,7 +36,7 @@ class SlurmProc(PreProcessor):
         self.cpusallowed = None
         self.hostname = None
 
-        self.output = {"procDump": {"constrained": set(), "unconstrained": set()}, "cpusallowed": {}, "errors": {}}
+        self.output = {"procDump": {"constrained": set(), "unconstrained": set()}, "cpusallowed": {}}
 
     @staticmethod
     def slurmcgroupparser(s):
@@ -69,6 +69,8 @@ class SlurmProc(PreProcessor):
         self.output['cpusallowed'][hostname] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
 
     def logerror(self, info):
+        if 'errors' not in self.output:
+            self.output['errors'] = {}
         if self.hostname not in self.output['errors']:
             self.output['errors'][self.hostname] = []
         self.output['errors'][self.hostname].append(info)
@@ -131,3 +133,20 @@ class SlurmProc(PreProcessor):
         self.hostname = None
 
         self._job.adddata(self.name, self.output)
+
+    def results(self):
+
+        result = {"constrained": list(self.output['procDump']['constrained']),
+                  "unconstrained": list(self.output['procDump']['unconstrained']),
+                  "cpusallowed": {}}
+
+        i = 0
+        for nodename, cpulist in self.output['cpusallowed'].iteritems():
+            if 'error' in cpulist:
+                result['cpusallowed']['node{0}'.format(i)] = {'node': nodename, 'error': cpulist['error']}
+            else:
+                result['cpusallowed']['node{0}'.format(i)] = {'node': nodename, 'cpu_list': ','.join(str(cpu) for cpu in cpulist)}
+            i += 1
+
+        return {'procDump': result}
+

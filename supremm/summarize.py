@@ -13,7 +13,7 @@ from supremm.plugin import NodeMetadata
 import numpy
 import copy
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 TIMESERIES_VERSION = 4
 
 
@@ -111,13 +111,14 @@ class Summarize(object):
             timeseries['version'] = TIMESERIES_VERSION
             output['timeseries'] = timeseries
 
-        # TODO - this breaks the plugin model a bit - workout how to make it nicer
-        p = self.job.getdata('proc')
-        if p:
-            output['acct']['hostcores'] = [(x[0], list(x[1])) for x in p['cpusallowed'].iteritems()]
-            output['procDump'] = {"constrained": list(p['procDump']['constrained']), "unconstrained": list(p['procDump']['unconstrained'])}
-            if len(p['errors']) > 0:
-                self.adderror("proc", str(p['errors']))
+        for preproc in self.preprocs:
+            result = preproc.results()
+            if result != None:
+                output.update(result)
+
+        for source, data in self.job.data().iteritems():
+            if 'errors' in data:
+                self.adderror(source, str(data['errors']))
 
         if len(self.errors) > 0:
             output['errors'] = {}
