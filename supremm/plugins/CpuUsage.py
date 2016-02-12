@@ -45,6 +45,9 @@ class CpuUsage(Plugin):
         elif len(data) != self._ncpumetrics:
             return False
 
+        if data[0].size == 0:
+            return False
+
         if nodemeta.nodename not in self._first:
             self._first[nodemeta.nodename] = numpy.array(data)
             return True
