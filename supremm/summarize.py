@@ -44,6 +44,8 @@ class Summarize(object):
         self.start = time.time()
         self.archives_processed = 0
 
+        self.indomcache = None
+
     def adderror(self, category, errormsg):
         """ All errors reported with this function show up in the job summary """
         if category not in self.errors:
@@ -193,12 +195,50 @@ class Summarize(object):
         """ returns a list with the datatype of the provided array of metric ids """
         return [context.pmLookupDesc(metric_ids[i]).type for i in xrange(len(metric_ids))]
 
-    def runcallback(self, analytic, result, mtypes, ctx, mdata, description):
+    def runcallback(self, analytic, result, mtypes, ctx, mdata, metric_id_array):
+        """ get the data and call the analytic """
+
+        if self.indomcache == None:
+            # First time through populate the indom cache
+            self.indomcache = self.getindomdict(ctx, metric_id_array)
+            if self.indomcache == None:
+                # Unable to get indom information
+                return False
 
         data = []
+        description = []
+
         for i in xrange(result.contents.numpmid):
-            data.append(numpy.array([pcpfast.pcpfastExtractValues(result, i, j, mtypes[i])[0]
-                                     for j in xrange(result.contents.get_numval(i))]))
+            ninstances = result.contents.get_numval(i)
+            if ninstances < 0:
+                logging.warning("%s %s ninstances = %s @ %s", mdata.nodename, analytic.name, ninstances, float(result.contents.timestamp))
+                self.logerror(mdata.nodename, analytic.name, "get_numval() error")
+                return False
+
+            tmp = numpy.empty(ninstances)
+            tmpnames = []
+            tmpidx = numpy.empty(ninstances, dtype=long)
+
+            for j in xrange(ninstances):
+                pcpdata = pcpfast.pcpfastExtractValues(result, i, j, mtypes[i])
+                tmp[j] = pcpdata[0]
+                if pcpdata[1] > -1:
+                    tmpidx[j] = pcpdata[1]
+                    if pcpdata[1] not in self.indomcache[i]:
+                        # indoms must have changed; rebuild the cache
+                        self.indomcache = self.getindomdict(ctx, metric_id_array)
+                        if self.indomcache == None:
+                            return False
+                    if pcpdata[1] not in self.indomcache[i]:
+                        # Unable to get indom information for one of the instance domains
+                        # Ignore this timestep, but carry on
+                        logging.warning("%s %s missing indom @ %s", mdata.nodename, analytic.name, float(result.contents.timestamp))
+                        self.logerror(mdata.nodename, analytic.name, "missing indom")
+                        return False
+                    tmpnames.append(self.indomcache[i][pcpdata[1]])
+
+            data.append(tmp)
+            description.append([tmpidx, tmpnames])
 
         try:
             retval = analytic.process(mdata, float(result.contents.timestamp), data, description)
@@ -208,8 +248,12 @@ class Summarize(object):
             self.logerror(mdata.nodename, analytic.name, str(e))
             return False
 
-    @staticmethod
-    def runpreproccall(preproc, result, mtypes, ctx, mdata, description):
+    def runpreproccall(self, preproc, result, mtypes, ctx, mdata, metric_id_array):
+        """ Call the pre-processor data processing function """
+
+        description = self.getindomdict(ctx, metric_id_array)
+        if description == None:
+            return True
 
         data = []
         for i in xrange(result.contents.numpmid):
@@ -217,6 +261,36 @@ class Summarize(object):
                                      for j in xrange(result.contents.get_numval(i))]))
 
         return preproc.process(float(result.contents.timestamp), data, description)
+
+    @staticmethod
+    def getindomdict(ctx, metric_id_array):
+        """ build a list of dicts that contain the instance domain id to text mappings
+            The nth list entry is the nth metric in the metric_id_array
+            @throw MissingIndomException if the instance information is not available
+        """
+        indomdict = []
+        for i in xrange(len(metric_id_array)):
+            metric_desc = ctx.pmLookupDesc(metric_id_array[i])
+            if 4294967295 != pmapi.get_indom(metric_desc):
+                try:
+                    ivals, inames = ctx.pmGetInDom(metric_desc)
+                    if ivals == None:
+                        indomdict.append({})
+                    else:
+                        indomdict.append(dict(zip(ivals, inames)))
+
+                except pmapi.pmErr as exp:
+                    if exp.args[0] == c_pmapi.PM_ERR_INDOM:
+                        indomdict.append({})
+                    elif exp.args[0] == c_pmapi.PM_ERR_INDOM_LOG:
+                        return None
+                    else:
+                        raise exp
+
+            else:
+                indomdict.append({})
+
+        return indomdict
 
     def processforpreproc(self, ctx, mdata, preproc):
         """ fetch the data from the archive, reformat as a python data structure
@@ -239,32 +313,18 @@ class Summarize(object):
             try:
                 result = ctx.pmFetch(metric_id_array)
 
-                description = []
-                for i in xrange(len(metric_id_array)):
-                    # TODO - make this more efficient and move to a function
-                    metric_desc = ctx.pmLookupDesc(metric_id_array[i])
-                    if 4294967295 != pmapi.get_indom(metric_desc):
-                        ivals, inames = ctx.pmGetInDom(metric_desc)
-                        if ivals == None:
-                            self.logerror(mdata.nodename, preproc.name, "missing indoms")
-                            preproc.hostend()
-                            return
-                        description.append(dict(zip(ivals, inames)))
-
-                if False == self.runpreproccall(preproc, result, mtypes, ctx, mdata, description):
+                if False == self.runpreproccall(preproc, result, mtypes, ctx, mdata, metric_id_array):
                     # A return value of false from process indicates the computation
                     # failed and no more data should be sent.
                     done = True
 
                 ctx.pmFreeResult(result)
 
-            except pmapi.pmErr as e:
-                if e.args[0] == c_pmapi.PM_ERR_EOL:
+            except pmapi.pmErr as exp:
+                if exp.args[0] == c_pmapi.PM_ERR_EOL:
                     done = True
-                elif e.args[0] == c_pmapi.PM_ERR_INDOM or e.args[0] == c_pmapi.PM_ERR_INDOM_LOG:
-                    self.logerror(mdata.nodename, preproc.name, e.message())
                 else:
-                    raise e
+                    raise exp
 
         preproc.status = "complete"
         preproc.hostend()
@@ -280,33 +340,30 @@ class Summarize(object):
             return
 
         mtypes = self.getmetrictypes(ctx, metric_id_array)
+        self.indomcache = None
 
-        description = None
         done = False
 
         while not done:
+            result = None
             try:
                 result = ctx.pmFetch(metric_id_array)
 
-                if description == None:
-                    description = self.getdescription(ctx, metric_id_array)
-
-                if False == self.runcallback(analytic, result, mtypes, ctx, mdata, description):
+                if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
                     # A return value of false from process indicates the computation
                     # failed and no more data should be sent.
                     done = True
 
-                ctx.pmFreeResult(result)
-
-            except pmapi.pmErr as e:
-                if e.args[0] == c_pmapi.PM_ERR_EOL:
+            except pmapi.pmErr as exp:
+                if exp.args[0] == c_pmapi.PM_ERR_EOL:
                     done = True
-                elif e.args[0] == c_pmapi.PM_ERR_INDOM or e.args[0] == c_pmapi.PM_ERR_INDOM_LOG:
-                    self.logerror(mdata.nodename, analytic.name, e.message())
                 else:
-                    logging.warning("%s (%s) raised exception %s", type(analytic).__name__, analytic.name, e)
+                    logging.warning("%s (%s) raised exception %s", type(analytic).__name__, analytic.name, str(exp))
                     analytic.status = "failure"
-                    raise e
+                    raise exp
+            finally:
+                if result != None:
+                    ctx.pmFreeResult(result)
 
         analytic.status = "complete"
 
@@ -314,20 +371,9 @@ class Summarize(object):
         """
         Store the detail of archive processing errors
         """
+        #if analyticname != "gpu":
         logging.debug("archive processing exception: %s %s %s", archive, analyticname, pmerrorcode)
         self.adderror("archive", "{0} {1} {2}".format(archive, analyticname, pmerrorcode))
-
-    @staticmethod
-    def getdescription(ctx, metric_id_array):
-        """ return an array of the names of the instance domains for the requested metrics
-        """
-        description = []
-        for i in xrange(len(metric_id_array)):
-            metric_desc = ctx.pmLookupDesc(metric_id_array[i])
-            if 4294967295 != pmapi.get_indom(metric_desc):
-                description.append(ctx.pmGetInDom(metric_desc))
-
-        return description
 
     def processfirstlast(self, ctx, mdata, analytic):
         """ fetch the data from the archive, reformat as a python data structure
@@ -339,27 +385,27 @@ class Summarize(object):
             return
 
         mtypes = self.getmetrictypes(ctx, metric_id_array)
+        self.indomcache = None
 
         try:
             result = ctx.pmFetch(metric_id_array)
             firstimestamp = copy.deepcopy(result.contents.timestamp)
-            description = self.getdescription(ctx, metric_id_array)
 
-            if False == self.runcallback(analytic, result, mtypes, ctx, mdata, description):
+            if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
+                ctx.pmFreeResult(result)
                 return
 
             ctx.pmFreeResult(result)
             ctx.pmSetMode(c_pmapi.PM_MODE_BACK, ctx.pmGetArchiveEnd(), 0)
 
             result = ctx.pmFetch(metric_id_array)
-            description = self.getdescription(ctx, metric_id_array)
 
             if result.contents.timestamp.tv_sec == firstimestamp.tv_sec and result.contents.timestamp.tv_usec == firstimestamp.tv_usec:
                 # This achive must only contain one data point for these metrics
                 ctx.pmFreeResult(result)
                 return
 
-            if False == self.runcallback(analytic, result, mtypes, ctx, mdata, description):
+            if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
                 analytic.status = "failure"
                 ctx.pmFreeResult(result)
                 return
@@ -371,8 +417,6 @@ class Summarize(object):
         except pmapi.pmErr as e:
             if e.args[0] == c_pmapi.PM_ERR_EOL:
                 pass
-            elif e.args[0] == c_pmapi.PM_ERR_INDOM or e.args[0] == c_pmapi.PM_ERR_INDOM_LOG:
-                self.logerror(mdata.nodename, analytic.name, e.message())
             else:
                 logging.exception("%s", analytic.name)
                 raise e
