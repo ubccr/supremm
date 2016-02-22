@@ -9,7 +9,8 @@ class ProcessingError(object):
     INSUFFICIENT_HOSTDATA = 4
     CPUSET_UNKNOWN = 5
     PMDA_RESTARTED_DURING_JOB = 6
-    MAX_ERROR = 7
+    INDOMS_CHANGED_DURING_JOB = 7
+    MAX_ERROR = 8
 
     def __init__(self, err_id):
         self._id = err_id
@@ -21,7 +22,8 @@ class ProcessingError(object):
             ProcessingError.INSUFFICIENT_DATA: "There were too few datapoints.",
             ProcessingError.INSUFFICIENT_HOSTDATA: "Not all of the hosts had raw metrics available",
             ProcessingError.CPUSET_UNKNOWN: "The cpuset that was assigned to the job is unavailable",
-            ProcessingError.PMDA_RESTARTED_DURING_JOB: "The PMDA restarted during the job"
+            ProcessingError.PMDA_RESTARTED_DURING_JOB: "The PMDA restarted during the job",
+            ProcessingError.INDOMS_CHANGED_DURING_JOB: "The instance domains for required metrics changed during the job"
         }
         return names[self._id]
 

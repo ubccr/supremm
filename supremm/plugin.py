@@ -189,7 +189,7 @@ class PreProcessor(object):
 
 
 class DeviceBasedPlugin(Plugin):
-    """ 
+    """
     A base abstract class for summarising the job-delta for device-based metrics
     The plugin name and list of required metrics must be provided by the implementation
     """
@@ -201,7 +201,7 @@ class DeviceBasedPlugin(Plugin):
         super(DeviceBasedPlugin, self).__init__(job)
         self._first = {}
         self._data = {}
-
+        self._error = None
 
     def process(self, nodemeta, timestamp, data, description):
 
@@ -209,10 +209,16 @@ class DeviceBasedPlugin(Plugin):
             return False
 
         if nodemeta.nodename not in self._first:
-            self._first[nodemeta.nodename] = data
+            self._first[nodemeta.nodename] = numpy.array(data)
             return True
 
-        hostdata = numpy.array(data) - self._first[nodemeta.nodename]
+        ndata = numpy.array(data)
+
+        if ndata.shape != self._first[nodemeta.nodename].shape:
+            self._error = ProcessingError.INDOMS_CHANGED_DURING_JOB
+            return False
+
+        hostdata = ndata - self._first[nodemeta.nodename]
 
         for mindex, i in enumerate(description):
             for index in xrange(len(hostdata[mindex, :])):
@@ -228,6 +234,9 @@ class DeviceBasedPlugin(Plugin):
         return True
 
     def results(self):
+
+        if self._error != None:
+            return {"error": self._error}
 
         if len(self._data) == 0:
             return {"error": ProcessingError.INSUFFICIENT_DATA}
