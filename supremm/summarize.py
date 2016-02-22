@@ -195,6 +195,13 @@ class Summarize(object):
         """ returns a list with the datatype of the provided array of metric ids """
         return [context.pmLookupDesc(metric_ids[i]).type for i in xrange(len(metric_ids))]
 
+    @staticmethod
+    def pcptypetonumpy(pcptype):
+        """ Convert pcp data types to numpy equivalents """
+        if pcptype == c_pmapi.PM_TYPE_STRING:
+            return object
+        return numpy.float
+
     def runcallback(self, analytic, result, mtypes, ctx, mdata, metric_id_array):
         """ get the data and call the analytic """
 
@@ -215,7 +222,7 @@ class Summarize(object):
                 self.logerror(mdata.nodename, analytic.name, "get_numval() error")
                 return False
 
-            tmp = numpy.empty(ninstances)
+            tmp = numpy.empty(ninstances, dtype=self.pcptypetonumpy(mtypes[i]))
             tmpnames = []
             tmpidx = numpy.empty(ninstances, dtype=long)
 
