@@ -92,8 +92,31 @@ class PcpArchiveFinder(object):
 
     def __init__(self, mindate):
         self.mindate = mindate
+        if self.mindate != None:
+            self.minmonth = datetime(year=mindate.year, month=mindate.month, day=1) - timedelta(days=1)
+        else:
+            self.minmonth = None
         self.fregex = re.compile(
             r".*(\d{4})(\d{2})(\d{2})(?:\.\d{2}.\d{2}(?:[\.-]\d{2})?)?\.index$")
+        self.sregex = re.compile(r"^(\d{4})(\d{2})$")
+
+    def subdirok(self, subdir):
+        """ check the name of a subdirectory and return whether to
+            descend into it based on the name.
+            @returns true if the name is not a datestamp
+                     true if the name is a date that is >= the reference date
+                     false if the name is a date that is < the reference
+        """
+        if self.minmonth == None:
+            return True
+
+        mtch = self.sregex.match(subdir)
+        if mtch == None:
+            return True
+
+        subdirdate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=1)
+
+        return subdirdate > self.minmonth
 
     def filenameok(self, filename):
         """ parse filename to get the datestamp and compare with the reference datestamp
@@ -117,11 +140,15 @@ class PcpArchiveFinder(object):
         if topdir == "":
             return
 
-        for (dirpath, _, filenames) in os.walk(topdir):
+        for (dirpath, subdirs, filenames) in os.walk(topdir):
             for filename in filenames:
-                archivefile = os.path.join(dirpath, filename)
                 if filename.endswith(".index") and self.filenameok(filename):
-                    yield archivefile
+                    yield os.path.join(dirpath, filename)
+
+            # modify the subdirs list in-place so that walk does not decend down the
+            # ones we do not need to process
+            subdirs[:] = [subdir for subdir in subdirs if self.subdirok(subdir)]
+
 
 DAY_DELTA = 3
 
