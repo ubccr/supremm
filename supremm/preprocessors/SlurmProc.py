@@ -5,6 +5,7 @@ from supremm.plugin import PreProcessor
 from supremm.errors import ProcessingError
 from supremm.linuxhelpers import parsecpusallowed
 import re
+import itertools
 
 class SlurmProc(PreProcessor):
     """ Parse and analyse the proc information for a job that ran under slurm
@@ -22,18 +23,19 @@ class SlurmProc(PreProcessor):
         "hotproc.psinfo.cgroups" ] 
         ])
 
-    optionalMetrics = property(lambda x: [])
+    optionalMetrics = property(lambda x: ["cgroup.cpuset.cpus"])
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
         super(SlurmProc, self).__init__(job)
 
-        # TODO - what happens with job arrays?
         self.expectedslurmscript = "/var/spool/slurmd/job" + job.job_id + "/slurm_script"
-        self.expectedcgroup = "cpuset:/slurm/uid_" + str(job.acct['uid']) + "/job_" + job.job_id
+        self.cgrouppath = "/slurm/uid_" + str(job.acct['uid']) + "/job_" + job.job_id
+        self.expectedcgroup = "cpuset:" + self.cgrouppath
         self.jobusername = job.acct['user']
 
         self.cpusallowed = None
+        self.cgroupcpuset = None
         self.hostname = None
 
         self.output = {"procDump": {"constrained": set(), "unconstrained": set()}, "cpusallowed": {}}
@@ -112,6 +114,12 @@ class SlurmProc(PreProcessor):
                 else:
                     unconstrainedprocs[pid] = command
 
+        if len(data) > 3 and self.cgroupcpuset == None:
+            for cpuset in itertools.ifilter(lambda x: x[1] == self.cgrouppath, description[3].iteritems()):
+                for content in itertools.ifilter(lambda x: int(x[1]) == cpuset[0], data[3]):
+                    self.cgroupcpuset = parsecpusallowed(content[0])
+                    break
+
         if self.cpusallowed == None:
             allcores = set()
             for idx in cgroupedprocs:
@@ -126,9 +134,12 @@ class SlurmProc(PreProcessor):
 
     def hostend(self):
 
-        if self.cpusallowed != None:
+        if self.cgroupcpuset != None:
+            self.output['cpusallowed'][self.hostname] = list(self.cgroupcpuset)
+        elif self.cpusallowed != None:
             self.output['cpusallowed'][self.hostname] = list(self.cpusallowed)
 
+        self.cgroupcpuset = None
         self.cpusallowed = None
         self.hostname = None
 
