@@ -36,7 +36,7 @@ class MemUsageTimeseries(Plugin):
 
         if nodemeta.nodeindex not in self._hostdata:
             self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[0])))
-            self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[0][0], description[0][1]))
+            self._hostdevnames[hostidx] = dict((str(k), "numa " + v) for k, v in zip(description[0][0], description[0][1]))
 
         nodemem_kb = numpy.sum(data[0]) - numpy.sum(data[1]) - numpy.sum(data[2])
         insertat = self._data.adddata(hostidx, timestamp, nodemem_kb / 1048576.0)
