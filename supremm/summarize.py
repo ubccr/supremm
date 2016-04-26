@@ -241,7 +241,7 @@ class Summarize(object):
                         # Ignore this timestep, but carry on
                         logging.warning("%s %s missing indom @ %s", mdata.nodename, analytic.name, float(result.contents.timestamp))
                         self.logerror(mdata.nodename, analytic.name, "missing indom")
-                        return False
+                        return True
                     tmpnames.append(self.indomcache[i][pcpdata[1]])
 
             data.append(tmp)
