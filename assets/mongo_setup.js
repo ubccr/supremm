@@ -13,10 +13,25 @@ var sdef = {
             "description": "Memory bandwidth",
             "help": "The total rate of data transferred to and from main memory. The rate is computed over each time interval. This value is obtained from the hardware counters."
         },
+        "simdins": {
+            "units": "insts/s",
+            "description": "SIMD instructions",
+            "help": "The total rate of floating point SIMD instructions reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
+        },
         "memused_minus_diskcache": {
             "units": "GB",
-            "description": "Memory usage",
-            "help": "The total amount of application memory allocated. The value computed as the total allocated memory minus the memory used by kernel page and SLAB caches."
+            "description": "Node Memory RSS",
+            "help": "The total physical memory used by the operating system excluding memory used for caches. This value includes the contribution for <em>all</em> processes including system daemons and all running HPC jobs but does not include the physical memory used by the kernel page and SLAB caches. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)",
+        },
+        "memused": {
+            "units": "GB",
+            "description": "Total Node Memory",
+            "help": "The total physical memory used by the operating system. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)"
+        },
+        "process_mem_usage" : {
+            "units" : "GB",
+            "description" : "Total CGroup Memory",
+            "help" : "The total amount of memory used in the memory cgroup that contained the job. The value is obtained from the kernel cgroup metrics."
         },
         "ib_lnet": {
             "units": "MB/s",
@@ -28,15 +43,10 @@ var sdef = {
             "description": "Parallel Filesystem traffic",
             "help": "The total rate of data transferred to and from the parallel filesystem. The rate is computed over each time interval and is the sum of data sent and received by each node."
         },
-        "simdins": {
-            "units": "insts/s",
-            "description": "SIMD instructions",
-            "help": "The total rate of floating point SIMD instructions reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
-        },
-        "process_mem_usage" : {
-            "units" : "GB",
-            "description" : "Process Memory",
-            "help" : "The total amount of memory used in the memory cgroup that contained the job. The value is obtained from the kernel cgroup metrics."
+        "block": {
+            "units": "MB/s",
+            "description": "Block Filesystem traffic",
+            "help": "The total rate of data transferred to and from the block devices on each node.  The rate is computed over each time interval and is the sum of data read and written."
         },
         "nfs" : {
             "units" : "MB/s",
