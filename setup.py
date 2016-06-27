@@ -3,6 +3,7 @@
 from distutils.core import setup, Extension
 import sys
 import os
+from Cython.Distutils import build_ext
 
 # For rpm-based builds want the configuration files to
 # go in the standard location
@@ -20,7 +21,7 @@ setup(name='supremm',
       author='Joseph P White',
       author_email='jpwhite4@buffalo.edu',
       url='https://github.com/ubccr/supremm',
-      packages=['supremm', 'supremm.pcpfast', 'supremm.plugins', 'supremm.preprocessors'],
+      packages=['supremm', 'supremm.plugins', 'supremm.preprocessors'],
       data_files=[(confpath,                         ['config/config.json']),
                   ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
                   ('share/supremm/templates/pmlogger',    ['config/templates/pmlogger/control',    'config/templates/pmlogger/pmlogger-supremm.config']),
@@ -38,6 +39,8 @@ setup(name='supremm',
                'supremm/ingest_jobscripts.py'],
       requires=['numpy',
                 'MySQLdb',
-                'pcp'],
-      ext_modules=[Extension('supremm.pcpfast.libpcpfast', ['supremm/pcpfast/pcpfast.c'], libraries=['pcp'])]
+                'pcp',
+                'Cython'],
+      cmdclass = {'build_ext': build_ext},
+      ext_modules=[Extension("supremm.puffypcp", ["supremm/puffypcp/puffypcp.pyx"], libraries=['pcp'])]
      )

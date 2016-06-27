@@ -23,9 +23,8 @@ include supremm/summarize_jobs.py
 include supremm/supremmconf.py
 include supremm/supremm_update
 include supremm/xdmodaccount.py
-include supremm/pcpfast/__init__.py
-include supremm/pcpfast/pcpfast.c
-include supremm/pcpfast/pcpfast.py
+include supremm/puffypcp/puffypcp.pyx
+include supremm/puffypcp/pcp.pxd
 include supremm/plugins/Block.py
 include supremm/plugins/Catastrophe.py
 include supremm/plugins/TaccCatastrophe.py
@@ -59,4 +58,4 @@ include config/templates/pmie/control
 include config/templates/pmie/pcp-restart.sh
 include config/templates/pmie/pmie-supremm.config
 include assets/modw_supremm.sql
-include assets/mongo_setup.js
+include assets/mongo_setup.j

@@ -5,7 +5,6 @@ import numpy
 
 def calculate_stats(v):
     res = {}
-
     if len(v) == 1:
         return {'avg': float(v[0]), 'cnt': 1}
 
@@ -14,7 +13,7 @@ def calculate_stats(v):
 
         if v_min == v_max:
             return {'avg': float(v[0]), 'cnt': len(v)}
-
+        
         res['max'] = float(v_max)
         res['avg'] = v_avg
         res['krt'] = v_kurt

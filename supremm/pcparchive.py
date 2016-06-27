@@ -124,7 +124,8 @@ def pmlogextract(job, conf, resconf):
 
     # Generate the path to the job's log directory.
     jobdir = genoutputdir(job, conf, resconf)
-
+    
+    logging.debug("output dir is %s", jobdir)
     if os.path.exists(jobdir):
         try:
             shutil.rmtree(jobdir)
@@ -144,6 +145,7 @@ def pmlogextract(job, conf, resconf):
 
     # For every node the job ran on...
     node_error = 0
+
     for nodename, nodearchives in job.rawarchives():
 
         # Merge the job logs for the node.
