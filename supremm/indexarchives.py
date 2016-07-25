@@ -5,6 +5,7 @@
 import logging
 from pcp import pmapi
 import cpmapi as c_pmapi
+import time
 
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
@@ -144,14 +145,34 @@ class PcpArchiveFinder(object):
         if topdir == "":
             return
 
-        for (dirpath, subdirs, filenames) in os.walk(topdir):
-            for filename in filenames:
-                if filename.endswith(".index") and self.filenameok(filename):
-                    yield os.path.join(dirpath, filename)
+        hosts = os.listdir(topdir)
 
-            # modify the subdirs list in-place so that walk does not decend down the
-            # ones we do not need to process
-            subdirs[:] = [subdir for subdir in subdirs if self.subdirok(subdir)]
+        starttime = time.time()
+        hostcount = 0
+        currtime = starttime
+
+        for hostname in hosts:
+            hostdir = os.path.join(topdir, hostname)
+            t1 = time.time()
+            datdirs = os.listdir(hostdir)
+            t2 = time.time()
+            for datedir in datdirs:
+
+                if self.subdirok(datedir):
+                    dirpath = os.path.join(hostdir, datedir)
+                    t3 = time.time()
+                    filenames = os.listdir(dirpath)
+                    t4 = time.time()
+                    for filename in filenames:
+                        if filename.endswith(".index") and self.filenameok(filename):
+                            yield os.path.join(dirpath, filename)
+
+            hostcount += 1
+            lasttime = currtime
+            currtime = time.time()
+            logging.info("Processed %s of %s (last %s = (%s + %s +) total %s estimated completion %s",
+                         hostcount, len(hosts), currtime-lasttime, t2-t1, t4-t3, currtime - starttime,
+                         datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
 
 DAY_DELTA = 3
@@ -223,6 +244,8 @@ def runindexing():
 
     config = Config(opts['config'])
 
+    logging.info("archive indexer starting")
+
     for resourcename, resource in config.resourceconfigs():
 
         if opts['resource'] in (None, resourcename, str(resource['resource_id'])):
@@ -234,6 +257,8 @@ def runindexing():
                 acache.processarchive(archivefile)
 
             acache.close()
+
+    logging.info("archive indexer complete")
 
 if __name__ == "__main__":
     runindexing()
