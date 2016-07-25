@@ -7,7 +7,7 @@ from pcp import pmapi
 import cpmapi as c_pmapi
 
 from supremm.config import Config
-from supremm.scripthelpers import parsetime
+from supremm.scripthelpers import parsetime, setuplogger
 
 from supremm.account import DbArchiveCache
 from supremm.xdmodaccount import XDMoDArchiveCache
@@ -167,6 +167,9 @@ def usage():
     print "                       (default", DAY_DELTA, "days ago)"
     print "  -M --maxdate=DATE    specify the maximum datestamp of archives to process"
     print "                       (default now())"
+    print "  -D --debugfile       specify the path to a log file. If this option is"
+    print "                       present then the process will log a DEBUG level to this"
+    print "                       file. This logging is independent of the console log."
     print "  -a --all             process all archives regardless of age"
     print "  -d --debug           set log level to debug"
     print "  -q --quiet           only log errors"
@@ -180,11 +183,12 @@ def getoptions():
         "log": logging.INFO,
         "resource": None,
         "config": None,
+        "debugfile": None,
         "mindate": datetime.now() - timedelta(days=DAY_DELTA),
         "maxdate": datetime.now()
     }
 
-    opts, _ = getopt(sys.argv[1:], "r:c:m:M:adqh", ["resource=", "config=", "mindate=", "maxdate=", "all", "debug", "quiet", "help"])
+    opts, _ = getopt(sys.argv[1:], "r:c:m:M:D:adqh", ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help"])
 
     for opt in opts:
         if opt[0] in ("-r", "--resource"):
@@ -199,6 +203,8 @@ def getoptions():
             retdata['mindate'] = parsetime(opt[1])
         elif opt[0] in ("-M", "--maxdate"):
             retdata['maxdate'] = parsetime(opt[1])
+        elif opt[0] in ("-D", "--debugfile"):
+            retdata["debugfile"] = opt[1]
         elif opt[0] in ("-a", "--all"):
             retdata['mindate'] = None
             retdata['maxdate'] = None
@@ -213,10 +219,7 @@ def runindexing():
     """ main script entry point """
     opts = getoptions()
 
-    logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
-                        datefmt='%Y-%m-%dT%H:%M:%S', level=opts['log'])
-    if sys.version.startswith("2.7"):
-        logging.captureWarnings(True)
+    setuplogger(opts['log'], opts['debugfile'], logging.DEBUG)
 
     config = Config(opts['config'])
 
