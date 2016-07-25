@@ -90,8 +90,9 @@ class PcpArchiveFinder(object):
         mindate is the minimum datestamp of files that should be processed
     """
 
-    def __init__(self, mindate):
+    def __init__(self, mindate, maxdate):
         self.mindate = mindate
+        self.maxdate = maxdate
         if self.mindate != None:
             self.minmonth = datetime(year=mindate.year, month=mindate.month, day=1) - timedelta(days=1)
         else:
@@ -133,7 +134,10 @@ class PcpArchiveFinder(object):
         filedate = datetime(year=int(mtch.group(1)), month=int(
             mtch.group(2)), day=int(mtch.group(3)))
 
-        return filedate > self.mindate
+        if self.maxdate == None:
+            return filedate > self.mindate
+        else:
+            return filedate > self.mindate and filedate < self.maxdate
 
     def find(self, topdir):
         """  find all archive files in topdir """
@@ -161,6 +165,8 @@ def usage():
     print "  -c --config=PATH     specify the path to the configuration directory"
     print "  -m --mindate=DATE    specify the minimum datestamp of archives to process"
     print "                       (default", DAY_DELTA, "days ago)"
+    print "  -M --maxdate=DATE    specify the maximum datestamp of archives to process"
+    print "                       (default now())"
     print "  -a --all             process all archives regardless of age"
     print "  -d --debug           set log level to debug"
     print "  -q --quiet           only log errors"
@@ -174,10 +180,11 @@ def getoptions():
         "log": logging.INFO,
         "resource": None,
         "config": None,
-        "mindate": datetime.now() - timedelta(days=3)
+        "mindate": datetime.now() - timedelta(days=DAY_DELTA),
+        "maxdate": datetime.now()
     }
 
-    opts, _ = getopt(sys.argv[1:], "r:c:m:adqh", ["resource=", "config=", "mindate=", "all", "debug", "quiet", "help"])
+    opts, _ = getopt(sys.argv[1:], "r:c:m:M:adqh", ["resource=", "config=", "mindate=", "maxdate=", "all", "debug", "quiet", "help"])
 
     for opt in opts:
         if opt[0] in ("-r", "--resource"):
@@ -190,8 +197,11 @@ def getoptions():
             retdata['config'] = opt[1]
         elif opt[0] in ("-m", "--mindate"):
             retdata['mindate'] = parsetime(opt[1])
+        elif opt[0] in ("-M", "--maxdate"):
+            retdata['maxdate'] = parsetime(opt[1])
         elif opt[0] in ("-a", "--all"):
             retdata['mindate'] = None
+            retdata['maxdate'] = None
         elif opt[0] in ("-h", "--help"):
             usage()
             sys.exit(0)
@@ -215,7 +225,7 @@ def runindexing():
         if opts['resource'] in (None, resourcename, str(resource['resource_id'])):
 
             acache = PcpArchiveProcessor(config, resource)
-            afind = PcpArchiveFinder(opts['mindate'])
+            afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'])
 
             for archivefile in afind.find(resource['pcp_log_dir']):
                 acache.processarchive(archivefile)
