@@ -151,6 +151,14 @@ class SlurmProc(PreProcessor):
                   "unconstrained": list(self.output['procDump']['unconstrained']),
                   "cpusallowed": {}}
 
+        sizelimit = 150
+        if len(result["constrained"]) > sizelimit:
+            result["constrained"] = result["constrained"][0:sizelimit]
+            result["error"] = "process list limited to {0} procs".format(sizelimit)
+        if len(result["unconstrained"]) > sizelimit:
+            result["unconstrained"] = result["unconstrained"][0:sizelimit]
+            result["error"] = "process list limited to {0} procs".format(sizelimit)
+
         i = 0
         for nodename, cpulist in self.output['cpusallowed'].iteritems():
             if 'error' in cpulist:
