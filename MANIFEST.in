@@ -22,6 +22,7 @@ include supremm/summarize.py
 include supremm/summarize_jobs.py
 include supremm/supremmconf.py
 include supremm/supremm_update
+include supremm/supremm-setup
 include supremm/xdmodaccount.py
 include supremm/pcpfast/__init__.py
 include supremm/pcpfast/pcpfast.c
