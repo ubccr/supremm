@@ -105,15 +105,15 @@ class PcpArchiveFinder(object):
     def subdirok(self, subdir):
         """ check the name of a subdirectory and return whether to
             descend into it based on the name.
-            @returns true if the name is not a datestamp
+            @returns None if the name is not a datestamp
                      true if the name is a date that is >= the reference date
                      false if the name is a date that is < the reference
         """
-        if self.minmonth == None:
-            return True
-
         mtch = self.sregex.match(subdir)
         if mtch == None:
+            return None
+
+        if self.minmonth == None:
             return True
 
         subdirdate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=1)
@@ -158,7 +158,13 @@ class PcpArchiveFinder(object):
             t2 = time.time()
             for datedir in datdirs:
 
-                if self.subdirok(datedir):
+                datedirOk = self.subdirok(datedir)
+                if datedirOk == None:
+                    t3 = t2
+                    t4 = t2
+                    if datedir.endswith(".index") and self.filenameok(datedir):
+                        yield os.path.join(hostdir, datedir)
+                elif datedirOk == True:
                     dirpath = os.path.join(hostdir, datedir)
                     t3 = time.time()
                     filenames = os.listdir(dirpath)
