@@ -69,11 +69,12 @@ class XDMoDStyleSetupMenu(object):
 
         answer = None
         while answer not in options:
-            ordch = self.stdscr.getch()
-            if ordch == ord("\n") and default != None:
+            curses.echo()
+            answer = self.stdscr.getstr()
+            curses.noecho()
+            
+            if answer == "" and default != None:
                 answer = default
-            elif ordch > 0 and ordch < 256:
-                answer = chr(ordch)
 
         return answer
 
@@ -158,19 +159,22 @@ class XDMoDStyleSetupMenu(object):
             self.newpage(title)
 
             self.nextrow()
+            options = []
             for item in items:
                 self.stdscr.addstr(self.row, 0, "  {0}) {1}".format(*item))
+                options.append(item[0])
                 self.nextrow()
 
             self.nextrow()
-            self.stdscr.addstr(self.row, 0, "Select an item from the menu ")
+            self.stdscr.addstr(self.row, 0, "Select an option (" + ", ".join(options) + "): ")
 
-            ordchar = self.stdscr.getch()
+            curses.echo()
+            answer = self.stdscr.getstr()
+            curses.noecho()
 
-            if ordchar > 0 and ordchar < 256:
-                for item in items:
-                    if chr(ordchar) == item[0]:
-                        if item[2] == None:
-                            done = True
-                        else:
-                            item[2](self)
+            for item in items:
+                if answer == item[0]:
+                    if item[2] == None:
+                        done = True
+                    else:
+                        item[2](self)

@@ -6,6 +6,7 @@ import copy
 from supremm.scripthelpers import getdbconnection
 from supremm.config import Config
 from supremm.xdmodstylesetupmenu import XDMoDStyleSetupMenu
+import ConfigParser
 import socket
 import subprocess
 import sys
@@ -54,10 +55,10 @@ Please enter a path to a writable directory (or ctrl-c to exit this program)
             display.newpage()
             display.print_text(errmsg.format(outpath))
 
-def getxdmodsettings(display):
+def getxdmodsettings(display, defaults):
     """ obtain the database settings from XDMoD """
     display.print_text("DB setup based on XDMoD path specification")
-    xdmodpath = display.prompt_string("  XDMoD configuration directory path", "/etc/xdmod")
+    xdmodpath = display.prompt_string("  XDMoD configuration directory path", defaults['xdmodpath'])
 
     outconfig = {"xdmodroot": xdmodpath,
                  "datawarehouse": {"include": "xdmod://datawarehouse"},
@@ -65,16 +66,16 @@ def getxdmodsettings(display):
 
     return outconfig
 
-def getdirectsettings(display):
+def getdirectsettings(display, defaults):
     """ obtain the database settings from user """
     display.print_text("Direct DB Credentials")
-    sqlhost = display.prompt_string("  XDMoD mysqldb hostname", "localhost")
-    sqluser = display.prompt_string("  XDMoD mysqldb username", "xdmod")
+    sqlhost = display.prompt_string("  XDMoD mysqldb hostname", defaults['mysqlhostname'])
+    sqluser = display.prompt_string("  XDMoD mysqldb username", defaults['mysqlusername'])
     sqlpass = display.prompt_password("  XDMoD mysqldb password")
     sprompt = "  Location of my.cnf file (where the username and passsword will be stored)"
-    mycnffilename = display.prompt_string(sprompt, "~/.supremm.my.cnf")
-    mongouri = display.prompt_string("  MongoDB URI", "mongodb://localhost:27017/supremm")
-    mongodbname = display.prompt_string("  MongoDB database name", "supremm")
+    mycnffilename = display.prompt_string(sprompt, defaults['mycnffilename'])
+    mongouri = display.prompt_string("  MongoDB URI", defaults['mongouri'])
+    mongodbname = display.prompt_string("  MongoDB database name", defaults['mongodb'])
 
     outconfig = {"datawarehouse": {"db_engine": "MySQLDB",
                                    "host": sqlhost,
@@ -86,6 +87,57 @@ def getdirectsettings(display):
 
     return outconfig, mycnf
 
+def default_settings(confpath):
+    """ populate the default settings for the configuration.
+        will use the values specifed in the configuration file if it exists.
+        """
+    defaults = {}
+
+    defaults['usexdmodconfig'] = 'y'
+    defaults['xdmodpath'] = '/etc/xdmod'
+    defaults['archiveoutdir'] = '/dev/shm/supremm'
+    defaults['mysqlhostname'] = 'localhost'
+    defaults['mysqlusername'] = 'xdmod'
+    defaults['mycnffilename'] = '~/.supremm.my.cnf'
+    defaults['mongouri'] = 'mongodb://localhost:27017/supremm'
+    defaults['mongodb'] = 'supremm'
+
+    try:
+        existingconf = Config(confpath)
+        rawconfig = existingconf._config.copy()
+
+        if 'xdmodroot' in rawconfig and 'datawarehouse' in rawconfig and 'include' in rawconfig['datawarehouse']:
+            defaults['usexdmodconfig'] = 'y'
+            defaults['xdmodpath'] = rawconfig['xdmodroot']
+        else:
+            dwconfig = existingconf.getsection('datawarehouse')
+            defaults['usexdmodconfig'] = 'n'
+            defaults['mysqlhostname'] = dwconfig['host']
+            defaults['mycnffilename'] = dwconfig['defaultsfile']
+
+            try:
+                mycnf = ConfigParser.RawConfigParser()
+                mycnf.read(os.path.expanduser(dwconfig['defaultsfile']))
+                if mycnf.has_section('client'):
+                    defaults['mysqlusername'] = mycnf.get('client', 'user')
+            except ConfigParser.Error:
+                pass
+
+            outputconfig = existingconf.getsection('outputdatabase')
+            defaults['mongouri'] = outputconfig['uri']
+            defaults['mongodb'] = outputconfig['dbname']
+
+        summarycnf = existingconf.getsection('summary')
+        defaults['archiveoutdir'] = summarycnf['archive_out_dir']
+
+        defaults['resources'] = rawconfig['resources']
+
+    except Exception as e:
+        # ignore missing or broken existing config files.
+        pass
+
+    return defaults
+
 def create_config(display):
     """ Create the configuration file """
     display.newpage("Configuration File setup (DB)")
@@ -93,6 +145,8 @@ def create_config(display):
     confpath = getvalidpath(display,
                             "Enter path to configuration files",
                             Config.autodetectconfpath())
+
+    defaults = default_settings(confpath)
 
     display.newpage()
     display.print_text("""XDMoD datawarehouse access credentials.
@@ -102,18 +156,18 @@ Either specify the path to the XDMoD install or specify the hostname, username,
 password of the database directly.
 """)
 
-    doxdmod = display.prompt("Do you wish to specify the XDMoD install directory", ["y", "n"], "y")
+    doxdmod = display.prompt("Do you wish to specify the XDMoD install directory", ["y", "n"], defaults['usexdmodconfig'])
 
     mycnf = None
 
     outconfig = {}
 
     if doxdmod == "y":
-        outconfig = getxdmodsettings(display)
+        outconfig = getxdmodsettings(display, defaults)
     else:
-        outconfig, mycnf = getdirectsettings(display)
+        outconfig, mycnf = getdirectsettings(display, defaults)
 
-    archivedir = display.prompt_string("  Temporary directory to use for job archive processing", "/dev/shm/supremm")
+    archivedir = display.prompt_string("  Temporary directory to use for job archive processing", defaults['archiveoutdir'])
 
     outconfig["summary"] = {"archive_out_dir": archivedir,
                             "subdir_out_format": "%r/%j"}
@@ -128,7 +182,7 @@ password of the database directly.
         dbcur = dbconn.cursor()
         dbcur.execute("SELECT id as resource_id, code as resource FROM modw.resourcefact")
         for resource in dbcur:
-            resconf = configure_resource(display, resource[0], resource[1])
+            resconf = configure_resource(display, resource[0], resource[1], defaults)
             outconfig['resources'][resource[1]] = resconf
 
         writeconfig(display, confpath, outconfig, mycnf)
@@ -191,7 +245,7 @@ def get_hostname_ext():
     else:
         return ""
 
-def configure_resource(display, resource_id, resource):
+def configure_resource(display, resource_id, resource, defaults):
     """ get the configuration settings for a resource """
 
     display.newpage("Configuration File setup (Resources)")
@@ -211,19 +265,34 @@ def configure_resource(display, resource_id, resource):
                     "hostname_mode": "node name unique identifier ('hostname' or 'fqdn')",
                     "host_name_ext": "domain name for resource",
                     "pcp_log_dir": "Directory containing node-level PCP archives",
-                    "script_dir": "Directory containing job launch scripts"}
+                    "script_dir": "Directory containing job launch scripts (enter [space] for none)"}
 
     keys = ["enabled", "pcp_log_dir", "batch_system", "hostname_mode", "host_name_ext", "script_dir"]
+
+    resdefault = {}
+
+    try:
+        if defaults['resources'][resource]['resource_id'] == resource_id:
+            resdefault = defaults['resources'][resource]
+    except KeyError:
+        pass
 
     for key in keys:
         if key == "host_name_ext" and setting["hostname_mode"] == "hostname":
             del setting["host_name_ext"]
             continue
 
-        setting[key] = display.prompt_input(descriptions[key], setting[key])
+        setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
         if key == "enabled" and setting[key] == False:
             break
+
+        if key == 'pcp_log_dir':
+            if not os.path.isdir(setting[key]):
+                display.print_warning("""
+WARNING The directory {0} does not exist. Make sure to create and populate this
+directory before running the summarization software.
+""".format(setting[key]))
 
     return setting
 
