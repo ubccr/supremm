@@ -7,9 +7,9 @@ class factory(object):
     def __init__(self, config, resconf):
         outconf = config.getsection("outputdatabase")
 
-        if outconf['db_engine'] == "mongodb":
+        if outconf['db_engine'].lower() == "mongodb":
             self._impl = MongoOutput(outconf, resconf)
-        elif outconf['db_engine'] == "stdout":
+        elif outconf['db_engine'].lower() == "stdout":
             self._impl = StdoutOutput(outconf, resconf)
         else:
             raise Exception("Unsupported output mechanism {0}".format(outconf['db_engine']))
