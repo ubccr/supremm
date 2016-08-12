@@ -39,6 +39,12 @@ class RollingStats(object):
 
     def __init__(self):
         self._count = 0
+        self.m = 0
+        self.last_m = 0
+        self.min = 0
+        self.max = 0
+        self.s = 0
+        self.last_s = 0
 
     def append(self, x):
         self._count += 1
@@ -58,6 +64,64 @@ class RollingStats(object):
 
             self.min = numpy.minimum(self.min, x)
             self.max = numpy.maximum(self.max, x)
+
+    def __add__(self, other):
+        """
+        RollingStats of the union of the data involved with self and other
+        self and other do not overlap
+        """
+        ret = RollingStats()
+        ret._count = self._count + other._count
+        ret.m = ((self.m*self._count) + (other.m*other._count)) / ret._count
+        ret.last_m = ret.m
+        n1 = self._count
+        n2 = other._count
+        m1 = self.m
+        m2 = other.m
+        # Based on http://cas.ee.ic.ac.uk/people/dt10/research/thomas-08-sample-mean-and-variance.pdf (page 4)
+        # Note ret.s is going to be an estimate
+        ret.s = self.s + other.s + ( ( n2 / (n1*(n1+n2)) ) * ((n1*m2-n2*m1)**2))
+        ret.last_s = ret.s
+        ret.min = numpy.minimum(self.min, other.min)
+        ret.max = numpy.maximum(self.max, other.max)
+        return ret
+
+    def __iadd__(self, other):
+        ret = self + other
+        return ret
+
+    def __sub__(self, other):
+        """
+        RollingStats of the data in self and not in other
+        assumes self is a superset of other
+        """
+        ret = RollingStats()
+        ret._count = self._count # Not sure if that's right - assumes self is superset of other
+        ret.m = ((self.m*self._count) - (other.m*other._count)) / ret._count
+        ret.last_m = ret.m
+        n1 = self._count
+        n2 = other._count
+        m1 = self.m
+        m2 = other.m
+        # Based formula mentioned in http://cas.ee.ic.ac.uk/people/dt10/research/thomas-08-sample-mean-and-variance.pdf (page 4)
+        # Note ret.s is going to be an estimate
+        ret.s = self.s + other.s + ( ( n2 / (n1*(n1+n2)) ) * ((n1*m2-n2*m1)**2))
+        ret.last_s = ret.s
+        # Probably a better way to do this
+        minim = numpy.minimum(self.min, other.min)
+        if minim == other.min: # Min might be in set of data we're removing, so then don't know what should be min
+            ret.min = None
+        else:
+            ret.min = numpy.minimum(self.min, other.min)
+        maxim = numpy.maximum(self.max, other.max)
+        if maxim == other.max: # Same with max
+            ret.max = None
+        else:
+            ret.max = numpy.maximum(self.max, other.max)
+        return ret
+
+    def sum(self):
+        return self._count * self.mean()
 
     def get(self):
         """ return a dict with the various statistics """

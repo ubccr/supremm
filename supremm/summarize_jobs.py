@@ -12,6 +12,7 @@ from supremm import outputter
 from supremm.summarize import Summarize
 from supremm.plugin import loadplugins, loadpreprocessors
 from supremm.scripthelpers import parsetime
+from supremm.profile import Profile
 
 import sys
 import os
@@ -46,6 +47,7 @@ def usage():
     print "                        subdirectories will be created. This option is ignored "
     print "                        if multiple jobs are to be processed."
     print "  -h --help             display this help message and exit."
+    print "  -p --profile          times and logs how long each analytic takes to run"
 
 
 def getoptions():
@@ -67,7 +69,7 @@ def getoptions():
         "resource": None
     }
 
-    opts, _ = getopt(sys.argv[1:], "j:r:t:dqs:e:T:D:Eo:h", 
+    opts, _ = getopt(sys.argv[1:], "j:r:t:dqs:e:T:D:Eo:h:p",
                      ["localjobid=", 
                       "resource=", 
                       "threads=", 
@@ -79,7 +81,8 @@ def getoptions():
                       "delete=", 
                       "extract-only", 
                       "output=", 
-                      "help"])
+                      "help",
+                      "profile"])
 
     for opt in opts:
         if opt[0] in ("-j", "--jobid"):
@@ -107,6 +110,8 @@ def getoptions():
         if opt[0] in ("-h", "--help"):
             usage()
             sys.exit(0)
+        if opt[0] in ("-p", "--profile"):
+            retdata['profile'] = True
 
     if retdata['extractonly']:
         # extract-only supresses archive delete
@@ -135,7 +140,7 @@ def getoptions():
     sys.exit(1)
 
 
-def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
+def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts, profile):
     """ Main job processing, Called for every job to be processed """
 
     success = False
@@ -152,6 +157,9 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
         analytics = [x(job) for x in plugins]
         s = Summarize(preprocessors, analytics, job)
 
+        if 'profile' in opts and opts['profile'] == True:
+            s.activate_profile()
+
         if 0 == mergeresult:
             logging.info("Success for %s files in %s", job.job_id, job.jobdir)
             s.process()
@@ -167,6 +175,9 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
                 force_success = True
 
         dblog.markasdone(job, success or force_success, time.time() - mergestart)
+
+        if 'profile' in opts and opts['profile']==True:
+            profile.merge(s.profile_dict.times)
 
     except Exception as e:
         logging.error("Failure for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
@@ -188,11 +199,19 @@ def override_defaults(resconf, opts):
 def processjobs(config, opts, procid):
     """ main function that does the work. One run of this function per process """
 
+    starttime = None
+    if 'profile' in opts and opts['profile'] == True:
+        starttime = time.time()
+
     preprocs = loadpreprocessors()
     logging.debug("Loaded %s preprocessors", len(preprocs))
 
     plugins = loadplugins()
     logging.debug("Loaded %s plugins", len(plugins))
+
+    p = None
+    if 'profile' in opts and opts['profile'] == True:
+        p = Profile()
 
     for r, resconf in config.resourceconfigs():
         if opts['resource'] == None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
@@ -211,14 +230,33 @@ def processjobs(config, opts, procid):
 
             if opts['mode'] == "single":
                 for job in dbif.getbylocaljobid(opts['local_job_id']):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts, p)
             elif opts['mode'] == "timerange":
                 for job in dbif.getbytimerange(opts['start'], opts['end']):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts, p)
             else:
                 for job in dbif.get(None, None):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts, p)
 
+    if 'profile' in opts and opts['profile'] == True:
+        del_t = time.time() - starttime
+        logging.info("Results of profiling")
+        title = "| {0:<23} {1:<16} {6:<4} {2:<5}  {3:<16} {6:<4} {2:<5}  {4:<17} {6:<4} {2:<5}  {5:<17} {6:<4} {2:<5} |".format("analytic/preproc", 'total (sec)', '%', 'extract (sec)', 'process (sec)', 'results (sec)','freq')
+        logging.info('-'*len(title))
+        logging.info(title)
+        for k, val in p.ranked():
+            if 'total' in val:
+                if 'process' in val and 'results' in val:
+                    logging.info("| {0:<23} {1:<16} {2:<4} {3:05.2f}  {4:<16} {5:<4} {10:05.2f}  {6:<17} {7:<4} {11:05.2f}  {8:<17} {9:<4} {12:05.2f} |".format(k, val['total'].sum(), val['total']._count, (val['total'].sum() / del_t)*100, val['extract'].sum(), val['extract']._count, val['process'].sum(), val['process']._count, val['results'].sum(), val['results']._count, (val['extract'].sum()/del_t)*100, (val['process'].sum()/del_t)*100, (val['results'].sum()/del_t)*100))
+                else:
+                    toprint = "| {0:<23} {1:<16} {2:<4} {3:05.2f}".format(k, val['total'].sum(), val['total']._count, (val['total'].sum() / del_t)*100)
+                    toprint = toprint + (" "*(len(title) - len(toprint)-1)) + '|'
+                    logging.info(toprint)
+            else:
+                toprint = "| {0:<23} {1:<17}".format(k, val)
+                toprint = toprint + (" "*(len(title) - len(toprint)-1)) + '|'
+                logging.info(toprint)
+        logging.info('-'*len(title))
 
 def main():
     """
