@@ -25,7 +25,7 @@ class MongoOutput(object):
     """ Support for mongodb output """
     def __init__(self, outconf, resconf):
         self._uri = outconf['uri']
-        self._dname = outconf['dbname']
+        self._dname = outconf.get('dbname', outconf.get('db', 'supremm'))
         self._collection = "resource_" + str(resconf['resource_id'])
         self._timeseries = "timeseries-" + self._collection
         self._client = None
