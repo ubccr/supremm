@@ -5,9 +5,10 @@
 import logging
 from pcp import pmapi
 import cpmapi as c_pmapi
+import time
 
 from supremm.config import Config
-from supremm.scripthelpers import parsetime
+from supremm.scripthelpers import parsetime, setuplogger
 
 from supremm.account import DbArchiveCache
 from supremm.xdmodaccount import XDMoDArchiveCache
@@ -90,8 +91,9 @@ class PcpArchiveFinder(object):
         mindate is the minimum datestamp of files that should be processed
     """
 
-    def __init__(self, mindate):
+    def __init__(self, mindate, maxdate):
         self.mindate = mindate
+        self.maxdate = maxdate
         if self.mindate != None:
             self.minmonth = datetime(year=mindate.year, month=mindate.month, day=1) - timedelta(days=1)
         else:
@@ -103,15 +105,15 @@ class PcpArchiveFinder(object):
     def subdirok(self, subdir):
         """ check the name of a subdirectory and return whether to
             descend into it based on the name.
-            @returns true if the name is not a datestamp
+            @returns None if the name is not a datestamp
                      true if the name is a date that is >= the reference date
                      false if the name is a date that is < the reference
         """
-        if self.minmonth == None:
-            return True
-
         mtch = self.sregex.match(subdir)
         if mtch == None:
+            return None
+
+        if self.minmonth == None:
             return True
 
         subdirdate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=1)
@@ -133,21 +135,50 @@ class PcpArchiveFinder(object):
         filedate = datetime(year=int(mtch.group(1)), month=int(
             mtch.group(2)), day=int(mtch.group(3)))
 
-        return filedate > self.mindate
+        if self.maxdate == None:
+            return filedate > self.mindate
+        else:
+            return filedate > self.mindate and filedate < self.maxdate
 
     def find(self, topdir):
         """  find all archive files in topdir """
         if topdir == "":
             return
 
-        for (dirpath, subdirs, filenames) in os.walk(topdir):
-            for filename in filenames:
-                if filename.endswith(".index") and self.filenameok(filename):
-                    yield os.path.join(dirpath, filename)
+        hosts = os.listdir(topdir)
 
-            # modify the subdirs list in-place so that walk does not decend down the
-            # ones we do not need to process
-            subdirs[:] = [subdir for subdir in subdirs if self.subdirok(subdir)]
+        starttime = time.time()
+        hostcount = 0
+        currtime = starttime
+
+        for hostname in hosts:
+            hostdir = os.path.join(topdir, hostname)
+            t1 = time.time()
+            datdirs = os.listdir(hostdir)
+            t2 = time.time()
+            for datedir in datdirs:
+
+                datedirOk = self.subdirok(datedir)
+                if datedirOk == None:
+                    t3 = t2
+                    t4 = t2
+                    if datedir.endswith(".index") and self.filenameok(datedir):
+                        yield os.path.join(hostdir, datedir)
+                elif datedirOk == True:
+                    dirpath = os.path.join(hostdir, datedir)
+                    t3 = time.time()
+                    filenames = os.listdir(dirpath)
+                    t4 = time.time()
+                    for filename in filenames:
+                        if filename.endswith(".index") and self.filenameok(filename):
+                            yield os.path.join(dirpath, filename)
+
+            hostcount += 1
+            lasttime = currtime
+            currtime = time.time()
+            logging.info("Processed %s of %s (last %s = (%s + %s +) total %s estimated completion %s",
+                         hostcount, len(hosts), currtime-lasttime, t2-t1, t4-t3, currtime - starttime,
+                         datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
 
 DAY_DELTA = 3
@@ -161,6 +192,11 @@ def usage():
     print "  -c --config=PATH     specify the path to the configuration directory"
     print "  -m --mindate=DATE    specify the minimum datestamp of archives to process"
     print "                       (default", DAY_DELTA, "days ago)"
+    print "  -M --maxdate=DATE    specify the maximum datestamp of archives to process"
+    print "                       (default now())"
+    print "  -D --debugfile       specify the path to a log file. If this option is"
+    print "                       present then the process will log a DEBUG level to this"
+    print "                       file. This logging is independent of the console log."
     print "  -a --all             process all archives regardless of age"
     print "  -d --debug           set log level to debug"
     print "  -q --quiet           only log errors"
@@ -174,10 +210,12 @@ def getoptions():
         "log": logging.INFO,
         "resource": None,
         "config": None,
-        "mindate": datetime.now() - timedelta(days=3)
+        "debugfile": None,
+        "mindate": datetime.now() - timedelta(days=DAY_DELTA),
+        "maxdate": datetime.now()
     }
 
-    opts, _ = getopt(sys.argv[1:], "r:c:m:adqh", ["resource=", "config=", "mindate=", "all", "debug", "quiet", "help"])
+    opts, _ = getopt(sys.argv[1:], "r:c:m:M:D:adqh", ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help"])
 
     for opt in opts:
         if opt[0] in ("-r", "--resource"):
@@ -190,8 +228,13 @@ def getoptions():
             retdata['config'] = opt[1]
         elif opt[0] in ("-m", "--mindate"):
             retdata['mindate'] = parsetime(opt[1])
+        elif opt[0] in ("-M", "--maxdate"):
+            retdata['maxdate'] = parsetime(opt[1])
+        elif opt[0] in ("-D", "--debugfile"):
+            retdata["debugfile"] = opt[1]
         elif opt[0] in ("-a", "--all"):
             retdata['mindate'] = None
+            retdata['maxdate'] = None
         elif opt[0] in ("-h", "--help"):
             usage()
             sys.exit(0)
@@ -203,24 +246,25 @@ def runindexing():
     """ main script entry point """
     opts = getoptions()
 
-    logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s',
-                        datefmt='%Y-%m-%dT%H:%M:%S', level=opts['log'])
-    if sys.version.startswith("2.7"):
-        logging.captureWarnings(True)
+    setuplogger(opts['log'], opts['debugfile'], logging.DEBUG)
 
     config = Config(opts['config'])
+
+    logging.info("archive indexer starting")
 
     for resourcename, resource in config.resourceconfigs():
 
         if opts['resource'] in (None, resourcename, str(resource['resource_id'])):
 
             acache = PcpArchiveProcessor(config, resource)
-            afind = PcpArchiveFinder(opts['mindate'])
+            afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'])
 
             for archivefile in afind.find(resource['pcp_log_dir']):
                 acache.processarchive(archivefile)
 
             acache.close()
+
+    logging.info("archive indexer complete")
 
 if __name__ == "__main__":
     runindexing()

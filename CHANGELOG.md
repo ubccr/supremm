@@ -12,6 +12,38 @@
   the PCP libraries. Runs significantly faster.
 - Removes pcpfast in favor of implementing direct access to pcp within puffypcp.
 
+
+## [1.0.1] - 2016-08-05
+
+### Added
+
+- Added interactive setup script that generates a configuration file and sets
+  up the MySQL and mongoDB databases.
+- Added timeseries metrics for memory bandwidth, block device and total memory usage.
+- Added command line options to the archive indexer script to add limiting by
+  max date and added ability to log debug messages to a file.
+
+### Changed
+
+- Changed the indexarchive script to use os.listdir() instead of os.walk().
+  This has a significant performance improvement when scanning files on
+  filesystems that have slow stat() syscalls, such as parallel filesystems or
+  network-attached storage.
+- Changed the name of the memory usage timeseries metric to make it clearer (now
+  that the total memory usage metric has been added).  Also improved the
+  documentation of metric to clarify the datasource.
+
+### Fixed
+
+- The CPU plugin now sets the correct error code for short jobs that have
+  insufficient CPU information. Previously the CPU metrics would report NaN.
+- Fix issue where the SIMD timeseries plugin would not correctly output data
+  for the individual nodes and CPUs.
+- The SLURM process list plugin now limits the total number processes reported
+  to 150. This mitigates an issue where jobs with a huge number of processes
+  would result in a summary document that exceeds the mongoDB maximum document
+  size.
+
 ## [1.0.0] - 2016-05-23
 
 ### Added
