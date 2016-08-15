@@ -5,6 +5,8 @@ import re
 import datetime
 import MySQLdb
 import MySQLdb.cursors
+import sys
+import logging
 
 def parsetime(strtime):
     """ Try to be flexible in the time formats supported:
@@ -49,4 +51,30 @@ def getdbconnection(configsection, as_dict=False, defaultargs={}):
         return MySQLdb.connect(**dbargs)
     else:
         raise Exception("Unsupported database engine %s" % (dbengine))
+
+def setuplogger(consolelevel, filename=None, filelevel=None):
+    """ setup the python root logger to log to the console with defined log
+        level. Optionally also log to file with the provided level """
+
+    if filelevel == None:
+        filelevel = consolelevel
+
+    if sys.version.startswith("2.7"):
+        logging.captureWarnings(True)
+
+    rootlogger = logging.getLogger()
+    rootlogger.setLevel(min(consolelevel, filelevel))
+
+    formatter = logging.Formatter('%(asctime)s.%(msecs)03d [%(levelname)s] %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+
+    if filename != None:
+        filehandler = logging.FileHandler(filename)
+        filehandler.setLevel(filelevel)
+        filehandler.setFormatter(formatter)
+        rootlogger.addHandler(filehandler)
+
+    consolehandler = logging.StreamHandler()
+    consolehandler.setLevel(consolelevel)
+    consolehandler.setFormatter(formatter)
+    rootlogger.addHandler(consolehandler)
 

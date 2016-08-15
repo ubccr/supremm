@@ -65,6 +65,11 @@ class CpuUsage(Plugin):
         for host, last in self._last.iteritems():
             try:
                 elapsed = last - self._first[host]
+
+                if numpy.amin(numpy.sum(elapsed, 0)) < 1.0:
+                    # typically happens if the job was very short and the datapoints are too close together
+                    return {"error": ProcessingError.JOB_TOO_SHORT}
+
                 coresperhost = len(last[0, :])
                 ratios[:, coreindex:(coreindex+coresperhost)] = 1.0 * elapsed / numpy.sum(elapsed, 0)
                 coreindex += coresperhost

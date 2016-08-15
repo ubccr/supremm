@@ -4,6 +4,7 @@ import os
 import json
 import ConfigParser
 import re
+import glob
 
 def iscomment(line):
     """ check is line is a c++ style comment """
@@ -21,10 +22,7 @@ class Config(object):
     def __init__(self, confpath=None):
 
         if confpath == None:
-            # Try to guess the location of the config directory
-            searchpaths = [os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm",
-                           "/etc/supremm"]
-            confpath = self.findpath(searchpaths, "config.json")
+            confpath = self.autodetectconfpath()
 
         if os.path.isdir(confpath) == False:
             raise Exception("Missing configuration path %s" % confpath)
@@ -43,10 +41,19 @@ class Config(object):
         self._xdmodconfig = None
 
     @staticmethod
-    def findpath(pathlist, fname):
-        for path in pathlist:
-            if os.path.exists(os.path.join(path, fname)):
+    def autodetectconfpath():
+        """ search known paths for the configuration directory
+            List of paths support the two typical install locations 1) rpm based install
+            and 2) src install
+            @returns Directory name or None if no suitable directory found
+        """
+        searchpaths = [os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm",
+                       "/etc/supremm"]
+
+        for path in searchpaths:
+            if os.path.exists(os.path.join(path, "config.json")):
                 return os.path.abspath(path)
+
         return None
 
     def getsection(self, sectionname):
@@ -60,9 +67,11 @@ class Config(object):
     def parsexdmod(self):
         """ locate and parse the XDMoD portal settings file """
         self._xdmodconfig = ConfigParser.RawConfigParser()
-        xdmodconfs = [os.path.join(self._config['xdmodroot'], "portal_settings.ini"),
-                      os.path.join(self._config['xdmodroot'], "etc/portal_settings.ini"),
-                      os.path.join(self._config['xdmodroot'], "configuration/portal_settings.ini")]
+
+        xdmodconfs = glob.glob(os.path.join(self._config['xdmodroot'], "portal_settings.d/*.ini"))
+        xdmodconfs.sort()
+        xdmodconfs.insert(0, os.path.join(self._config['xdmodroot'], "portal_settings.ini"))
+        xdmodconfs.reverse()
 
         nread = self._xdmodconfig.read(xdmodconfs)
         if len(nread) == 0:

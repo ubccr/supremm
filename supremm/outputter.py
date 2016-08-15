@@ -10,9 +10,9 @@ class factory(object):
     def __init__(self, config, resconf):
         outconf = config.getsection("outputdatabase")
 
-        if outconf['db_engine'] == "mongodb":
+        if outconf['db_engine'].lower() == "mongodb":
             self._impl = MongoOutput(outconf, resconf)
-        elif outconf['db_engine'] == "stdout":
+        elif outconf['db_engine'].lower() == "stdout":
             self._impl = StdoutOutput(outconf, resconf)
         elif outconf['db_engine'] == 'file':
             self._impl = FileOutput(outconf, resconf)
@@ -66,7 +66,7 @@ class MongoOutput(object):
     """ Support for mongodb output """
     def __init__(self, outconf, resconf):
         self._uri = outconf['uri']
-        self._dname = outconf['dbname']
+        self._dname = outconf.get('dbname', outconf.get('db', 'supremm'))
         self._collection = "resource_" + str(resconf['resource_id'])
         self._timeseries = "timeseries-" + self._collection
         self._client = None
