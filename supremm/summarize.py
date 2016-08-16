@@ -13,7 +13,7 @@ from supremm.plugin import NodeMetadata
 import numpy
 import copy
 
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 TIMESERIES_VERSION = 4
 
 
