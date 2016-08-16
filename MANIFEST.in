@@ -24,9 +24,8 @@ include supremm/supremmconf.py
 include supremm/supremm_update
 include supremm/supremm-setup
 include supremm/xdmodaccount.py
-include supremm/pcpfast/__init__.py
-include supremm/pcpfast/pcpfast.c
-include supremm/pcpfast/pcpfast.py
+include supremm/puffypcp/puffypcp.pyx
+include supremm/puffypcp/pcp.pxd
 include supremm/plugins/Block.py
 include supremm/plugins/Catastrophe.py
 include supremm/plugins/TaccCatastrophe.py
