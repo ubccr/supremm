@@ -2,12 +2,13 @@
 
 ## [Unreleased]
 
-## [1.0.1] - 2016-08-05
+## [1.0.1] - 2016-08-16
 
 ### Added
 
 - Added interactive setup script that generates a configuration file and sets
-  up the MySQL and mongoDB databases.
+  up the MySQL and MongoDB databases.
+- Added support for reading MongoDB settings from the XDMoD configuration file.
 - Added timeseries metrics for memory bandwidth, block device and total memory usage.
 - Added command line options to the archive indexer script to add limiting by
   max date and added ability to log debug messages to a file.
@@ -30,7 +31,7 @@
   for the individual nodes and CPUs.
 - The SLURM process list plugin now limits the total number processes reported
   to 150. This mitigates an issue where jobs with a huge number of processes
-  would result in a summary document that exceeds the mongoDB maximum document
+  would result in a summary document that exceeds the MongoDB maximum document
   size.
 
 ## [1.0.0] - 2016-05-23
