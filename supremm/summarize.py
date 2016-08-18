@@ -9,6 +9,7 @@ import time
 import logging
 import traceback
 from supremm.plugin import NodeMetadata
+from profile import Profile
 
 import numpy
 import copy
@@ -43,8 +44,13 @@ class Summarize(object):
         self.job = job
         self.start = time.time()
         self.archives_processed = 0
+        self._profile = False
 
         self.indomcache = None
+
+    def activate_profile(self):
+        self._profile = True
+        self.profile_dict = Profile()
 
     def adderror(self, category, errormsg):
         """ All errors reported with this function show up in the job summary """
@@ -92,13 +98,32 @@ class Summarize(object):
             for analytic in self.alltimestamps:
                 if analytic.status != "uninitialized":
                     if analytic.mode == "all":
-                        output[analytic.name] = analytic.results()
+                        if self._profile:
+                            starttime = time.time()
+                            output[analytic.name] = analytic.results()
+                            delta_time = time.time() - starttime
+                            self.profile_dict.add(analytic.name, 'results', delta_time)
+                        else:
+                            output[analytic.name] = analytic.results()
                     if analytic.mode == "timeseries":
-                        timeseries[analytic.name] = analytic.results()
+                        if self._profile:
+                            starttime = time.time()
+                            timeseries[analytic.name] = analytic.results()
+                            delta_time = time.time() - starttime
+                            self.profile_dict.add(analytic.name, 'results', delta_time)
+                        else:
+                            timeseries[analytic.name] = analytic.results()
             for analytic in self.firstlast:
                 if analytic.status != "uninitialized":
-                    output[analytic.name] = analytic.results()
-                    
+                    if self._profile:
+                        starttime = time.time()
+                        output[analytic.name] = analytic.results()
+                        delta_time = time.time() - starttime
+                        self.profile_dict.add(analytic.name, 'results', delta_time)
+                    else:
+                        output[analytic.name] = analytic.results()
+
+
         output['summarization'] = {
             "version": VERSION,
             "elapsed": time.time() - self.start,
@@ -114,7 +139,15 @@ class Summarize(object):
             output['timeseries'] = timeseries
 
         for preproc in self.preprocs:
-            result = preproc.results()
+
+            if self._profile:
+                starttime = time.time()
+                result = preproc.results()
+                delta_t = time.time() - starttime
+                self.profile_dict.add(preproc.name, 'results', delta_t)
+            else:
+                result = preproc.results()
+
             if result != None:
                 output.update(result)
 
@@ -248,7 +281,13 @@ class Summarize(object):
             description.append([tmpidx, tmpnames])
 
         try:
-            retval = analytic.process(mdata, float(result.contents.timestamp), data, description)
+            if self._profile:
+                starttime = time.time()
+                retval = analytic.process(mdata, float(result.contents.timestamp), data, description)
+                delta_t = time.time() - starttime
+                self.profile_dict.add(analytic.name, 'process', delta_t)
+            else:
+                retval = analytic.process(mdata, float(result.contents.timestamp), data, description)
             return retval
         except Exception as e:
             logging.exception("%s %s @ %s", self.job.job_id, analytic.name, float(result.contents.timestamp))
@@ -267,7 +306,14 @@ class Summarize(object):
             data.append(numpy.array([pcpfast.pcpfastExtractValues(result, i, j, mtypes[i])
                                      for j in xrange(result.contents.get_numval(i))]))
 
-        return preproc.process(float(result.contents.timestamp), data, description)
+        if self._profile:
+            starttime = time.time()
+            ret = preproc.process(float(result.contents.timestamp), data, description)
+            delta_t = time.time() - starttime
+            self.profile_dict.add(preproc.name, 'process', delta_t)
+        else:
+            ret = preproc.process(float(result.contents.timestamp), data, description)
+        return ret
 
     @staticmethod
     def getindomdict(ctx, metric_id_array):
@@ -445,7 +491,14 @@ class Summarize(object):
             newctx = context.pmDupContext()
             context._ctx = newctx
 
-            self.processforpreproc(context, mdata, preproc)
+            # Optionally keeps track of how long analyitc/preproc takes
+            if self._profile:
+                starttime = time.time()
+                self.processforpreproc(context, mdata, preproc)
+                delta_time = time.time() - starttime
+                self.profile_dict.add(preproc.name, 'process+extract', delta_time)
+            else:
+                self.processforpreproc(context, mdata, preproc)
 
             context.__del__()
 
@@ -454,7 +507,13 @@ class Summarize(object):
             newctx = context.pmDupContext()
             context._ctx = newctx
 
-            self.processforanalytic(context, mdata, analytic)
+            if self._profile:
+                starttime = time.time()
+                self.processforanalytic(context, mdata, analytic)
+                delta_time = time.time() - starttime
+                self.profile_dict.add(analytic.name, 'process+extract', delta_time)
+            else:
+                self.processforanalytic(context, mdata, analytic)
 
             context.__del__()
 
@@ -463,7 +522,14 @@ class Summarize(object):
             newctx = context.pmDupContext()
             context._ctx = newctx
 
-            self.processfirstlast(context, mdata, analytic)
+            if self._profile:
+                starttime = time.time()
+                self.processfirstlast(context, mdata, analytic)
+                delta_time = time.time() - starttime
+                self.profile_dict.add(analytic.name, 'process+extract', delta_time)
+            else:
+                self.processfirstlast(context, mdata, analytic)
+
 
             context.__del__()
 
