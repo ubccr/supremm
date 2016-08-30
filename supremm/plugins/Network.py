@@ -8,11 +8,12 @@ class Network(DeviceBasedPlugin):
     name = property(lambda x: "network")
     requiredMetrics = property(lambda x: [
         "network.interface.in.bytes",
-        "network.interface.in.packets",
         "network.interface.out.bytes",
+        ])
+    optionalMetrics = property(lambda x: [
+        "network.interface.in.packets"
         "network.interface.out.packets"
         ])
-    optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
 

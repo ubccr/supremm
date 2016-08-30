@@ -11,7 +11,8 @@ class Catastrophe(Plugin):
     name = property(lambda x: "catastrophe")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: [["perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value", "perfevent.active"], 
-                                          ["perfevent.hwcounters.L1D_REPLACEMENT.value", "perfevent.active"]])
+                                          ["perfevent.hwcounters.L1D_REPLACEMENT.value", "perfevent.active"],
+                                          ["perfevent.hwcounters.DATA_CACHE_MISSES_DC_MISS_STREAMING_STORE.value", "perfevent.active"]])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
