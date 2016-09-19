@@ -12,30 +12,23 @@ if python_version.startswith("2.6"):
 else:
     from collections import Counter
 
-SNB_METRICS = ["perfevent.active",
-               "perfevent.hwcounters.SIMD_FP_256_PACKED_DOUBLE.value",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE.value",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE.value",
-               "perfevent.hwcounters.SIMD_FP_256_PACKED_DOUBLE.value",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_X87.value"]
+INTEL_METRICS = ["perfevent.active",
+                 "perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value"]
 
-NHM_METRICS = ["perfevent.active",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
+AMD_METRICS = ["perfevent.active",
+               "perfevent.hwcounters.CPU_CLK_UNHALTED.value"]
 
-INTERLAGOS_METRICS = ["perfevent.active",
-                      "perfevent.hwcounters.RETIRED_SSE_OPS_ALL.value"]
-
-class SimdInsTimeseries(Plugin):
+class ClksTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """
 
-    name = property(lambda x: "simdins")
+    name = property(lambda x: "clktks")
     mode = property(lambda x: "timeseries")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, INTERLAGOS_METRICS])
+    requiredMetrics = property(lambda x: [INTEL_METRICS, AMD_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
-        super(SimdInsTimeseries, self).__init__(job)
+        super(ClksTimeseries, self).__init__(job)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
         self._hostdevnames = {}
@@ -58,10 +51,7 @@ class SimdInsTimeseries(Plugin):
             self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[1])))
             self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[1][0], description[1][1]))
 
-        if len(data) == len(NHM_METRICS): # Note that INTERLAGOS is covered here too
-            flops = numpy.array(data[1])
-        else:
-            flops = 4.0 * data[1] + 2.0 * data[2] + data[3] + data[4]
+        flops = numpy.array(data[1])
 
         insertat = self._data.adddata(hostidx, timestamp, numpy.sum(flops))
         if insertat != None:

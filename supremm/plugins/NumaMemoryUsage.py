@@ -5,7 +5,7 @@ from supremm.plugin import Plugin
 from supremm.statistics import RollingStats, calculate_stats
 from supremm.errors import ProcessingError
 
-class MemoryUsage(Plugin):
+class NumaMemoryUsage(Plugin):
     """ Compute the overall memory usage for a job """
 
     name = property(lambda x: "memory")
@@ -15,7 +15,7 @@ class MemoryUsage(Plugin):
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
-        super(MemoryUsage, self).__init__(job)
+        super(NumaMemoryUsage, self).__init__(job)
         self._data = {}
         self._hostcpucounts = {}
 

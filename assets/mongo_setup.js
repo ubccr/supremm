@@ -18,6 +18,11 @@ var sdef = {
             "description": "SIMD instructions",
             "help": "The total rate of floating point SIMD instructions reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
         },
+        "clktks": {
+            "units": "insts/s",
+            "description": "Clock Ticks",
+            "help": "The total rate of clock ticks reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
+        },
         "memused_minus_diskcache": {
             "units": "GB",
             "description": "Node Memory RSS",
@@ -57,8 +62,8 @@ var sdef = {
 };
 
 var summarydef = {
-    "summary_version": "summary-1.0.5", 
-    "_id": "summary-1.0.5",
+    "summary_version": "summary-1.0.6",
+    "_id": "summary-1.0.6",
     "definitions": {
         "lnet": {
             "documentation": "", 
@@ -105,6 +110,28 @@ var summarydef = {
             "type": "", 
             "unit": ""
         }, 
+        "nodememory": {
+            "free": {
+                "documentation": "The average amount of free memory per node for the job. The value is obtained from /proc/meminfo. The average is calculated as the mean value of each memory usage measurement.",
+                "type": "instant",
+                "unit": "byte"
+            },
+            "maxfree": {
+                "documentation": "The maximum value of the free memory on a node.",
+                "type": "instant",
+                "unit": "byte"
+            },
+            "used": {
+                "documentation": "The average amount of used memory per node.",
+                "type": "instant",
+                "unit": "byte"
+            },
+            "maxused": {
+                "documentation": "The maximum value of the used memory on a node.",
+                "type": "instant",
+                "unit": "byte"
+            }
+        },
         "process_memory": {
             "usage": {
                 "avg": {
