@@ -39,6 +39,7 @@ def usage():
     print "  -T --timeout SECONDS  amount of elapsed time from a job ending to when it"
     print "                        can be marked as processed even if the raw data is"
     print "                        absent"
+    print "  -t --tag              tag to add to the summarization field in mogo"
     print "  -D --delete T|F       whether to delete job-level archives after processing."
     print "  -E --extract-only     only extract the job-level archives (sets delete=False)"
     print "  -o --output DIR       override the output directory for the job archives."
@@ -63,11 +64,12 @@ def getoptions():
         "extractonly": False,
         "newonly": False,
         "job_output_dir": None,
+        "tag": None,
         "force_timeout": 2 * 24 * 3600,
         "resource": None
     }
 
-    opts, _ = getopt(sys.argv[1:], "j:r:dqs:e:NT:D:Eo:h", 
+    opts, _ = getopt(sys.argv[1:], "j:r:dqs:e:NT:t:D:Eo:h", 
                      ["localjobid=", 
                       "resource=", 
                       "debug", 
@@ -76,6 +78,7 @@ def getoptions():
                       "end=", 
                       "new-only",
                       "timeout=", 
+                      "tag=",
                       "delete=", 
                       "extract-only", 
                       "output=", 
@@ -98,6 +101,8 @@ def getoptions():
             retdata['newonly'] = True
         if opt[0] in ("-T", "--timeout"):
             retdata['force_timeout'] = int(opt[1])
+        if opt[0] in ("-t", "--tag"):
+            retdata['tag'] = str(opt[1])
         if opt[0] in ("-D", "--delete"):
             retdata['dodelete'] = True if opt[1].upper().startswith("T") else False
         if opt[0] in ("-E", "--extract-only"):
@@ -156,7 +161,12 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
             logging.info("Success for %s files in %s", job.job_id, job.jobdir)
             s.process()
 
-        m.process(s, {"mergetime": mergeend - mergestart})
+        mdata = {"mergetime": mergeend - mergestart}
+        
+        if opts['tag'] != None:
+            mdata['tag'] = opts['tag']
+
+        m.process(s, mdata)
 
         success = s.complete()
 
