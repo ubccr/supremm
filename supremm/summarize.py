@@ -102,6 +102,7 @@ class Summarize(object):
         output['summarization'] = {
             "version": VERSION,
             "elapsed": time.time() - self.start,
+            "created": time.time(),
             "srcdir": self.job.jobdir,
             "complete": self.complete()}
 
