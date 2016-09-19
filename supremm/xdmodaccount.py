@@ -79,13 +79,18 @@ class XDMoDAcct(Accounting):
         for job in  self.executequery(query, data):
             yield job
 
-    def getbytimerange(self, start, end):
+    def getbytimerange(self, start, end, onlynew):
         """ Search for all jobs based on the time interval. Matches based on the end
         timestamp of the job. Will process all jobs in time interval whether or not
         they have already been processed """
 
         query = self._query + " AND jf.end_time_ts BETWEEN unix_timestamp(%s) AND unix_timestamp(%s)"
         data = (self._resource_id, start, end)
+
+        if onlynew != None and onlynew != False:
+            logging.info("Processing only unprocessed jobs by timerange")
+            query += " AND (p.process_version != %s OR p.process_version IS NULL)"
+            data = data + (Accounting.PROCESS_VERSION, )
 
         if self._nthreads != None and self._threadidx != None:
             query += " AND (CRC32(jf.local_job_id_raw) %% %s) = %s"

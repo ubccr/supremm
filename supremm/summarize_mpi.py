@@ -35,6 +35,7 @@ def usage():
     print "                        time (an end time must also be specified)"
     print "  -e --end TIME         process all jobs that ended before the provided end"
     print "                        time (a start time must also be specified)"
+    print "  -N --new-only         when using a timerange, only look for unprocessed jobs"
     print "  -T --timeout SECONDS  amount of elapsed time from a job ending to when it"
     print "                        can be marked as processed even if the raw data is"
     print "                        absent"
@@ -60,18 +61,20 @@ def getoptions():
         "log": logging.INFO,
         "dodelete": True,
         "extractonly": False,
+        "newonly": False,
         "job_output_dir": None,
         "force_timeout": 2 * 24 * 3600,
         "resource": None
     }
 
-    opts, _ = getopt(sys.argv[1:], "j:r:dqs:e:T:D:Eo:h", 
+    opts, _ = getopt(sys.argv[1:], "j:r:dqs:e:NT:D:Eo:h", 
                      ["localjobid=", 
                       "resource=", 
                       "debug", 
                       "quiet", 
                       "start=", 
                       "end=", 
+                      "new-only",
                       "timeout=", 
                       "delete=", 
                       "extract-only", 
@@ -91,6 +94,8 @@ def getoptions():
             starttime = parsetime(opt[1])
         if opt[0] in ("-e", "--end"):
             endtime = parsetime(opt[1])
+        if opt[0] in ("-N", "--new-only"):
+            retdata['newonly'] = True
         if opt[0] in ("-T", "--timeout"):
             retdata['force_timeout'] = int(opt[1])
         if opt[0] in ("-D", "--delete"):
@@ -208,7 +213,7 @@ def processjobs(config, opts, procid):
                 for job in dbif.getbylocaljobid(opts['local_job_id']):
                     summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
             elif opts['mode'] == "timerange":
-                for job in dbif.getbytimerange(opts['start'], opts['end']):
+                for job in dbif.getbytimerange(opts['start'], opts['end'], opts['newonly']):
                     summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
             else:
                 for job in dbif.get(None, None):
