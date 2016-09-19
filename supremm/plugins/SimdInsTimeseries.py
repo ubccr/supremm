@@ -80,6 +80,10 @@ class SimdInsTimeseries(Plugin):
             return {"error": self._error}
 
         values = self._data.get()
+
+        if len(values[0, :, 0]) < 3:
+            return {"error": ProcessingError.JOB_TOO_SHORT}
+
         rates = numpy.diff(values[:, :, 1]) / numpy.diff(values[:, :, 0])
 
         if len(self._hostdata) > 64:
