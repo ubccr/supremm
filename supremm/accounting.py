@@ -21,7 +21,7 @@ class Accounting(object):
         pass
 
     @abstractmethod
-    def getbytimerange(self, start, end):
+    def getbytimerange(self, start, end, onlynew):
         """ Search for all jobs based on the time interval. Matches based on the end
         timestamp of the job """
         pass
