@@ -18,6 +18,11 @@ var sdef = {
             "description": "SIMD instructions",
             "help": "The total rate of floating point SIMD instructions reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
         },
+        "gpu_usage": {
+            "units": "GPU %",
+            "description": "GPU utilzation %",
+            "help": "The average percentage of time spent with the GPU active. The average is computed over each time interval."
+        },
         "clktks": {
             "units": "insts/s",
             "description": "Clock Ticks",
