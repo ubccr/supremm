@@ -39,7 +39,7 @@ def usage():
     print "  -T --timeout SECONDS  amount of elapsed time from a job ending to when it"
     print "                        can be marked as processed even if the raw data is"
     print "                        absent"
-    print "  -t --tag              tag to add to the summarization field in mogo"
+    print "  -t --tag              tag to add to the summarization field in mongo"
     print "  -D --delete T|F       whether to delete job-level archives after processing."
     print "  -E --extract-only     only extract the job-level archives (sets delete=False)"
     print "  -o --output DIR       override the output directory for the job archives."
