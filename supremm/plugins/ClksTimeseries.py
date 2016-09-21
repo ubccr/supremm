@@ -12,11 +12,9 @@ if python_version.startswith("2.6"):
 else:
     from collections import Counter
 
-INTEL_METRICS = ["perfevent.active",
-                 "perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value"]
+INTEL_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value"]
 
-AMD_METRICS = ["perfevent.active",
-               "perfevent.hwcounters.CPU_CLK_UNHALTED.value"]
+AMD_METRICS = ["perfevent.hwcounters.CPU_CLK_UNHALTED.value"]
 
 class ClksTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """
@@ -36,22 +34,21 @@ class ClksTimeseries(Plugin):
 
     def process(self, nodemeta, timestamp, data, description):
 
-        if len(data[0]) > 0 and data[0][0] == 0:
-            # If active == 0 then the PMDA was switched off due to user request
+        if self._job.getdata('perf')['active'] != True:
             self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
             return False
 
-        if len(data[1]) == 0:
+        if len(data[0]) == 0:
             # Ignore timesteps where data was not available
             return True
 
         hostidx = nodemeta.nodeindex
 
         if nodemeta.nodeindex not in self._hostdata:
-            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[1])))
-            self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[1][0], description[1][1]))
+            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[0])))
+            self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[0][0], description[0][1]))
 
-        flops = numpy.array(data[1])
+        flops = numpy.array(data[0])
 
         insertat = self._data.adddata(hostidx, timestamp, numpy.sum(flops))
         if insertat != None:

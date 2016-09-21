@@ -36,6 +36,11 @@ class UncoreCounters(Plugin):
         self._error = None
 
     def process(self, nodemeta, timestamp, data, description):
+
+        if self._job.getdata('perf')['active'] != True:
+            self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
+            return False
+
         ndata = numpy.array(data)
 
         if nodemeta.nodename not in self._first:
