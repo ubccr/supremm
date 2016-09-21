@@ -5,7 +5,7 @@ import numpy
 
 class TimeseriesAccumulator(object):
     """ Stores a subset of time-value pairs for a dataseries """
-    MAX_DATAPOINTS = 100
+    MAX_DATAPOINTS = 50
     LEAD_IN_DATAPOINTS = 10
 
     def __init__(self, nhosts, totaltime):
