@@ -400,6 +400,7 @@ class Summarize(object):
             firstimestamp = copy.deepcopy(result.contents.timestamp)
 
             if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
+                analytic.status = "failure"
                 ctx.pmFreeResult(result)
                 return
 
