@@ -12,8 +12,7 @@ if python_version.startswith("2.6"):
 else:
     from collections import Counter
 
-SNB_METRICS = ["perfevent.active",
-               "perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_RD.value",
+SNB_METRICS = ["perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_RD.value",
                "perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_WR.value",
                "perfevent.hwcounters.snbep_unc_imc1__UNC_M_CAS_COUNT_RD.value",
                "perfevent.hwcounters.snbep_unc_imc1__UNC_M_CAS_COUNT_WR.value",
@@ -22,8 +21,7 @@ SNB_METRICS = ["perfevent.active",
                "perfevent.hwcounters.snbep_unc_imc3__UNC_M_CAS_COUNT_RD.value",
                "perfevent.hwcounters.snbep_unc_imc3__UNC_M_CAS_COUNT_WR.value"]
 
-NHM_METRICS = ["perfevent.active",
-               "perfevent.hwcounters.UNC_LLC_MISS_READ.value",
+NHM_METRICS = ["perfevent.hwcounters.UNC_LLC_MISS_READ.value",
                "perfevent.hwcounters.UNC_LLC_MISS_WRITE.value"]
 
 class MemBwTimeseries(Plugin):
@@ -44,22 +42,21 @@ class MemBwTimeseries(Plugin):
 
     def process(self, nodemeta, timestamp, data, description):
 
-        if len(data[0]) > 0 and data[0][0] == 0:
-            # If active == 0 then the PMDA was switched off due to user request
+        if self._job.getdata('perf')['active'] != True:
             self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
             return False
 
-        if len(data[1]) == 0:
+        if len(data[0]) == 0:
             # Ignore timesteps where data was not available
             return True
 
         hostidx = nodemeta.nodeindex
 
         if nodemeta.nodeindex not in self._hostdata:
-            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[1])))
-            self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[1][0], description[1][1]))
+            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[0])))
+            self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[0][0], description[0][1]))
 
-        membw = 64.0 * numpy.sum(data[1:]) / 1024.0 / 1024.0 / 1024.0
+        membw = 64.0 * numpy.sum(data[0:]) / 1024.0 / 1024.0 / 1024.0
 
         insertat = self._data.adddata(hostidx, timestamp, membw)
         if insertat != None:
