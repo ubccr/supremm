@@ -1,0 +1,104 @@
+#!/usr/bin/env python
+""" Timeseries generator module """
+
+from supremm.plugin import Plugin
+from supremm.subsample import TimeseriesAccumulator
+import numpy
+
+from sys import version as python_version
+if python_version.startswith("2.6"):
+    from backport_collections import Counter
+else:
+    from collections import Counter
+
+class GpuUsageTimeseries(Plugin):
+    """ Generate the CPU usage as a timeseries data """
+
+    name = property(lambda x: "gpu_usage")
+    mode = property(lambda x: "timeseries")
+    requiredMetrics = property(lambda x: ["nvidia.gpuactive"])
+    optionalMetrics = property(lambda x: [])
+    derivedMetrics = property(lambda x: [])
+
+    def __init__(self, job):
+        super(GpuUsageTimeseries, self).__init__(job)
+        self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
+        self._hostdata = {}
+        self._hostdevnames = {}
+
+    def process(self, nodemeta, timestamp, data, description):
+
+        hostidx = nodemeta.nodeindex
+
+        if len(data[0]) == 0:
+            # Skip data point with no data
+            return True
+
+        if nodemeta.nodeindex not in self._hostdata:
+            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[0])))
+            self._hostdevnames[hostidx] = dict((str(k), str(v)) for k, v in zip(description[0][0], description[0][1]))
+
+        avg_usage = numpy.mean(data[0])
+        insertat = self._data.adddata(hostidx, timestamp, avg_usage)
+        if insertat != None:
+            self._hostdata[hostidx][insertat] = data[0]
+
+        return True
+
+    def results(self):
+
+        values = self._data.get()
+
+        if len(self._hostdata) > 64:
+
+            # Compute min, max & median data and only save the host data
+            # for these hosts
+
+            memdata = values[:, :, 1]
+            sortarr = numpy.argsort(memdata.T, axis=1)
+
+            retdata = {
+                "min": self.collatedata(sortarr[:, 0], memdata),
+                "max": self.collatedata(sortarr[:, -1], memdata),
+                "med": self.collatedata(sortarr[:, sortarr.shape[1] / 2], memdata),
+                "times": values[0, :, 0].tolist(),
+                "hosts": {}
+            }
+
+            uniqhosts = Counter(sortarr[:, 0])
+            uniqhosts.update(sortarr[:, -1])
+            uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
+            includelist = uniqhosts.keys()
+        else:
+            # Save data for all hosts
+            retdata = {
+                "times": values[0, :, 0].tolist(),
+                "hosts": {}
+            }
+            includelist = self._hostdata.keys()
+
+
+        for hostidx in includelist:
+            retdata['hosts'][str(hostidx)] = {}
+            retdata['hosts'][str(hostidx)]['all'] = values[hostidx, :, 1].tolist()
+            retdata['hosts'][str(hostidx)]['dev'] = {}
+
+            for devid in self._hostdevnames[hostidx].iterkeys():
+                dpnts = len(values[hostidx, :, 0])
+                retdata['hosts'][str(hostidx)]['dev'][devid] = self._hostdata[hostidx][:dpnts, int(devid)].tolist()
+
+            retdata['hosts'][str(hostidx)]['names'] = self._hostdevnames[hostidx]
+
+        return retdata
+
+    @staticmethod
+    def collatedata(args, rates):
+        """ build output data """
+        result = []
+        for timepoint, hostidx in enumerate(args):
+            try:
+                result.append([rates[hostidx, timepoint], int(hostidx)])
+            except IndexError:
+                pass
+
+        return result
