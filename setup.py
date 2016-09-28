@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """ setup script for SUPReMM job summarization utilities """
 from distutils.core import setup, Extension
+from Cython.Distutils import build_ext
 import sys
 import os
 
@@ -46,8 +47,10 @@ setup(name='supremm',
                'supremm/ingest_jobscripts.py'],
       requires=['numpy',
                 'MySQLdb',
-                'pcp'],
-      ext_modules=[Extension('supremm.pcpfast.libpcpfast', ['supremm/pcpfast/pcpfast.c'], libraries=['pcp'])]
+                'pcp',
+                'Cython'],
+      cmdclass = {'build_ext': build_ext},
+      ext_modules=[Extension('supremm.pcpfast.libpcpfast', ['supremm/pcpfast/pcpfast.c'], libraries=['pcp']), Extension("supremm.pypmlogextract", ["supremm/pypmlogextract/pypmlogextract.pyx"])]
      )
 
 if IS_RPM_BUILD:
