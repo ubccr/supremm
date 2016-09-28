@@ -310,9 +310,6 @@ def main():
     # For MPI jobs, do something sane with logging.
     setuplogger(logging.ERROR, logout, opts['log'])
 
-    if sys.version.startswith("2.7"):
-        logging.captureWarnings(True)
-
     config = Config()
 
     if comm.Get_size() < 2:

@@ -13,7 +13,7 @@ import time
 from pcp import pmapi
 import cpmapi as c_pmapi
 
-import pypmlogextract
+from supremm import pypmlogextract
 
 def get_datetime_from_timeval(tv):
     """

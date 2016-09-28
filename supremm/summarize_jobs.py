@@ -42,6 +42,7 @@ def usage():
     print "  -t --tag              tag to add to the summarization field in mongo"
     print "  -D --delete T|F       whether to delete job-level archives after processing."
     print "  -E --extract-only     only extract the job-level archives (sets delete=False)"
+    print "  -L --use-lib-extract  use libpcp_pmlogextract.so.1 instead of pmlogextract"
     print "  -o --output DIR       override the output directory for the job archives."
     print "                        This directory will be emptied before used and no"
     print "                        subdirectories will be created. This option is ignored "
@@ -63,6 +64,7 @@ def getoptions():
         "threads": 1,
         "dodelete": True,
         "extractonly": False,
+        "libextract": False,
         "job_output_dir": None,
         "tag": None,
         "force_timeout": 2 * 24 * 3600,
@@ -81,6 +83,7 @@ def getoptions():
                       "tag=",
                       "delete=", 
                       "extract-only", 
+                      "use-lib-extract",
                       "output=", 
                       "help"])
 
@@ -99,6 +102,8 @@ def getoptions():
             starttime = parsetime(opt[1])
         if opt[0] in ("-e", "--end"):
             endtime = parsetime(opt[1])
+        if opt[0] in ("-L", "--use-lib-extract"):
+            retdata['libextract'] = True
         if opt[0] in ("-T", "--timeout"):
             retdata['force_timeout'] = int(opt[1])
         if opt[0] in ("-t", "--tag"):
@@ -147,7 +152,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
 
     try:
         mergestart = time.time()
-        mergeresult = extract_and_merge_logs(job, conf, resconf)
+        mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
         mergeend = time.time()
 
         if opts['extractonly']: 
