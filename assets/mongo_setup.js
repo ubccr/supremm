@@ -86,14 +86,35 @@ var summarydef = {
             "unit": ""
         }, 
         "cpuperf": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "cpiref": {
+                "documentation": "The average clock ticks per instruction for each core.", 
+                "type": "ratio", 
+                "unit": "ratio"
+            },
+            "cpldref": {
+                "documentation": "The average clock ticks per L1D cache load for each core.", 
+                "type": "ratio", 
+                "unit": "ratio"
+            },
+            "flops": {
+                "documentation": "The number of floating point instructions executed per core.", 
+                "type": "instant", 
+                "unit": "op"
+            }
         }, 
         "lustre": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "*": {
+                "read_bytes-total": {
+                    "documentation": "", 
+                    "type": "instant", 
+                    "unit": "byte"
+                },
+                "write_bytes-total": {
+                    "documentation": "", 
+                    "type": "instant", 
+                    "unit": "byte"
+                }
+            }
         }, 
         "gpfs": {
             "documentation": "", 
@@ -179,9 +200,11 @@ var summarydef = {
             "unit": ""
         }, 
         "uncperf": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "membw": {
+                "documentation": "The average amount of data transferred to and from main memory per node.", 
+                "type": "instant", 
+                "unit": "byte"
+            }
         }, 
         "memory": {
             "documentation": "", 
@@ -194,9 +217,28 @@ var summarydef = {
             "unit": ""
         }, 
         "gpu": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "*": {
+                "gpuactive": {
+                    "documentation": "The average GPU usage.", 
+                    "type": "instant", 
+                    "unit": "%"
+                },
+                "gpuactivemax": {
+                    "documentation": "The peak GPU usage.", 
+                    "type": "instant", 
+                    "unit": "%"
+                },
+                "memused": {
+                    "documentation": "The average memory usage per GPU.", 
+                    "type": "instant", 
+                    "unit": "byte"
+                },
+                "memusedmax": {
+                    "documentation": "The peak memory usage for each GPU.", 
+                    "type": "instant", 
+                    "unit": "byte"
+                }
+            }
         }, 
         "proc": {
             "documentation": "", 
@@ -214,9 +256,18 @@ var summarydef = {
             "unit": ""
         }, 
         "network": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "*": {
+                "in-bytes": {
+                    "documentation": "", 
+                    "type": "instant", 
+                    "unit": "byte"
+                },
+                "out-bytes": {
+                    "documentation": "", 
+                    "type": "instant", 
+                    "unit": "byte"
+                }
+            }
         }
     } 
 };
