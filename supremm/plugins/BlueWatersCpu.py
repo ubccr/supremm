@@ -6,6 +6,10 @@ from supremm.statistics import calculate_stats
 from supremm.errors import ProcessingError
 import numpy
 
+# If the average clock ticks are above the threshold then the core
+# is considered in use by the 'efffective cpus' algorithm.
+CPU_ON_THRESHOLD_MHZ = 100
+
 class BlueWatersCpu(Plugin):
     """ Estimate the cpu usage for a job by looking a the clock ticks. """
 
@@ -58,5 +62,8 @@ class BlueWatersCpu(Plugin):
             ratios[coreindex:(coreindex+coresperhost)] = (last[1] - self._first[host][1]) / elapsed / 2.6e9
             coreindex += coresperhost
 
-        return {"nodecpus": {"user": calculate_stats(ratios)}}
+        # Compute the statistics for all cpus that had an average 
+        effectivecpus = numpy.compress(ratios * 2.6e3 > CPU_ON_THRESHOLD_MHZ, ratios)
+
+        return {"nodecpus": {"user": calculate_stats(ratios)}, "effectivecpus": {"user": calculate_stats(effectivecpus)}}
 
