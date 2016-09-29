@@ -3,6 +3,8 @@
     Main script for converting host-based pcp archives to job-level summaries.
 """
 
+from mpi4py import MPI
+
 import logging
 from supremm.config import Config
 from supremm.account import DbAcct
@@ -12,6 +14,7 @@ from supremm import outputter
 from supremm.summarize import Summarize
 from supremm.plugin import loadplugins, loadpreprocessors
 from supremm.scripthelpers import parsetime
+from supremm.scripthelpers import setuplogger
 
 import sys
 import os
@@ -20,7 +23,6 @@ import traceback
 import time
 import datetime
 import shutil
-from mpi4py import MPI
 
 
 def usage():
@@ -42,6 +44,7 @@ def usage():
     print "  -t --tag              tag to add to the summarization field in mongo"
     print "  -D --delete T|F       whether to delete job-level archives after processing."
     print "  -E --extract-only     only extract the job-level archives (sets delete=False)"
+    print "  -L --use-lib-extract  use libpcp_pmlogextract.so.1 instead of pmlogextract"
     print "  -o --output DIR       override the output directory for the job archives."
     print "                        This directory will be emptied before used and no"
     print "                        subdirectories will be created. This option is ignored "
@@ -62,6 +65,7 @@ def getoptions():
         "log": logging.INFO,
         "dodelete": True,
         "extractonly": False,
+        "libextract": False,
         "newonly": False,
         "job_output_dir": None,
         "tag": None,
@@ -69,7 +73,7 @@ def getoptions():
         "resource": None
     }
 
-    opts, _ = getopt(sys.argv[1:], "j:r:dqs:e:NT:t:D:Eo:h", 
+    opts, _ = getopt(sys.argv[1:], "j:r:dqs:e:LNT:t:D:Eo:h", 
                      ["localjobid=", 
                       "resource=", 
                       "debug", 
@@ -81,6 +85,7 @@ def getoptions():
                       "tag=",
                       "delete=", 
                       "extract-only", 
+                      "use-lib-extract", 
                       "output=", 
                       "help"])
 
@@ -99,6 +104,8 @@ def getoptions():
             endtime = parsetime(opt[1])
         if opt[0] in ("-N", "--new-only"):
             retdata['newonly'] = True
+        if opt[0] in ("-L", "--use-lib-extract"):
+            retdata['libextract'] = True
         if opt[0] in ("-T", "--timeout"):
             retdata['force_timeout'] = int(opt[1])
         if opt[0] in ("-t", "--tag"):
@@ -147,7 +154,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
 
     try:
         mergestart = time.time()
-        mergeresult = extract_and_merge_logs(job, conf, resconf)
+        mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
         mergeend = time.time()
 
         if opts['extractonly']: 
@@ -194,8 +201,7 @@ def override_defaults(resconf, opts):
 
     return resconf
 
-
-def processjobs(config, opts, procid):
+def processjobs(config, opts, procid, comm):
     """ main function that does the work. One run of this function per process """
 
     preprocs = loadpreprocessors()
@@ -215,37 +221,104 @@ def processjobs(config, opts, procid):
         with outputter.factory(config, resconf) as m:
 
             if resconf['batch_system'] == "XDMoD":
-                dbif = XDMoDAcct(resconf['resource_id'], config, opts['threads'], procid)
+                dbif = XDMoDAcct(resconf['resource_id'], config, None, None)
             else:
-                dbif = DbAcct(resconf['resource_id'], config, opts['threads'], procid)
+                dbif = DbAcct(resconf['resource_id'], config)
 
-            if opts['mode'] == "single":
-                for job in dbif.getbylocaljobid(opts['local_job_id']):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
-            elif opts['mode'] == "timerange":
-                for job in dbif.getbytimerange(opts['start'], opts['end'], opts['newonly']):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+            # Master
+            if procid==0:
+                getjobs={}
+                if opts['mode'] == "single":
+                    getjobs['cmd']=dbif.getbylocaljobid
+                    getjobs['opts']=[opts['local_job_id'],]
+                elif opts['mode'] == "timerange":
+                    getjobs['cmd']=dbif.getbytimerange
+                    getjobs['opts']=[opts['start'], opts['end'], opts['newonly']]
+                else:
+                    getjobs['cmd']=dbif.get
+                    getjobs['opts']=[None, None]
+
+                logging.debug("MASTER STARTING")
+                numworkers = opts['threads']-1
+                numsent = 0
+                numreceived = 0
+
+                for job in getjobs['cmd'](*(getjobs['opts'])):
+                    if numsent >= numworkers:
+                        # Wait for a worker to be done and then send more work
+                        process = comm.recv(source=MPI.ANY_SOURCE, tag=1)
+                        numreceived += 1
+                        comm.send(job, dest=process, tag=1)
+                        numsent += 1
+                        logging.debug("Sent new job: %d sent, %d received", numsent, numreceived)
+                    else:
+                        # Initial batch
+                        comm.send(job, dest=numsent+1, tag=1)
+                        numsent += 1
+                        logging.debug("Initial Batch: %d sent, %d received", numsent, numreceived)
+
+                logging.debug("After all jobs sent: %d sent, %d received", numsent, numreceived)
+
+                # Get leftover results
+                while numsent > numreceived:
+                    comm.recv(source=MPI.ANY_SOURCE, tag=1)
+                    numreceived += 1
+                    logging.debug("Getting leftovers. %d sent, %d received", numsent, numreceived)
+
+                # Shut them down
+                for worker in xrange(numworkers):
+                    logging.debug("Shutting down: %d", worker+1)
+                    comm.send(None, dest=worker+1, tag=1)
+
+            # Worker
             else:
-                for job in dbif.get(None, None):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
-
+                logging.debug("WORKER %d STARTING", procid)
+                while True:
+                    recvtries=0
+                    while not comm.Iprobe(source=0, tag=1):
+                        if recvtries < 1000:
+                            recvtries+=1
+                            continue
+                        # Sleep so we can instrument how efficient we are
+                        # Otherwise, workers spin on exit at the hidden mpi_finalize call.
+                        # If you care about maximum performance and don't care about wasted cycles, remove the Iprobe/sleep loop
+                        # Empirically, a tight loop with time.sleep(0.001) uses ~1% CPU
+                        time.sleep(0.001)
+                    job = comm.recv(source=0, tag=1)
+                    if job != None:
+                        logging.debug("Rank: %s, Starting: %s", procid, job.job_id)
+                        summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+                        logging.debug("Rank: %s, Finished: %s", procid, job.job_id)
+                        comm.send(procid, dest=0, tag=1)
+                    else:
+                        # Got shutdown message
+                        break
 
 def main():
     """
     main entry point for script
     """
+
+    comm = MPI.COMM_WORLD
+
     opts = getoptions()
 
-    logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%dT%H:%M:%S', level=opts['log'])
-    if sys.version.startswith("2.7"):
-        logging.captureWarnings(True)
+    opts['threads'] = comm.Get_size()
+
+    logout = "mpiOutput-{}.log".format(comm.Get_rank())
+
+    # For MPI jobs, do something sane with logging.
+    setuplogger(logging.ERROR, logout, opts['log'])
 
     config = Config()
 
-    comm = MPI.COMM_WORLD
-    opts['threads'] = comm.Get_size()
+    if comm.Get_size() < 2:
+        logging.error("Must run MPI job with at least 2 processes")
+        sys.exit(1)
 
-    processjobs(config, opts, comm.Get_rank())
+    processjobs(config, opts, comm.Get_rank(), comm)
+
+    logging.debug("Rank: %s FINISHED", comm.Get_rank())
 
 if __name__ == "__main__":
     main()

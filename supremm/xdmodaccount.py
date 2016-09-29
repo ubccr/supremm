@@ -95,7 +95,7 @@ class XDMoDAcct(Accounting):
         if self._nthreads != None and self._threadidx != None:
             query += " AND (CRC32(jf.local_job_id_raw) %% %s) = %s"
             data = data + (self._nthreads, self._threadidx)
-        query += " ORDER BY jf.end_time_ts ASC"
+        query += " ORDER BY jf.nodecount DESC"
 
         for job in  self.executequery(query, data):
             yield job

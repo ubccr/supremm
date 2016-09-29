@@ -8,9 +8,12 @@ import os
 import shutil
 import subprocess
 import math
+import time
 
 from pcp import pmapi
 import cpmapi as c_pmapi
+
+from supremm import pypmlogextract
 
 def get_datetime_from_timeval(tv):
     """
@@ -62,14 +65,29 @@ def get_datetime_from_pmResult(result):
     """
     return get_datetime_from_timeval(result.contents.timestamp)
 
-def extract_and_merge_logs(job, conf, resconf):
+def extract_and_merge_logs(job, conf, resconf, opts):
     """ merge all of the raw pcp archives into one archive per node for each
         node in the job """
 
     adjust_job_start_end(job)
 
-    return pmlogextract(job, conf, resconf)
+    return pmlogextract(job, conf, resconf, opts)
 
+
+def getlibextractcmdline(startdate, enddate, inputarchives, outputarchive):
+    """ build the pmlogextract commmandline """
+
+    # The time format used by the archive merging tool.
+    pcp_time_format = "@ %Y-%m-%d %H:%M:%S UTC"
+
+    cmdline = ["-S", startdate.strftime(pcp_time_format),
+               "-T", enddate.strftime(pcp_time_format)]
+
+    cmdline.extend(inputarchives)
+
+    cmdline.append(outputarchive)
+
+    return cmdline
 
 def getextractcmdline(startdate, enddate, inputarchives, outputarchive):
     """ build the pmlogextract commmandline """
@@ -107,7 +125,7 @@ def genoutputdir(job, conf, resconf):
 
     return jobdir
 
-def pmlogextract(job, conf, resconf):
+def pmlogextract(job, conf, resconf, opts):
     """
     Takes a job description and merges logs for the time it ran.
 
@@ -148,24 +166,35 @@ def pmlogextract(job, conf, resconf):
 
         # Merge the job logs for the node.
         node_archive = os.path.join(jobdir, nodename)
-        pcp_cmd = getextractcmdline(job.getnodebegin(nodename), job.getnodeend(nodename), nodearchives, node_archive)
 
-        logging.debug("Calling %s", " ".join(pcp_cmd))
-        proc = subprocess.Popen(pcp_cmd, stderr=subprocess.PIPE)
-
-        (_, errdata) = proc.communicate()
-
-        if errdata != None and len(errdata) > 0:
-            logging.warning(errdata)
-            job.record_error(errdata)
-
-        if proc.returncode:
-            errmsg = "pmlogextract return code: %s source command was: %s" % (proc.returncode, " ".join(pcp_cmd))
-            logging.warning(errmsg)
-            node_error -= 1
-            job.record_error(errmsg)
+        # Call the library version of pmlogextract to avoid fork calls in MPI
+        if opts['libextract']:
+            pcp_cmd = getlibextractcmdline(job.getnodebegin(nodename), job.getnodeend(nodename), nodearchives, node_archive)
+            logging.debug("Calling pypmlogextract.pypmlogextract(%s)", " ".join(pcp_cmd))
+            node_error = pypmlogextract.pypmlogextract(pcp_cmd)
+            if node_error == 0:
+                job.addnodearchive(nodename, node_archive)
+            else:
+                errdata="pypmlogextract.pypmlogextract(%s) FAILED" % " ".join(pcp_cmd)
+                logging.warning(errdata)
+                job.record_error(errdata)
         else:
-            job.addnodearchive(nodename, node_archive)
+            pcp_cmd = getextractcmdline(job.getnodebegin(nodename), job.getnodeend(nodename), nodearchives, node_archive)
+
+            logging.debug("Calling %s", " ".join(pcp_cmd))
+            proc = subprocess.Popen(pcp_cmd, stderr=subprocess.PIPE)
+            (_, errdata) = proc.communicate()
+
+            if errdata != None and len(errdata) > 0:
+                logging.warning(errdata)
+                job.record_error(errdata)
+
+            if proc.returncode:
+                errmsg = "pmlogextract return code: %s source command was: %s" % (proc.returncode, " ".join(pcp_cmd))
+                logging.warning(errmsg)
+                node_error -= 1
+                job.record_error(errmsg)
+            else:
+                job.addnodearchive(nodename, node_archive)
 
     return node_error
-
