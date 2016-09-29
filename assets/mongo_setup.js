@@ -246,9 +246,28 @@ var summarydef = {
             "unit": ""
         }, 
         "cpu": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "jobcpus": {
+                "user": {
+                    "documentation": "The CPU usage of the cores that were assigned to the job. This metric reports the CPU usage of each core that the job was assigned rather than, for example, the cpu usage of the job processes themselves.",
+                    "type": "instant",
+                    "unit": "ratio"
+                }
+            },
+            "nodecpus": {
+                "user": {
+                    "documentation": "The CPU usage of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
+                    "type": "instant",
+                    "unit": "ratio"
+                }
+            },
+            "effectivecpus": {
+                "user": {
+                    "documentation": "The effective cpu metric reports the statistics of the subset of CPU cores that have an average usage above a threshold. The metric is intended to be used to distinguish cpu cores that are running user processes from those that are not. The threshold value is resource-specific.",
+                    "type": "instant",
+                    "unit": "ratio"
+                }
+            },
+
         }, 
         "block": {
             "documentation": "", 
