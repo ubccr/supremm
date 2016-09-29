@@ -5,7 +5,7 @@ import numpy
 
 class TimeseriesAccumulator(object):
     """ Stores a subset of time-value pairs for a dataseries """
-    MAX_DATAPOINTS = 100
+    MAX_DATAPOINTS = 50
     LEAD_IN_DATAPOINTS = 10
 
     def __init__(self, nhosts, totaltime):
@@ -13,7 +13,7 @@ class TimeseriesAccumulator(object):
         self._samplewindow = None
         self._leadout = None
         self._data = numpy.empty((nhosts, TimeseriesAccumulator.MAX_DATAPOINTS, 2))
-        self._count = numpy.zeros(nhosts)
+        self._count = numpy.zeros(nhosts, dtype=int)
 
     def adddata(self, hostidx, timestamp, value):
         """ Add a datapoint to the collection.
