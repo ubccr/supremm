@@ -153,8 +153,14 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
     success = False
 
     try:
+            
+        mdata = {}
         mergestart = time.time()
-        mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
+        if job.nodecount > 1 and job.walltime < 5 * 60:
+            mergeresult = 1
+            mdata["skipped"] = True
+        else:
+            mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
         mergeend = time.time()
 
         if opts['extractonly']: 
@@ -168,7 +174,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
             logging.info("Success for %s files in %s", job.job_id, job.jobdir)
             s.process()
 
-        mdata = {"mergetime": mergeend - mergestart}
+        mdata["mergetime"] = mergeend - mergestart
         
         if opts['tag'] != None:
             mdata['tag'] = opts['tag']
