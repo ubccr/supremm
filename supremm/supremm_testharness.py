@@ -41,7 +41,7 @@ class MockJob(object):
         self.job_id = "1"
         self.end_str = "end"
         self.walltime = 9751
-        self.nodecount = 1
+        self.nodecount = len(archivelist)
         self.acct = {"end_time": 12312, "id": 1, "uid": "sdf", "user": "werqw"}
         self.nodes = ["node" + str(i) for i in xrange(len(archivelist))]
         self._data = {}
@@ -91,7 +91,7 @@ def main():
     plugins = loadplugins()
     logging.debug("Loaded %s plugins", len(plugins))
 
-    archivelist = [args[0]]
+    archivelist = args
 
     job = MockJob(archivelist)
 
