@@ -51,6 +51,7 @@ class NodeMemoryUsage(Plugin):
         maxmemused = []
         memfree = []
         maxmemfree = []
+        physmem = []
 
         for hostidx, memdata in self._data.iteritems():
             if memdata['free'].count() > 0:
@@ -60,6 +61,7 @@ class NodeMemoryUsage(Plugin):
                 if memdata['physmem'] != None:
                     memused.append(memdata['physmem'] - memdata['free'].mean())
                     maxmemused.append(memdata['physmem'] - memdata['free'].min)
+                    physmem.append(memdata['physmem'])
 
         if len(memused) == 0:
             return {"error": ProcessingError.INSUFFICIENT_DATA}
@@ -67,5 +69,6 @@ class NodeMemoryUsage(Plugin):
         return {"used": calculate_stats(memused),
                 "maxused": calculate_stats(maxmemused),
                 "free": calculate_stats(memfree),
+                "physmem": calculate_stats(physmem),
                 "maxfree": calculate_stats(maxmemfree)}
 
