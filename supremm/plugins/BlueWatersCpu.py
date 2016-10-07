@@ -54,7 +54,7 @@ class BlueWatersCpu(Plugin):
         deltaT = timestamp - self._lasttime[nodemeta.nodename]
 
         # Sane limit is 10 GHz ?
-        if (deltaV/deltaT).any() > 10**9:
+        if numpy.any((deltaV/deltaT) > 10e9):
             self._error = ProcessingError.PMDA_RESTARTED_DURING_JOB
             return False
 
