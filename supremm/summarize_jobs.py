@@ -204,15 +204,30 @@ def override_defaults(resconf, opts):
 
     return resconf
 
+def filter_plugins(resconf, preprocs, plugins):
+    """ Filter the list of plugins/preprocs to use on a resource basis """
+
+    # Default is to use all
+    filtered_preprocs=preprocs
+    filtered_plugins=plugins
+
+    if "plugin_whitelist" in resconf:
+       filtered_preprocs = [x for x in preprocs if x.__name__ in resconf['plugin_whitelist']]
+       filtered_plugins = [x for x in plugins if x.__name__ in resconf['plugin_whitelist']]
+    elif "plugin_blacklist" in resconf:
+       filtered_preprocs = [x for x in preprocs if x.__name__ not in resconf['plugin_blacklist']]
+       filtered_plugins = [x for x in plugins if x.__name__ not in resconf['plugin_blacklist']]
+
+    return filtered_preprocs, filtered_plugins
 
 def processjobs(config, opts, procid):
     """ main function that does the work. One run of this function per process """
 
-    preprocs = loadpreprocessors()
-    logging.debug("Loaded %s preprocessors", len(preprocs))
+    allpreprocs = loadpreprocessors()
+    logging.debug("Loaded %s preprocessors", len(allpreprocs))
 
-    plugins = loadplugins()
-    logging.debug("Loaded %s plugins", len(plugins))
+    allplugins = loadplugins()
+    logging.debug("Loaded %s plugins", len(allplugins))
 
     for r, resconf in config.resourceconfigs():
         if opts['resource'] == None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
@@ -221,6 +236,11 @@ def processjobs(config, opts, procid):
             continue
 
         resconf = override_defaults(resconf, opts)
+
+        preprocs, plugins = filter_plugins(resconf, allpreprocs, allplugins)
+
+        logging.debug("Using %s preprocessors", len(preprocs))
+        logging.debug("Using %s plugins", len(plugins))
 
         with outputter.factory(config, resconf) as m:
 
