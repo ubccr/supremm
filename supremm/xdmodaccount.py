@@ -67,9 +67,10 @@ class XDMoDAcct(Accounting):
                            AND (a.jobid = CAST(j.local_job_id_raw AS CHAR) OR a.jobid IS NULL)
                        GROUP BY 1, 2 ORDER BY 1 ASC, a.start_time_ts ASC """
 
-        self.con = getdbconnection(config.getsection("datawarehouse"), True)
-        self.hostcon = getdbconnection(config.getsection("datawarehouse"), False)
-        self.madcon = getdbconnection(config.getsection("datawarehouse"), False)
+        self.dbsettings = config.getsection("datawarehouse")
+        self.con = None
+        self.hostcon = None
+        self.madcon = None
 
     def getbylocaljobid(self, localjobid):
         """ Yields one or more Jobs that match the localjobid """
@@ -124,6 +125,11 @@ class XDMoDAcct(Accounting):
 
     def executequery(self, query, data):
         """ run the sql queries and yield a job object for each result """
+        if self.con == None:
+            self.con = getdbconnection(self.dbsettings, True)
+        if self.hostcon == None:
+            self.hostcon = getdbconnection(self.dbsettings, False)
+
         cur = self.con.cursor()
         cur.execute(query, data)
 
@@ -159,6 +165,9 @@ class XDMoDAcct(Accounting):
 
         version = Accounting.PROCESS_VERSION if success else -1 * Accounting.PROCESS_VERSION
         data = (job.job_pk_id, version, elapsedtime, version, elapsedtime)
+
+        if self.madcon == None:
+            self.madcon = getdbconnection(self.dbsettings, False)
 
         cur = self.madcon.cursor()
         cur.execute(query, data)
