@@ -2,6 +2,7 @@
 
 from supremm.summarize import Summarize
 from supremm.plugin import loadplugins, loadpreprocessors
+from supremm.config import Config
 
 import json
 from getopt import getopt
@@ -94,11 +95,12 @@ def main():
     archivelist = args
 
     job = MockJob(archivelist)
+    config = Config()
 
     preprocessors = [x(job) for x in preprocs]
     analytics = [x(job) for x in plugins]
 
-    s = Summarize(preprocessors, analytics, job)
+    s = Summarize(preprocessors, analytics, job, config)
     s.process()
     result = s.get()
     print json.dumps(result, indent=4)
