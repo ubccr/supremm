@@ -14,19 +14,16 @@ class BlueWatersCpu(Plugin):
     """ Estimate the cpu usage for a job by looking a the clock ticks. """
 
     name = property(lambda x: "cpu")
-    mode = property(lambda x: "all")
+    mode = property(lambda x: "firstlast")
     requiredMetrics = property(lambda x: ["perfevent.hwcounters.CPU_CLK_UNHALTED.value"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
         super(BlueWatersCpu, self).__init__(job)
-        self._data = {}
+        self._first = {}
         self._last = {}
-        self._firsttime = {}
-        self._lasttime = {}
         self._totalcores = 0
-        self._error = None
 
     def process(self, nodemeta, timestamp, data, description):
 
@@ -37,40 +34,17 @@ class BlueWatersCpu(Plugin):
         if data[0].size == 0:
             return False
 
-        ndata = numpy.array(data)
-
-        if nodemeta.nodename not in self._last:
-            self._last[nodemeta.nodename] = ndata
-            self._firsttime[nodemeta.nodename] = timestamp
-            self._lasttime[nodemeta.nodename] = timestamp
+        if nodemeta.nodename not in self._first:
+            self._first[nodemeta.nodename] = (timestamp, data[0])
             return True
 
-        if nodemeta.nodename not in self._data:
-            # Only populate data for a host when we have at least 2 datapoints
-            self._data[nodemeta.nodename] = numpy.zeros(ndata.shape)
-            self._totalcores += data[0].size
-
-        deltaV = (ndata - self._last[nodemeta.nodename]) % (2**48)
-        deltaT = timestamp - self._lasttime[nodemeta.nodename]
-
-        # Sane limit is 10 GHz ?
-        if numpy.any((deltaV/deltaT) > 10e9):
-            self._error = ProcessingError.PMDA_RESTARTED_DURING_JOB
-            return False
-
-        self._data[nodemeta.nodename] += deltaV
-
-        self._last[nodemeta.nodename] = ndata
-        self._lasttime[nodemeta.nodename] = timestamp
-
+        self._last[nodemeta.nodename] = (timestamp, data[0])
+        self._totalcores += data[0].size
 
         return True
 
     def results(self):
 
-        if self._error != None:
-            return {"error": self._error}
-        
         nhosts = len(self._last)
 
         if nhosts < 1:
@@ -79,13 +53,13 @@ class BlueWatersCpu(Plugin):
         ratios = numpy.empty(self._totalcores, numpy.double)
 
         coreindex = 0
-        for host, data in self._data.iteritems():
-            elapsed = self._lasttime[host] - self._firsttime[host]
+        for host, last in self._last.iteritems():
+            elapsed = last[0] - self._first[host][0]
             if elapsed < 1.0:
                 return {"error": ProcessingError.JOB_TOO_SHORT}
 
-            coresperhost = data.size
-            ratios[coreindex:(coreindex+coresperhost)] = data / elapsed / 2.6e9
+            coresperhost = last[1].size
+            ratios[coreindex:(coreindex+coresperhost)] = (last[1] - self._first[host][1]) / elapsed / 2.6e9
             coreindex += coresperhost
 
         # Compute the statistics for all cpus that had an average 
