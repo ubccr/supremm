@@ -39,7 +39,9 @@ CREATE TABLE `archive` (
   `jobid` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique` (`filename`),
-  KEY `fk_archive_1_idx` (`hostid`)
+  KEY `fk_archive_1_idx` (`hostid`),
+  KEY `timesonly` (`start_time_ts` ASC, `end_time_ts` ASC),
+  KEY `hosttimes` (`hostid` ASC, `start_time_ts` ASC, `end_time_ts` ASC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
