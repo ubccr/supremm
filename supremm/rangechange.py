@@ -66,7 +66,7 @@ class RangeChange(object):
         i = 0 
         for datum in data:
 
-            if self.needsfixup[i] == None:
+            if self.needsfixup[i] is None:
                 i += 1
                 continue
 
@@ -77,7 +77,7 @@ class RangeChange(object):
                 i += 1
                 continue
 
-            if self.accumulator[i] == None:
+            if self.accumulator[i] is None:
                 self.accumulator[i] = numpy.array(datum)
                 self.last[i] = numpy.array(datum)
             else:
