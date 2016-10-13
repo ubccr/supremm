@@ -232,9 +232,6 @@ def processjobs(config, opts, procid, comm):
     allplugins = loadplugins()
     logging.debug("Loaded %s plugins", len(allplugins))
 
-    print allpreprocs
-    print allplugins
-
     for r, resconf in config.resourceconfigs():
         if opts['resource'] == None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
             logging.info("Processing resource %s", r)
