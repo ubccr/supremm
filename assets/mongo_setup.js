@@ -140,22 +140,27 @@ var summarydef = {
             "free": {
                 "documentation": "The average amount of free memory per node for the job. The value is obtained from /proc/meminfo. The average is calculated as the mean value of each memory usage measurement.",
                 "type": "instant",
-                "unit": "byte"
+                "unit": "kilobyte"
             },
             "maxfree": {
                 "documentation": "The maximum value of the free memory on a node.",
                 "type": "instant",
-                "unit": "byte"
+                "unit": "kilobyte"
             },
             "used": {
                 "documentation": "The average amount of used memory per node.",
                 "type": "instant",
-                "unit": "byte"
+                "unit": "kilobyte"
             },
             "maxused": {
                 "documentation": "The maximum value of the used memory on a node.",
                 "type": "instant",
-                "unit": "byte"
+                "unit": "kilobyte"
+            },
+            "physmem": {
+                "documentation": "The total physical memory on a node.",
+                "type": "instant",
+                "unit": "kilobyte"
             }
         },
         "process_memory": {
@@ -274,6 +279,23 @@ var summarydef = {
             "type": "", 
             "unit": ""
         }, 
+        "gemini": {
+            "totalinput": {
+                "documentation": "",
+                "type": "instant",
+                "unit": "byte"
+            },
+            "totaloutput_optA": {
+                "documentation": "",
+                "type": "instant",
+                "unit": "byte"
+            },
+            "totaloutput_optB": {
+                "documentation": "",
+                "type": "instant",
+                "unit": "byte"
+            }
+        },
         "network": {
             "*": {
                 "in-bytes": {
