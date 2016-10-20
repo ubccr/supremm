@@ -158,6 +158,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
     try:
         mergestart = time.time()
         mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
+        missingnodes = -1.0 * mergeresult
         mergeend = time.time()
 
         if opts['extractonly']: 
@@ -167,7 +168,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
         analytics = [x(job) for x in plugins]
         s = Summarize(preprocessors, analytics, job, conf)
 
-        if 0 == mergeresult:
+        if 0 == mergeresult or (missingnodes / job.nodecount < 0.05):
             logging.info("Success for %s files in %s", job.job_id, job.jobdir)
             s.process()
 
@@ -175,6 +176,9 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
         
         if opts['tag'] != None:
             mdata['tag'] = opts['tag']
+
+        if missingnodes > 0:
+            mdata['missingnodes'] = missingnodes
 
         m.process(s, mdata)
 
