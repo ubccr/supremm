@@ -67,23 +67,29 @@ def getoptions():
         "dodelete": True,
         "extractonly": False,
         "libextract": False,
-        "newonly": False,
-        "unproconly": False,
+        "process_all": False,
+        "process_bad": False,
+        "process_old": False,
+        "process_notdone": False,
+        "process_current": False,
         "job_output_dir": None,
         "tag": None,
         "force_timeout": 2 * 24 * 3600,
         "resource": None
     }
 
-    opts, _ = getopt(sys.argv[1:], "j:r:dqs:e:LNUT:t:D:Eo:h", 
+    opts, _ = getopt(sys.argv[1:], "ABONCj:r:dqs:e:LT:t:D:Eo:h", 
                      ["localjobid=", 
                       "resource=", 
                       "debug", 
                       "quiet", 
                       "start=", 
                       "end=", 
-                      "new-only",
-                      "unproc-only",
+                      "process-all",
+                      "process-bad",
+                      "process-old",
+                      "process-notdone",
+                      "process-current",
                       "timeout=", 
                       "tag=",
                       "delete=", 
@@ -105,10 +111,16 @@ def getoptions():
             starttime = parsetime(opt[1])
         if opt[0] in ("-e", "--end"):
             endtime = parsetime(opt[1])
-        if opt[0] in ("-N", "--new-only"):
-            retdata['newonly'] = True
-        if opt[0] in ("-U", "--unproc-only"):
-            retdata['unproconly'] = True
+        if opt[0] in ("-A", "--process-all"):
+            retdata['process_all'] = True
+        if opt[0] in ("-B", "--process-bad"):
+            retdata['process_bad'] = True
+        if opt[0] in ("-O", "--process-old"):
+            retdata['process_old'] = True
+        if opt[0] in ("-N", "--process-notdone"):
+            retdata['process_notdone'] = True
+        if opt[0] in ("-C", "--process-current"):
+            retdata['process_current'] = True
         if opt[0] in ("-L", "--use-lib-extract"):
             retdata['libextract'] = True
         if opt[0] in ("-T", "--timeout"):
@@ -129,12 +141,29 @@ def getoptions():
         # extract-only supresses archive delete
         retdata['dodelete'] = False
 
+    # If all options selected, treat as all to optimize the job selection query
+    if retdata['process_bad'] and retdata['process_old'] and retdata['process_notdone'] and retdata['process_current']:
+        retdata['process_all'] = True
+
     if not (starttime == None and endtime == None):
         if starttime == None or endtime == None:
             usage()
             sys.exit(1)
         retdata.update({"mode": "timerange", "start": starttime, "end": endtime, "resource": resource})
+        # Preserve the existing mode where just specifying a timerange does all jobs
+        if not retdata['process_bad'] and not retdata['process_old'] and not retdata['process_notdone'] and not retdata['process_current']:
+            retdata['process_all'] = True
         return retdata
+    else:
+        if not retdata['process_bad'] and not retdata['process_old'] and not retdata['process_notdone'] and not retdata['process_current']:
+            # Preserve the existing mode where unprocessed jobs are selected when no time range given
+            retdata['process_bad'] = True
+            retdata['process_old'] = True
+            retdata['process_notdone'] = True
+        if (retdata['process_bad'] and retdata['process_old'] and retdata['process_notdone'] and retdata['process_current']) or retdata['process_all']:
+            # Sanity checking to not do every job in the DB
+            logging.error("Cannot process all jobs without a time range")
+            sys.exit(1)
 
     if localjobid == None and resource == None:
         retdata.update({"mode": "all"})
