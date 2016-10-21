@@ -119,9 +119,10 @@ class XDMoDAcct(Accounting):
                 pass
 
         # Add a "AND ( cond1 OR cond2 ...) clause
-        job_selector=" OR ".join(process_selectors)
-        job_selector = " AND( " + job_selector + " )"
-        query += job_selector
+        if len(process_selectors) > 0:
+            job_selector=" OR ".join(process_selectors)
+            job_selector = " AND( " + job_selector + " )"
+            query += job_selector
 
         query += " ORDER BY jf.nodecount DESC"
 
@@ -159,6 +160,9 @@ class XDMoDAcct(Accounting):
 
         cur = self.con.cursor()
         cur.execute(query, data)
+
+        rows_returned=cur.rowcount
+        logging.info("Processing %s jobs", rows_returned)
 
         for record in cur:
 
