@@ -124,6 +124,10 @@ class XDMoDAcct(Accounting):
             job_selector = " AND( " + job_selector + " )"
             query += job_selector
 
+        if self._nthreads != None and self._threadidx != None:
+            query += " AND (CRC32(jf.local_job_id_raw) %% %s) = %s"
+            data = data + (self._nthreads, self._threadidx)
+
         query += " ORDER BY jf.nodecount DESC"
 
         for job in  self.executequery(query, data):
