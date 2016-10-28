@@ -52,6 +52,9 @@ def adjust_job_start_end(job):
                 context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
                 end = datetime.datetime.utcfromtimestamp(math.ceil(context.pmGetArchiveEnd()))
 
+        # Trim 60 seconds off the job end
+        end = max(job.end_datetime - datetime.timedelta(seconds=60), job.start_datetime)
+
         job.setnodebeginend(nodename, begin, end)
 
 def get_datetime_from_pmResult(result):

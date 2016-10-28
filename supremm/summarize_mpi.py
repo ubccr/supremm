@@ -190,13 +190,37 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
     success = False
 
     try:
+
+        # Log and don't process the jobs that match these WHERE clauses:
+        #                 AND NOT (jf.nodecount > 1 AND jf.wallduration < 300)
+        #                 AND jf.nodecount < 10000
+        #                 AND jf.wallduration < 176400
+        #                 AND jf.wallduration > 180
+
             
         mdata = {}
         mergestart = time.time()
         if job.nodecount > 1 and job.walltime < 5 * 60:
             mergeresult = 1
-            mdata["skipped"] = True
+            mdata["skipped_parallel_too_short"] = True
+            # Was "skipped"
             missingnodes = job.nodecount
+            logging.info("Skipping %s, skipped_parallel_too_short", job.job_id)
+        elif job.nodecount >= 10000:
+            mergeresult = 1
+            mdata["skipped_job_too_big"] = True
+            missingnodes = job.nodecount
+            logging.info("Skipping %s, skipped_job_too_big", job.job_id)
+        elif job.walltime <= 180:
+            mergeresult = 1
+            mdata["skipped_too_short"] = True
+            missingnodes = job.nodecount
+            logging.info("Skipping %s, skipped_too_short", job.job_id)
+        elif job.walltime >= 176400:
+            mergeresult = 1
+            mdata["skipped_too_long"] = True
+            missingnodes = job.nodecount
+            logging.info("Skipping %s, skipped_too_long", job.job_id)
         else:
             mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
             missingnodes = -1.0 * mergeresult
