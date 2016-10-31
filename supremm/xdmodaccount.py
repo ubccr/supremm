@@ -62,9 +62,7 @@ class XDMoDAcct(Accounting):
                                (j.start_time_ts BETWEEN a.start_time_ts AND a.end_time_ts)
                                OR (j.end_time_ts BETWEEN a.start_time_ts AND a.end_time_ts)
                                OR (j.start_time_ts < a.start_time_ts and j.end_time_ts > a.end_time_ts)
-                               OR (CAST(j.local_job_id_raw AS CHAR) = a.jobid)
                            )
-                           AND (a.jobid = CAST(j.local_job_id_raw AS CHAR) OR a.jobid IS NULL)
                        GROUP BY 1, 2 ORDER BY 1 ASC, a.start_time_ts ASC """
 
         self.dbsettings = config.getsection("datawarehouse")
@@ -80,23 +78,55 @@ class XDMoDAcct(Accounting):
         for job in  self.executequery(query, data):
             yield job
 
-    def getbytimerange(self, start, end, onlynew):
+    def getbytimerange(self, start, end, opts):
         """ Search for all jobs based on the time interval. Matches based on the end
-        timestamp of the job. Will process all jobs in time interval whether or not
-        they have already been processed """
+        timestamp of the job. Will process jobs in time interval based on the process
+        flags"""
 
         query = self._query + " AND jf.end_time_ts BETWEEN unix_timestamp(%s) AND unix_timestamp(%s)"
         data = (self._resource_id, start, end)
 
-        if onlynew != None and onlynew != False:
-            logging.info("Processing only unprocessed jobs by timerange")
-            query += " AND (p.process_version != %s OR p.process_version IS NULL)"
-            data = data + (Accounting.PROCESS_VERSION, )
+        logging.info("Using time interval: %s - %s", start, end)
+
+        process_selectors=[]
+        # ALL & NONE will select the same jobs, simplify the query
+        if opts['process_all']:
+            logging.info("Processing all jobs")
+        else:
+            if opts['process_bad']:
+                logging.info("Processing bad jobs")
+                process_selectors.append("p.process_version < 0")
+            else:
+                pass
+            if opts['process_old']:
+                logging.info("Processing old jobs")
+                process_selectors.append("(p.process_version > 0 AND p.process_version != %s)")
+                data = data + (Accounting.PROCESS_VERSION, )
+            else:
+                pass
+            if opts['process_notdone']:
+                logging.info("Processing unprocessed jobs")
+                process_selectors.append("p.process_version IS NULL")
+            else:
+                pass
+            if opts['process_current']:
+                logging.info("Processing processed jobs")
+                process_selectors.append("p.process_version = %s")
+                data = data + (Accounting.PROCESS_VERSION, )
+            else:
+                pass
+
+        # Add a "AND ( cond1 OR cond2 ...) clause
+        if len(process_selectors) > 0:
+            job_selector=" OR ".join(process_selectors)
+            job_selector = " AND( " + job_selector + " )"
+            query += job_selector
 
         if self._nthreads != None and self._threadidx != None:
             query += " AND (CRC32(jf.local_job_id_raw) %% %s) = %s"
             data = data + (self._nthreads, self._threadidx)
-        query += " ORDER BY jf.nodecount DESC"
+
+        query += " ORDER BY jf.end_time_ts ASC"
 
         for job in  self.executequery(query, data):
             yield job
@@ -132,6 +162,9 @@ class XDMoDAcct(Accounting):
 
         cur = self.con.cursor()
         cur.execute(query, data)
+
+        rows_returned=cur.rowcount
+        logging.info("Processing %s jobs", rows_returned)
 
         for record in cur:
 
@@ -196,7 +229,7 @@ class XDMoDArchiveCache(ArchiveCache):
             logging.debug("Ignoring archive for host %s", hostname)
             return
 
-        query = """INSERT INTO modw_supremm.archive (hostid, filename, start_time_ts, end_time_ts, jobid) 
+        query = """INSERT INTO modw_supremm.archive_staging (hostid, filename, start_time_ts, end_time_ts, jobid) 
                        VALUES( (SELECT id FROM modw.hosts WHERE hostname = %s),%s,%s,%s,%s) 
                        ON DUPLICATE KEY UPDATE start_time_ts=%s, end_time_ts=%s"""
 

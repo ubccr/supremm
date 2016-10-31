@@ -36,7 +36,11 @@ def usage():
     print "                        time (an end time must also be specified)"
     print "  -e --end TIME         process all jobs that ended before the provided end"
     print "                        time (a start time must also be specified)"
-    print "  -N --new-only         when using a timerange, only look for unprocessed jobs"
+    print "  -A --process-all      when using a timerange, look for all jobs. Combines flags (BONC)"
+    print "  -B --process-bad      when using a timerange, look for jobs that previously failed to process"
+    print "  -O --process-old      when using a timerange, look for jobs that have an old process version"
+    print "  -N --process-notdone  when using a timerange, look for unprocessed jobs"
+    print "  -C --process-current  when using a timerange, look for jobs with the current process version"
     print "  -T --timeout SECONDS  amount of elapsed time from a job ending to when it"
     print "                        can be marked as processed even if the raw data is"
     print "                        absent"
@@ -66,14 +70,18 @@ def getoptions():
         "dodelete": True,
         "extractonly": False,
         "libextract": False,
-        "newonly": False,
+        "process_all": False,
+        "process_bad": False,
+        "process_old": False,
+        "process_notdone": False,
+        "process_current": False,
         "job_output_dir": None,
         "tag": None,
         "force_timeout": 2 * 24 * 3600,
         "resource": None
     }
 
-    opts, _ = getopt(sys.argv[1:], "j:r:t:dqs:e:LNT:t:D:Eo:h", 
+    opts, _ = getopt(sys.argv[1:], "ABONCj:r:t:dqs:e:LT:t:D:Eo:h", 
                      ["localjobid=", 
                       "resource=", 
                       "threads=", 
@@ -81,7 +89,11 @@ def getoptions():
                       "quiet", 
                       "start=", 
                       "end=", 
-                      "new-only",
+                      "process-all",
+                      "process-bad",
+                      "process-old",
+                      "process-notdone",
+                      "process-current",
                       "timeout=", 
                       "tag=",
                       "delete=", 
@@ -105,10 +117,18 @@ def getoptions():
             starttime = parsetime(opt[1])
         if opt[0] in ("-e", "--end"):
             endtime = parsetime(opt[1])
+        if opt[0] in ("-A", "--process-all"):
+            retdata['process_all'] = True
+        if opt[0] in ("-B", "--process-bad"):
+            retdata['process_bad'] = True
+        if opt[0] in ("-O", "--process-old"):
+            retdata['process_old'] = True
+        if opt[0] in ("-N", "--process-notdone"):
+            retdata['process_notdone'] = True
+        if opt[0] in ("-C", "--process-current"):
+            retdata['process_current'] = True
         if opt[0] in ("-L", "--use-lib-extract"):
             retdata['libextract'] = True
-        if opt[0] in ("-N", "--new-only"):
-            retdata['newonly'] = True
         if opt[0] in ("-T", "--timeout"):
             retdata['force_timeout'] = int(opt[1])
         if opt[0] in ("-t", "--tag"):
@@ -127,12 +147,29 @@ def getoptions():
         # extract-only supresses archive delete
         retdata['dodelete'] = False
 
+    # If all options selected, treat as all to optimize the job selection query
+    if retdata['process_bad'] and retdata['process_old'] and retdata['process_notdone'] and retdata['process_current']:
+        retdata['process_all'] = True
+
     if not (starttime == None and endtime == None):
         if starttime == None or endtime == None:
             usage()
             sys.exit(1)
         retdata.update({"mode": "timerange", "start": starttime, "end": endtime, "resource": resource})
+        # Preserve the existing mode where just specifying a timerange does all jobs
+        if not retdata['process_bad'] and not retdata['process_old'] and not retdata['process_notdone'] and not retdata['process_current']:
+            retdata['process_all'] = True
         return retdata
+    else:
+        if not retdata['process_bad'] and not retdata['process_old'] and not retdata['process_notdone'] and not retdata['process_current']:
+            # Preserve the existing mode where unprocessed jobs are selected when no time range given
+            retdata['process_bad'] = True
+            retdata['process_old'] = True
+            retdata['process_notdone'] = True
+        if (retdata['process_bad'] and retdata['process_old'] and retdata['process_notdone'] and retdata['process_current']) or retdata['process_all']:
+            # Sanity checking to not do every job in the DB
+            logging.error("Cannot process all jobs without a time range")
+            sys.exit(1)
 
     if localjobid == None and resource == None:
         retdata.update({"mode": "all"})
@@ -158,6 +195,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
     try:
         mergestart = time.time()
         mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
+        missingnodes = -1.0 * mergeresult
         mergeend = time.time()
 
         if opts['extractonly']: 
@@ -165,9 +203,9 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
 
         preprocessors = [x(job) for x in preprocs]
         analytics = [x(job) for x in plugins]
-        s = Summarize(preprocessors, analytics, job)
+        s = Summarize(preprocessors, analytics, job, conf)
 
-        if 0 == mergeresult:
+        if 0 == mergeresult or (missingnodes / job.nodecount < 0.05):
             logging.info("Success for %s files in %s", job.job_id, job.jobdir)
             s.process()
 
@@ -175,6 +213,9 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
         
         if opts['tag'] != None:
             mdata['tag'] = opts['tag']
+
+        if missingnodes > 0:
+            mdata['missingnodes'] = missingnodes
 
         m.process(s, mdata)
 
@@ -253,7 +294,7 @@ def processjobs(config, opts, procid):
                 for job in dbif.getbylocaljobid(opts['local_job_id']):
                     summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
             elif opts['mode'] == "timerange":
-                for job in dbif.getbytimerange(opts['start'], opts['end'], opts['newonly']):
+                for job in dbif.getbytimerange(opts['start'], opts['end'], opts):
                     summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
             else:
                 for job in dbif.get(None, None):

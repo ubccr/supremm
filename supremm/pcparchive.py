@@ -52,6 +52,9 @@ def adjust_job_start_end(job):
                 context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
                 end = datetime.datetime.utcfromtimestamp(math.ceil(context.pmGetArchiveEnd()))
 
+        # Trim 60 seconds off the job end
+        end = max(job.end_datetime - datetime.timedelta(seconds=60), job.start_datetime)
+
         job.setnodebeginend(nodename, begin, end)
 
 def get_datetime_from_pmResult(result):
@@ -171,10 +174,11 @@ def pmlogextract(job, conf, resconf, opts):
         if opts['libextract']:
             pcp_cmd = getlibextractcmdline(job.getnodebegin(nodename), job.getnodeend(nodename), nodearchives, node_archive)
             logging.debug("Calling pypmlogextract.pypmlogextract(%s)", " ".join(pcp_cmd))
-            node_error = pypmlogextract.pypmlogextract(pcp_cmd)
-            if node_error == 0:
+            returncode = pypmlogextract.pypmlogextract(pcp_cmd)
+            if returncode == 0:
                 job.addnodearchive(nodename, node_archive)
             else:
+                node_error -= 1
                 errdata="pypmlogextract.pypmlogextract(%s) FAILED" % " ".join(pcp_cmd)
                 logging.warning(errdata)
                 job.record_error(errdata)
