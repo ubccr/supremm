@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import math
 import time
+import traceback
 
 from pcp import pmapi
 import cpmapi as c_pmapi
@@ -157,8 +158,8 @@ def pmlogextract(job, conf, resconf, opts):
     # occurs, log an error and stop.
     try:
         os.makedirs(jobdir)
-    except EnvironmentError:
-        logging.error("Job directory %s could not be created.", jobdir)
+    except EnvironmentError as e:
+        logging.error("Job directory %s could not be created. Error: %s %s", jobdir, str(e), traceback.format_exc())
         return 1
 
     job.setjobdir(jobdir)
