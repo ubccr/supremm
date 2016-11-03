@@ -366,6 +366,9 @@ def processjobs(config, opts, procid, comm):
 
             # Worker
             else:
+                sendtime=time.time()
+                midtime=time.time()
+                recvtime=time.time()
                 logging.debug("WORKER %d STARTING", procid)
                 while True:
                     recvtries=0
@@ -379,11 +382,18 @@ def processjobs(config, opts, procid, comm):
                         # Empirically, a tight loop with time.sleep(0.001) uses ~1% CPU
                         time.sleep(0.001)
                     job = comm.recv(source=0, tag=1)
+                    recvtime=time.time()
+                    mpisendtime = midtime-sendtime
+                    mpirecvtime = recvtime-midtime
+                    if (mpisendtime+mpirecvtime) > 2:
+                        logging.warning("MPI send/recv took %s/%s", mpisendtime, mpirecvtime)
                     if job != None:
                         logging.debug("Rank: %s, Starting: %s", procid, job.job_id)
                         summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
                         logging.debug("Rank: %s, Finished: %s", procid, job.job_id)
+                        sendtime=time.time()
                         comm.send(procid, dest=0, tag=1)
+                        midtime=time.time()
                     else:
                         # Got shutdown message
                         break
