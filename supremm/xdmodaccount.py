@@ -96,26 +96,26 @@ class XDMoDAcct(Accounting):
         else:
             if opts['process_bad']:
                 logging.info("Processing bad jobs")
-                process_selectors.append("p.process_version < 0")
-            else:
-                pass
+                process_selectors.append("(p.process_version < 0 AND p.process_version > -1000)")
             if opts['process_old']:
                 logging.info("Processing old jobs")
                 process_selectors.append("(p.process_version > 0 AND p.process_version != %s)")
                 data = data + (Accounting.PROCESS_VERSION, )
-            else:
-                pass
             if opts['process_notdone']:
                 logging.info("Processing unprocessed jobs")
                 process_selectors.append("p.process_version IS NULL")
-            else:
-                pass
             if opts['process_current']:
                 logging.info("Processing processed jobs")
                 process_selectors.append("p.process_version = %s")
                 data = data + (Accounting.PROCESS_VERSION, )
-            else:
-                pass
+            if opts['process_big']:
+                logging.info("Processing jobs marked previously as too big")
+                process_selectors.append("p.process_version = %s")
+                data = data + (-1000-ProcessingError.JOB_TOO_BIG, )
+            if opts['process_error'] != 0:
+                logging.info("Processing jobs marked previously with %s", opts['process_error'])
+                process_selectors.append("p.process_version = %s")
+                data = data + (opts['process_error'], )
 
         # Add a "AND ( cond1 OR cond2 ...) clause
         if len(process_selectors) > 0:
@@ -189,7 +189,7 @@ class XDMoDAcct(Accounting):
 
             yield job
 
-    def markasdone(self, job, success, elapsedtime):
+    def markasdone(self, job, success, elapsedtime, error=None):
         """ log a job as being processed (either successfully or not) """
         query = """
             INSERT INTO modw_supremm.`process` 
@@ -197,7 +197,11 @@ class XDMoDAcct(Accounting):
             ON DUPLICATE KEY UPDATE process_version = %s, process_timestamp = NOW(), process_time = %s
             """
 
-        version = Accounting.PROCESS_VERSION if success else -1 * Accounting.PROCESS_VERSION
+        if error != None:
+            version = -1000 - error
+        else:
+            version = Accounting.PROCESS_VERSION if success else -1 * Accounting.PROCESS_VERSION
+
         data = (job.job_pk_id, version, elapsedtime, version, elapsedtime)
 
         if self.madcon == None:

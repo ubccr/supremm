@@ -164,9 +164,12 @@ def pmlogextract(job, conf, resconf, opts):
 
     job.setjobdir(jobdir)
 
-    # For every node the job ran on...
     node_error = 0
+    nodes_seen = 0;
+
+    # For every node the job ran on...
     for nodename, nodearchives in job.rawarchives():
+        nodes_seen += 1
 
         # Merge the job logs for the node.
         node_archive = os.path.join(jobdir, nodename)
@@ -201,5 +204,9 @@ def pmlogextract(job, conf, resconf, opts):
                 job.record_error(errmsg)
             else:
                 job.addnodearchive(nodename, node_archive)
+    
+    # We care about errors, but also how many nodes didn't have archives at all
+    nodes_missing = job.nodecount - nodes_seen
+    node_error -= nodes_missing
 
     return node_error

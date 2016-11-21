@@ -132,6 +132,44 @@ class Job(object):
             if nodedata.archive != None:
                 yield nodename, nodedata.nodeindex, nodedata.archive
 
+    def has_any_archives(self):
+        """ are there any archives for this job """
+
+        for nodename, nodedata in self._nodes.iteritems():
+            if len(nodedata.rawarchives) > 0:
+                return True
+
+        return False
+
+    def has_enough_raw_archives(self):
+        """ are there enough raw archives for this job to try pmlogextract"""
+
+        num_archives = 0
+
+        for nodename, nodedata in self._nodes.iteritems():
+            if len(nodedata.rawarchives) > 0:
+                num_archives += 1
+
+        if float(num_archives)/float(self._nodecount) > 0.95:
+            return True
+        else:
+            return False
+
+    def has_enough_combined_archives(self):
+        """ are there enough combined archives for this job to try summarization"""
+
+        num_archives = 0
+
+        for nodename, nodedata in self._nodes.iteritems():
+            if nodedata.archive != None:
+                num_archives += 1
+
+        if float(num_archives)/float(self._nodecount) > 0.95:
+            return True
+        else:
+            return False
+        
+
     def setnodebeginend(self, node, begin, end):
         """
         Set the begin and end times for the given node. If either
