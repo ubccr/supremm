@@ -44,6 +44,7 @@ def usage():
     print "  -N --process-notdone  when using a timerange, look for unprocessed jobs"
     print "  -C --process-current  when using a timerange, look for jobs with the current process version"
     print "  -T --timeout SECONDS  amount of elapsed time from a job ending to when it"
+    print "  -M --max-nodes NODES  only process jobs with fewer than this many nodes"
     print "                        can be marked as processed even if the raw data is"
     print "                        absent"
     print "  -t --tag              tag to add to the summarization field in mongo"
@@ -76,13 +77,14 @@ def getoptions():
         "process_old": False,
         "process_notdone": False,
         "process_current": False,
+        "max_nodes": 0,
         "job_output_dir": None,
         "tag": None,
         "force_timeout": 2 * 24 * 3600,
         "resource": None
     }
 
-    opts, _ = getopt(sys.argv[1:], "ABONCj:r:dqs:e:LT:t:D:Eo:h", 
+    opts, _ = getopt(sys.argv[1:], "ABONCM:j:r:dqs:e:LT:t:D:Eo:h", 
                      ["localjobid=", 
                       "resource=", 
                       "debug", 
@@ -94,6 +96,7 @@ def getoptions():
                       "process-old",
                       "process-notdone",
                       "process-current",
+                      "max-nodes=",
                       "timeout=", 
                       "tag=",
                       "delete=", 
@@ -127,6 +130,8 @@ def getoptions():
             retdata['process_current'] = True
         if opt[0] in ("-L", "--use-lib-extract"):
             retdata['libextract'] = True
+        if opt[0] in ("-M", "--max-nodes"):
+            retdata['max_nodes'] = int(opt[1])
         if opt[0] in ("-T", "--timeout"):
             retdata['force_timeout'] = int(opt[1])
         if opt[0] in ("-t", "--tag"):
@@ -212,7 +217,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
             mdata["skipped_invalid_nodecount"] = True
             missingnodes = job.nodecount
             logging.info("Skipping %s, skipped_invalid_nodecount", job.job_id)
-        elif job.nodecount >= 10000:
+        elif opts['max_nodes'] > 0 and job.nodecount > opts['max_nodes']:
             mergeresult = 1
             mdata["skipped_job_too_big"] = True
             missingnodes = job.nodecount
