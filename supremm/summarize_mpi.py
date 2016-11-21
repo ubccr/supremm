@@ -23,7 +23,8 @@ import traceback
 import time
 import datetime
 import shutil
-
+import psutil
+import json
 
 def usage():
     """ print usage """
@@ -206,6 +207,11 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
             # Was "skipped"
             missingnodes = job.nodecount
             logging.info("Skipping %s, skipped_parallel_too_short", job.job_id)
+        elif job.nodecount < 1:
+            mergeresult = 1
+            mdata["skipped_invalid_nodecount"] = True
+            missingnodes = job.nodecount
+            logging.info("Skipping %s, skipped_invalid_nodecount", job.job_id)
         elif job.nodecount >= 10000:
             mergeresult = 1
             mdata["skipped_job_too_big"] = True
@@ -233,7 +239,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
         analytics = [x(job) for x in plugins]
         s = Summarize(preprocessors, analytics, job, conf)
 
-        if 0 == mergeresult or (missingnodes / job.nodecount < 0.05):
+        if 0 == mergeresult or ( job.nodecount != 0 and (missingnodes / job.nodecount < 0.05)):
             logging.info("Success for %s files in %s", job.job_id, job.jobdir)
             s.process()
 
@@ -337,8 +343,26 @@ def processjobs(config, opts, procid, comm):
                 numsent = 0
                 numreceived = 0
 
+                list_procs=True
+
                 for job in getjobs['cmd'](*(getjobs['opts'])):
                     if numsent >= numworkers:
+                        if list_procs:
+                            # Once all ranks are going, dump the process list for debugging
+                            list_procs=False
+                            logging.info("Dumping process list")
+                            allpinfo={}
+                            for proc in psutil.process_iter():
+                                try:
+                                    pinfo = proc.as_dict()
+                                except psutil.NoSuchProcess:
+                                    pass
+                                else:
+                                    allpinfo[pinfo['pid']]=pinfo
+
+                            with open("rank-0.proclist", 'w') as outfile:
+                                json.dump(allpinfo, outfile, indent=2)
+
                         # Wait for a worker to be done and then send more work
                         process = comm.recv(source=MPI.ANY_SOURCE, tag=1)
                         numreceived += 1
@@ -351,7 +375,7 @@ def processjobs(config, opts, procid, comm):
                         numsent += 1
                         logging.debug("Initial Batch: %d sent, %d received", numsent, numreceived)
 
-                logging.debug("After all jobs sent: %d sent, %d received", numsent, numreceived)
+                logging.info("After all jobs sent: %d sent, %d received", numsent, numreceived)
 
                 # Get leftover results
                 while numsent > numreceived:
@@ -420,9 +444,12 @@ def main():
         logging.error("Must run MPI job with at least 2 processes")
         sys.exit(1)
 
+    myhost = MPI.Get_processor_name() 
+    logging.info("Nodename: %s", myhost)
+
     processjobs(config, opts, comm.Get_rank(), comm)
 
-    logging.debug("Rank: %s FINISHED", comm.Get_rank())
+    logging.info("Rank: %s FINISHED", comm.Get_rank())
 
 if __name__ == "__main__":
     main()

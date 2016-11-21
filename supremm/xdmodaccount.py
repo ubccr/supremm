@@ -1,5 +1,6 @@
 """ Implementation for account reader that gets data from the XDMoD datawarehouse """
 
+from MySQLdb import OperationalError
 from supremm.config import Config
 from supremm.accounting import Accounting, ArchiveCache
 from supremm.scripthelpers import getdbconnection
@@ -203,7 +204,15 @@ class XDMoDAcct(Accounting):
             self.madcon = getdbconnection(self.dbsettings, False)
 
         cur = self.madcon.cursor()
-        cur.execute(query, data)
+
+        try:
+            cur.execute(query, data)
+        except OperationalError:
+            logging.warning("Lost MySQL Connection. Attempting single reconnect")
+            self.madcon = getdbconnection(self.dbsettings, False)
+            cur = self.madcon.cursor()
+            cur.execute(query, data)
+
         self.madcon.commit()
 
 
