@@ -39,6 +39,12 @@ class SlurmCgroupMemory(Plugin):
 
         try:
             dataidx = description[0][1].index(self._expectedcgroup)
+
+            for i in xrange(len(self.requiredMetrics)):
+                if len(data[i]) < dataidx:
+                    # Skip timesteps with incomplete information
+                    raise ValueError
+
             self._hostcounts[nodemeta.nodeindex]["present"] += 1
         except ValueError:
             self._hostcounts[nodemeta.nodeindex]["missing"] += 1
