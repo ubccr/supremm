@@ -82,6 +82,12 @@ class Summarize(object):
         """
         return self.job.nodecount == self.archives_processed
 
+    def good_enough(self):
+        """ A job is good_enough if archives for 95% of nodes have
+            been processed sucessfullly
+        """
+        return self.archives_processed >= 0.95 * float(self.job.nodecount)
+
     def get(self):
         """ Return a dict with the summary information """
         output = {}
