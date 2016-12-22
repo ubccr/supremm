@@ -21,4 +21,9 @@ class NfsTimeseries(RateConvertingTimeseriesPlugin):
         super(NfsTimeseries, self).__init__(job)
 
     def computetimepoint(self, data):
-        return numpy.sum(numpy.array(data)) / 1048576.0
+        try:
+            return numpy.sum(numpy.array(data)) / 1048576.0
+        except ValueError:
+            # NFS mount points can dissapear / appear during the job
+            # skip points that are inconsistent with the first point
+            return None
