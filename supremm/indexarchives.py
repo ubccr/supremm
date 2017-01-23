@@ -99,7 +99,7 @@ class PcpArchiveFinder(object):
         else:
             self.minmonth = None
         self.fregex = re.compile(
-            r".*(\d{4})(\d{2})(\d{2})(?:\.\d{2}.\d{2}(?:[\.-]\d{2})?)?\.index$")
+            r".*(\d{4})(\d{2})(\d{2})(?:\.(\d{2}).(\d{2})(?:[\.-](\d{2}))?)?\.index$")
         self.sregex = re.compile(r"^(\d{4})(\d{2})$")
 
     def subdirok(self, subdir):
@@ -132,8 +132,10 @@ class PcpArchiveFinder(object):
                 "Unparsable filename %s processing anyway.", filename)
             return True
 
-        filedate = datetime(year=int(mtch.group(1)), month=int(
-            mtch.group(2)), day=int(mtch.group(3)))
+        if mtch.group(4) != None and mtch.group(5) != None:
+            filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)), hour=int(mtch.group(4)), minute=int(mtch.group(5)))
+        else:
+            filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)))
 
         if self.maxdate == None:
             return filedate > self.mindate
@@ -212,7 +214,7 @@ def getoptions():
         "config": None,
         "debugfile": None,
         "mindate": datetime.now() - timedelta(days=DAY_DELTA),
-        "maxdate": datetime.now()
+        "maxdate": datetime.now() - timedelta(minutes=10)
     }
 
     opts, _ = getopt(sys.argv[1:], "r:c:m:M:D:adqh", ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help"])
