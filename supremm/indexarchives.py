@@ -142,6 +142,30 @@ class PcpArchiveFinder(object):
         else:
             return filedate > self.mindate and filedate < self.maxdate
 
+    def ymdok(self, year, month=12, day=None):
+        """ Check candidate dates for YYYY/MM/DD directory structure """
+        if len(year) != 4:
+            return None
+
+        try:
+            yyyy = int(year)
+            mm = int(month)
+
+            if day == None:
+                # Some datetime arithmetic to get the last day of the month
+                tmpdate = datetime(year=yyyy, month=mm, day=28, hour=23, minute=59, second=59) + timedelta(days=4)
+                dirdate = tmpdate - timedelta(days=tmpdate.day)
+            else:
+                dirdate = datetime(year=yyyy, month=mm, day=int(day), hour=23, minute=59, second=59)
+
+        except ValueError:
+            return None
+
+        if self.mindate == None:
+            return True
+
+        return dirdate > self.mindate
+
     def find(self, topdir):
         """  find all archive files in topdir """
         if topdir == "":
@@ -159,6 +183,21 @@ class PcpArchiveFinder(object):
             datdirs = os.listdir(hostdir)
             t2 = time.time()
             for datedir in datdirs:
+
+                yeardirOk = self.ymdok(datedir)
+
+                if yeardirOk == True:
+                    for monthdir in os.listdir(os.path.join(hostdir, datedir)):
+                        if self.ymdok(datedir, monthdir) == True:
+                            for daydir in os.listdir(os.path.join(hostdir, datedir, monthdir)):
+                                if self.ymdok(datedir, monthdir, daydir) == True:
+                                    for filename in os.listdir(os.path.join(hostdir, datedir, monthdir, daydir)):
+                                        if filename.endswith(".index") and self.filenameok(filename):
+                                            yield os.path.join(hostdir, datedir, monthdir, daydir, filename)
+                    continue
+                elif yeardirOk == False:
+                    continue
+                # else fall through to check other formats
 
                 datedirOk = self.subdirok(datedir)
                 if datedirOk == None:
