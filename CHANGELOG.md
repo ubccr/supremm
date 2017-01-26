@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+
+## [1.0.2] - 2017-01-26
+
+### Added
+
+- Added support for indexing archive directories with a YYYY/MM/DD format
+  directory structure.
+- Added a `file` output setting for the outputter. This option is intended to
+  be used for debug purposes.
+- Added a hardware inventory preprocessor that records the hardware information
+  from the pcp archives.
+- Added support for per-node metrics for the CPU plugin.
+- Added support for per-node memory metrics.
+- Added support for load average metrics.
+
+### Changed
+
+- Indexing script defaults to ignoring archives that are less than 10 minutes
+  old (based on filename). This reduces the likelyhood of the race condition
+  where an archive exists but contains no data. The maxdate command line flag can
+  be used to override this default.
+
+### Fixed
+
+- Removed spurious print to stdout in the MongoOutput class
+- Improve handling of missing data for the NFS timeseries plugin.
+- Improve handling of missing data for the Slurm cgroup memory plugin.
+- Fix errors in schema description and add missing metric documentation.
+- Allow the output configuration parameter `type` as a synonym for `db_engine`.
+
 ## [1.0.1] - 2016-08-16
 
 ### Added
