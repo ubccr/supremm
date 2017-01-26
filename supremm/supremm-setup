@@ -80,7 +80,7 @@ def getdirectsettings(display, defaults):
     outconfig = {"datawarehouse": {"db_engine": "MySQLDB",
                                    "host": sqlhost,
                                    "defaultsfile": mycnffilename},
-                 "outputdatabase": {"type": "mongodb",
+                 "outputdatabase": {"db_engine": "mongodb",
                                     "uri": mongouri,
                                     "dbname": mongodbname}}
     mycnf = "[client]\nuser={0}\npassword={1}\n".format(sqluser, sqlpass)

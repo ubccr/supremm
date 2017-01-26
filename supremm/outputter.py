@@ -10,6 +10,11 @@ class factory(object):
     def __init__(self, config, resconf):
         outconf = config.getsection("outputdatabase")
 
+        if 'db_engine' not in outconf and 'type' in outconf:
+            # Older versions of the documentation recommended 'type' as the
+            # configuration parameter use this if 'db_engine' is absent
+            outconf['db_engine'] = outconf['type']
+
         if outconf['db_engine'].lower() == "mongodb":
             self._impl = MongoOutput(outconf, resconf)
         elif outconf['db_engine'].lower() == "stdout":
