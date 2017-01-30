@@ -3,6 +3,16 @@
 ## [Unreleased]
 
 ## [1.0.1] - 2016-08-16
+=======
+### Added
+
+- Option to output summarize_jobs.py to file as it runs and valid json file when it finishes.
+
+### Changed
+
+- puffypcp reimplements much of the static functions from summarize.py which interfaced with
+  the PCP libraries. Runs significantly faster.
+- Removes pcpfast in favor of implementing direct access to pcp within puffypcp.
 
 ### Added
 
@@ -26,8 +36,7 @@
 ### Fixed
 
 - The CPU plugin now sets the correct error code for short jobs that have
-  insufficient CPU information. Previously the CPU metrics would report NaN.
-- Fix issue where the SIMD timeseries plugin would not correctly output data
+
   for the individual nodes and CPUs.
 - The SLURM process list plugin now limits the total number processes reported
   to 150. This mitigates an issue where jobs with a huge number of processes
