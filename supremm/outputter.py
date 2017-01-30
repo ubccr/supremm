@@ -118,6 +118,7 @@ class MongoOutput(object):
         summary['summarization'].update(mdata)
 
         if 'timeseries' in summary:
+            summary['timeseries']['_id'] = summary["_id"]
             self._outdb[self._timeseries].update({"_id": summary["_id"]}, summary['timeseries'], upsert=True)
             del summary['timeseries']
 
