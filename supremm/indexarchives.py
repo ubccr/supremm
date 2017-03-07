@@ -182,6 +182,8 @@ class PcpArchiveFinder(object):
             t1 = time.time()
             datdirs = os.listdir(hostdir)
             t2 = time.time()
+            t3 = t2
+            t4 = t2
             for datedir in datdirs:
 
                 yeardirOk = self.ymdok(datedir)
