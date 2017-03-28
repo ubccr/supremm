@@ -142,7 +142,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
 
     try:
         mergestart = time.time()
-        mergeresult = extract_and_merge_logs(job, conf, resconf)
+        mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
         mergeend = time.time()
 
         if opts['extractonly']: 
