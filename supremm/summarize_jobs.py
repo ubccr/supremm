@@ -63,6 +63,7 @@ def getoptions():
         "dodelete": True,
         "extractonly": False,
         "job_output_dir": None,
+        "libextract": False,
         "force_timeout": 2 * 24 * 3600,
         "resource": None
     }
