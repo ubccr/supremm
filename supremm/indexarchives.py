@@ -99,7 +99,7 @@ class PcpArchiveFinder(object):
         else:
             self.minmonth = None
         self.fregex = re.compile(
-            r".*(\d{4})(\d{2})(\d{2})(?:\.\d{2}.\d{2}(?:[\.-]\d{2})?)?\.index$")
+            r".*(\d{4})(\d{2})(\d{2})(?:\.(\d{2}).(\d{2})(?:[\.-](\d{2}))?)?\.index$")
         self.sregex = re.compile(r"^(\d{4})(\d{2})$")
 
     def subdirok(self, subdir):
@@ -132,13 +132,39 @@ class PcpArchiveFinder(object):
                 "Unparsable filename %s processing anyway.", filename)
             return True
 
-        filedate = datetime(year=int(mtch.group(1)), month=int(
-            mtch.group(2)), day=int(mtch.group(3)))
+        if mtch.group(4) != None and mtch.group(5) != None:
+            filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)), hour=int(mtch.group(4)), minute=int(mtch.group(5)))
+        else:
+            filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)))
 
         if self.maxdate == None:
             return filedate > self.mindate
         else:
             return filedate > self.mindate and filedate < self.maxdate
+
+    def ymdok(self, year, month=12, day=None):
+        """ Check candidate dates for YYYY/MM/DD directory structure """
+        if len(year) != 4:
+            return None
+
+        try:
+            yyyy = int(year)
+            mm = int(month)
+
+            if day == None:
+                # Some datetime arithmetic to get the last day of the month
+                tmpdate = datetime(year=yyyy, month=mm, day=28, hour=23, minute=59, second=59) + timedelta(days=4)
+                dirdate = tmpdate - timedelta(days=tmpdate.day)
+            else:
+                dirdate = datetime(year=yyyy, month=mm, day=int(day), hour=23, minute=59, second=59)
+
+        except ValueError:
+            return None
+
+        if self.mindate == None:
+            return True
+
+        return dirdate > self.mindate
 
     def find(self, topdir):
         """  find all archive files in topdir """
@@ -156,7 +182,24 @@ class PcpArchiveFinder(object):
             t1 = time.time()
             datdirs = os.listdir(hostdir)
             t2 = time.time()
+            t3 = t2
+            t4 = t2
             for datedir in datdirs:
+
+                yeardirOk = self.ymdok(datedir)
+
+                if yeardirOk == True:
+                    for monthdir in os.listdir(os.path.join(hostdir, datedir)):
+                        if self.ymdok(datedir, monthdir) == True:
+                            for daydir in os.listdir(os.path.join(hostdir, datedir, monthdir)):
+                                if self.ymdok(datedir, monthdir, daydir) == True:
+                                    for filename in os.listdir(os.path.join(hostdir, datedir, monthdir, daydir)):
+                                        if filename.endswith(".index") and self.filenameok(filename):
+                                            yield os.path.join(hostdir, datedir, monthdir, daydir, filename)
+                    continue
+                elif yeardirOk == False:
+                    continue
+                # else fall through to check other formats
 
                 datedirOk = self.subdirok(datedir)
                 if datedirOk == None:
@@ -212,7 +255,7 @@ def getoptions():
         "config": None,
         "debugfile": None,
         "mindate": datetime.now() - timedelta(days=DAY_DELTA),
-        "maxdate": datetime.now()
+        "maxdate": datetime.now() - timedelta(minutes=10)
     }
 
     opts, _ = getopt(sys.argv[1:], "r:c:m:M:D:adqh", ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help"])

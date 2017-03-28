@@ -327,7 +327,9 @@ class RateConvertingTimeseriesPlugin(Plugin):
         if nodemeta.nodeindex not in self._hostdata:
             self._hostdata[nodemeta.nodeindex] = 1
 
-        self._data.adddata(nodemeta.nodeindex, timestamp, self.computetimepoint(data))
+        datum = self.computetimepoint(data)
+        if datum != None:
+            self._data.adddata(nodemeta.nodeindex, timestamp, datum)
 
     def results(self):
 

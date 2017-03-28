@@ -25,6 +25,12 @@ class CpuUsage(Plugin):
             "kernel.percpu.cpu.idle", 
             "kernel.percpu.cpu.wait.total",
             "kernel.percpu.cpu.intr"
+        ], [
+            "kernel.all.cpu.user",
+            "kernel.all.cpu.nice",
+            "kernel.all.cpu.sys",
+            "kernel.all.cpu.idle",
+            "kernel.all.cpu.wait.total"
         ]])
 
     optionalMetrics = property(lambda x: [])
