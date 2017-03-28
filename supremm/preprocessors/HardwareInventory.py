@@ -41,6 +41,7 @@ class HardwareInventory(PreProcessor):
     def hostend(self):
         if self.corecount != None:
             self.data[self.hostname] = {'cores': self.corecount}
+            self.cores.append(self.corecount)
 
         self.cores.append(self.corecount)
         self.corecount = None

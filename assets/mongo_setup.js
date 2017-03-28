@@ -31,17 +31,17 @@ var sdef = {
         "memused_minus_diskcache": {
             "units": "GB",
             "description": "Node Memory RSS",
-            "help": "The total physical memory used by the operating system excluding memory used for caches. This value includes the contribution for <em>all</em> processes including system daemons and all running HPC jobs but does not include the physical memory used by the kernel page and SLAB caches. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)",
+            "help": "The total physical memory used by the operating system excluding memory used for caches. This value includes the contribution for <em>all</em> processes including system daemons and all running HPC jobs but does not include the physical memory used by the kernel page and SLAB caches. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)"
         },
         "memused": {
             "units": "GB",
             "description": "Total Node Memory",
             "help": "The total physical memory used by the operating system. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)"
         },
-        "process_mem_usage" : {
-            "units" : "GB",
-            "description" : "Total CGroup Memory",
-            "help" : "The total amount of memory used in the memory cgroup that contained the job. The value is obtained from the kernel cgroup metrics."
+        "process_mem_usage": {
+            "units": "GB",
+            "description": "Total CGroup Memory",
+            "help": "The total amount of memory used in the memory cgroup that contained the job. The value is obtained from the kernel cgroup metrics."
         },
         "ib_lnet": {
             "units": "MB/s",
@@ -58,16 +58,16 @@ var sdef = {
             "description": "Block Filesystem traffic",
             "help": "The total rate of data transferred to and from the block devices on each node.  The rate is computed over each time interval and is the sum of data read and written."
         },
-        "nfs" : {
-            "units" : "MB/s",
-            "description" : "NFS Filesystem traffic",
-            "help" : "The total rate of data transferred to and from the parallel filesystem over NFS mounts. The rate is computed over each time interval and is the sum of data sent and received by each node."
+        "nfs": {
+            "units": "MB/s",
+            "description": "NFS Filesystem traffic",
+            "help": "The total rate of data transferred to and from the parallel filesystem over NFS mounts. The rate is computed over each time interval and is the sum of data sent and received by each node."
         }
     }
 };
 
 var summarydef = {
-    "summary_version": "summary-1.0.6",
+    "summary_version": "summary-1.0.6", 
     "_id": "summary-1.0.6",
     "definitions": {
         "lnet": {
@@ -87,54 +87,80 @@ var summarydef = {
         }, 
         "cpuperf": {
             "cpiref": {
-                "documentation": "The average clock ticks per instruction for each core.", 
-                "type": "ratio", 
+                "documentation": "The average clock ticks per instruction for each core.",
+                "type": "ratio",
                 "unit": "ratio"
             },
             "cpldref": {
-                "documentation": "The average clock ticks per L1D cache load for each core.", 
-                "type": "ratio", 
+                "documentation": "The average clock ticks per L1D cache load for each core.",
+                "type": "ratio",
                 "unit": "ratio"
             },
             "flops": {
-                "documentation": "The number of floating point instructions executed per core.", 
-                "type": "instant", 
+                "documentation": "The number of floating point instructions executed per core.",
+                "type": "instant",
                 "unit": "op"
             }
         }, 
+        "load1": {
+            "max": {
+                "documentation": "The maximum value of the 1-second 'load average' during the job.",
+                "type": "instant",
+                "unit": ""
+            },
+            "maxpercore": {
+                "documentation": "The maximum value of the 1-second 'load average' per core during the job.",
+                "type": "instant",
+                "unit": ""
+            },
+            "mean": {
+                "documentation": "The arithmetic mean of the 1-second 'load average' during the job.",
+                "type": "instant",
+                "unit": ""
+            },
+            "meanpercore": {
+                "documentation": "The arithmetic mean of the 1-second 'load average' per core during the job.",
+                "type": "instant",
+                "unit": ""
+            }
+        },
         "lustre": {
             "*": {
                 "read_bytes-total": {
-                    "documentation": "", 
-                    "type": "instant", 
+                    "documentation": "",
+                    "type": "instant",
                     "unit": "byte"
                 },
                 "write_bytes-total": {
-                    "documentation": "", 
-                    "type": "instant", 
+                    "documentation": "",
+                    "type": "instant",
                     "unit": "byte"
                 }
             }
         }, 
         "gpfs": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
-        }, 
-        "ib_lnet": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
-        }, 
-        "memused_minus_diskcache": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
-        }, 
-        "cpuuser": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "*": {
+                "read": {
+                    "documentation": "The number of read operations.",
+                    "type": "instant",
+                    "unit": ""
+                },
+                "write": {
+                    "documentation": "The number of write operations",
+                    "type": "instant",
+                    "unit": ""
+                },
+                "read_bytes": {
+                    "documentation": "The amount of data read.",
+                    "type": "instant",
+                    "unit": "byte"
+                },
+                "write_bytes": {
+                    "documentation": "The amount of data written.",
+                    "type": "instant",
+                    "unit": "byte"
+                }
+            }
         }, 
         "nodememory": {
             "free": {
@@ -183,9 +209,9 @@ var summarydef = {
                     "unit": "ratio"
                 },
                 "max": {
-                    "documentation": "The maximum value of the process memory on a node.",
+                    "documentation": "The maximum value of the ratio of memory used to the memory limit for the processes in the memory cgroup that contained the job. The value is obtained from the kernel cgroup metrics.",
                     "type": "instant",
-                    "unit": "byte"
+                    "unit": "ratio"
                 }
             },
             "limit": {
@@ -206,20 +232,22 @@ var summarydef = {
         }, 
         "uncperf": {
             "membw": {
-                "documentation": "The average amount of data transferred to and from main memory per node.", 
-                "type": "instant", 
+                "documentation": "The average amount of data transferred to and from main memory per node.",
+                "type": "instant",
                 "unit": "byte"
             }
         }, 
         "memory": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
-        }, 
-        "process_mem_usage": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "used": {
+                "documentation": "The mean memory usage during the job. This value is the usage per core. This value includes the OS buffers and kernel slab cache.", 
+                "type": "", 
+                "unit": "kilobyte"
+            },
+            "used_minus_cache": {
+                "documentation": "The mean memory usage during the job. This value is the usage per core.", 
+                "type": "", 
+                "unit": "kilobyte"
+            }
         }, 
         "gpu": {
             "*": {
@@ -252,15 +280,75 @@ var summarydef = {
         }, 
         "cpu": {
             "jobcpus": {
+                "idle": {
+                    "documentation": "The CPU usage in idle mode of the cores that were assigned to the job. This metric reports the overall usage of each core that the job was assigned rather than, for example, the CPU usage of the job processes themselves.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "iowait": {
+                    "documentation": "The CPU usage in iowait mode of the cores that were assigned to the job. This metric reports the overall usage of each core that the job was assigned rather than, for example, the CPU usage of the job processes themselves.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "irq": {
+                    "documentation": "The CPU usage in irq mode of the cores that were assigned to the job. This metric reports the overall usage of each core that the job was assigned rather than, for example, the CPU usage of the job processes themselves.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "nice": {
+                    "documentation": "The CPU usage in nice mode of the cores that were assigned to the job. This metric reports the overall usage of each core that the job was assigned rather than, for example, the CPU usage of the job processes themselves.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "softirq": {
+                    "documentation": "The CPU usage in softirq mode of the cores that were assigned to the job. This metric reports the overall usage of each core that the job was assigned rather than, for example, the CPU usage of the job processes themselves.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "system": {
+                    "documentation": "The CPU usage in system mode of the cores that were assigned to the job. This metric reports the overall usage of each core that the job was assigned rather than, for example, the CPU usage of the job processes themselves.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
                 "user": {
-                    "documentation": "The CPU usage of the cores that were assigned to the job. This metric reports the CPU usage of each core that the job was assigned rather than, for example, the cpu usage of the job processes themselves.",
+                    "documentation": "The CPU usage in user mode of the cores that were assigned to the job. This metric reports the overall usage of each core that the job was assigned rather than, for example, the CPU usage of the job processes themselves.",
                     "type": "instant",
                     "unit": "ratio"
                 }
             },
             "nodecpus": {
+                "idle": {
+                    "documentation": "The CPU usage in idle mode of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "iowait": {
+                    "documentation": "The CPU usage in iowait mode of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "irq": {
+                    "documentation": "The CPU usage in irq mode of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "nice": {
+                    "documentation": "The CPU usage in nice mode of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "softirq": {
+                    "documentation": "The CPU usage in softirq mode of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
+                "system": {
+                    "documentation": "The CPU usage in system mode of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
+                    "type": "instant",
+                    "unit": "ratio"
+                },
                 "user": {
-                    "documentation": "The CPU usage of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
+                    "documentation": "The CPU usage in user mode of the compute nodes on which the job ran. This value includes the contribution from all cores on each compute node regardless of whether the job processes were assigned to or ran on them.",
                     "type": "instant",
                     "unit": "ratio"
                 }
@@ -271,13 +359,31 @@ var summarydef = {
                     "type": "instant",
                     "unit": "ratio"
                 }
-            },
-
-        }, 
+            }
+        },
         "block": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "*": {
+                "read": {
+                    "documentation": "The number of disk read operations.",
+                    "type": "instant",
+                    "unit": ""
+                },
+                "write": {
+                    "documentation": "The number of disk write operations",
+                    "type": "instant",
+                    "unit": ""
+                },
+                "read_bytes": {
+                    "documentation": "The amount of data read from disk.",
+                    "type": "instant",
+                    "unit": "byte"
+                },
+                "write_bytes": {
+                    "documentation": "The amount of data written to disk.",
+                    "type": "instant",
+                    "unit": "byte"
+                }
+            }
         }, 
         "gemini": {
             "totalinput": {
@@ -299,13 +405,13 @@ var summarydef = {
         "network": {
             "*": {
                 "in-bytes": {
-                    "documentation": "", 
-                    "type": "instant", 
+                    "documentation": "",
+                    "type": "instant",
                     "unit": "byte"
                 },
                 "out-bytes": {
-                    "documentation": "", 
-                    "type": "instant", 
+                    "documentation": "",
+                    "type": "instant",
                     "unit": "byte"
                 }
             }
@@ -314,5 +420,5 @@ var summarydef = {
 };
 
 db = db.getSiblingDB("supremm");
-db.schema.update({_id: sdef._id}, sdef, {upsert: true})
-db.schema.update({_id: summarydef._id}, summarydef, {upsert: true})
+db.schema.update({_id: sdef._id}, sdef, {upsert: true});
+db.schema.update({_id: summarydef._id}, summarydef, {upsert: true});
