@@ -20,13 +20,17 @@ NHM_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
                "perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value",
                "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
 
+AMD_INTERLAGOS_METRICS = ["perfevent.hwcounters.CPU_CLK_UNHALTED.value",
+                          "perfevent.hwcounters.RETIRED_INSTRUCTIONS.value",
+                          "perfevent.hwcounters.DATA_CACHE_MISSES_DC_MISS_STREAMING_STORE.value",
+                          "perfevent.hwcounters.RETIRED_SSE_OPS_ALL.value"]
 
 class CpuPerfCounters(Plugin):
     """ Compute various performance counter derived metrics """
 
     name = property(lambda x: "cpuperf")
     mode = property(lambda x: "firstlast")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, AMD_INTERLAGOS_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -38,6 +42,10 @@ class CpuPerfCounters(Plugin):
         self._error = None
 
     def process(self, nodemeta, timestamp, data, description):
+
+        if self._job.getdata('perf')['active'] != True:
+            self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
+            return False
 
         ndata = numpy.array(data)
 
@@ -71,7 +79,7 @@ class CpuPerfCounters(Plugin):
 
         coreindex = 0
         for _, data in self._data.iteritems():
-            if len(data) == len(NHM_METRICS):
+            if len(data) == len(NHM_METRICS): # also covers the AMD_INTERLAGOS
                 flops[coreindex:coreindex + len(data[0])] = 1.0 * data[3]
                 cpiref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[1]
                 cpldref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[2]

@@ -12,22 +12,22 @@ if python_version.startswith("2.6"):
 else:
     from collections import Counter
 
-SNB_METRICS = ["perfevent.active",
-               "perfevent.hwcounters.SIMD_FP_256_PACKED_DOUBLE.value",
+SNB_METRICS = ["perfevent.hwcounters.SIMD_FP_256_PACKED_DOUBLE.value",
                "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE.value",
                "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE.value",
                "perfevent.hwcounters.SIMD_FP_256_PACKED_DOUBLE.value",
                "perfevent.hwcounters.FP_COMP_OPS_EXE_X87.value"]
 
-NHM_METRICS = ["perfevent.active",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
+NHM_METRICS = ["perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
+
+INTERLAGOS_METRICS = ["perfevent.hwcounters.RETIRED_SSE_OPS_ALL.value"]
 
 class SimdInsTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """
 
     name = property(lambda x: "simdins")
     mode = property(lambda x: "timeseries")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, INTERLAGOS_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -40,25 +40,24 @@ class SimdInsTimeseries(Plugin):
 
     def process(self, nodemeta, timestamp, data, description):
 
-        if len(data[0]) > 0 and data[0][0] == 0:
-            # If active == 0 then the PMDA was switched off due to user request
+        if self._job.getdata('perf')['active'] != True:
             self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
             return False
 
-        if len(data[1]) == 0:
+        if len(data[0]) == 0:
             # Ignore timesteps where data was not available
             return True
 
         hostidx = nodemeta.nodeindex
 
         if nodemeta.nodeindex not in self._hostdata:
-            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[1])))
-            self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[1][0], description[1][1]))
+            self._hostdata[hostidx] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, len(data[0])))
+            self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[0][0], description[0][1]))
 
-        if len(data) == len(NHM_METRICS):
-            flops = numpy.array(data[1])
+        if len(data) == len(NHM_METRICS): # Note that INTERLAGOS is covered here too
+            flops = numpy.array(data[0])
         else:
-            flops = 4.0 * data[1] + 2.0 * data[2] + data[3] + data[4]
+            flops = 4.0 * data[0] + 2.0 * data[1] + data[2] + data[3]
 
         insertat = self._data.adddata(hostidx, timestamp, numpy.sum(flops))
         if insertat != None:
@@ -77,6 +76,10 @@ class SimdInsTimeseries(Plugin):
             return {"error": self._error}
 
         values = self._data.get()
+
+        if len(values[0, :, 0]) < 3:
+            return {"error": ProcessingError.JOB_TOO_SHORT}
+
         rates = numpy.diff(values[:, :, 1]) / numpy.diff(values[:, :, 0])
 
         if len(self._hostdata) > 64:
@@ -114,7 +117,7 @@ class SimdInsTimeseries(Plugin):
 
             for devid in self._hostdevnames[hostidx].iterkeys():
                 dpnts = len(values[hostidx, :, 0])
-                retdata['hosts'][str(hostidx)]['dev'][devid] = (numpy.diff(self._hostdata[hostidx][:dpnts, devid]) / numpy.diff(values[hostidx, :, 0])).tolist()
+                retdata['hosts'][str(hostidx)]['dev'][devid] = (numpy.diff(self._hostdata[hostidx][:dpnts, int(devid)]) / numpy.diff(values[hostidx, :, 0])).tolist()
 
             retdata['hosts'][str(hostidx)]['names'] = self._hostdevnames[hostidx]
 

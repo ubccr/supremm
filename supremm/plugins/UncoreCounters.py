@@ -18,12 +18,14 @@ SNB_METRICS = ["perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_RD.value",
 NHM_METRICS = ["perfevent.hwcounters.UNC_LLC_MISS_READ.value",
                "perfevent.hwcounters.UNC_LLC_MISS_WRITE.value"]
 
+INTERLAGOS_METRICS = ["perfevent.hwcounters.L3_CACHE_MISSES_ALL.value"]
+
 class UncoreCounters(Plugin):
     """ Compute various uncore performance counter derived metrics """
 
     name = property(lambda x: "uncperf")
     mode = property(lambda x: "firstlast")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, INTERLAGOS_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -34,6 +36,11 @@ class UncoreCounters(Plugin):
         self._error = None
 
     def process(self, nodemeta, timestamp, data, description):
+
+        if self._job.getdata('perf')['active'] != True:
+            self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
+            return False
+
         ndata = numpy.array(data)
 
         if nodemeta.nodename not in self._first:
