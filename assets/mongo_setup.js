@@ -18,6 +18,16 @@ var sdef = {
             "description": "SIMD instructions",
             "help": "The total rate of floating point SIMD instructions reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
         },
+        "gpu_usage": {
+            "units": "GPU %",
+            "description": "GPU utilzation %",
+            "help": "The average percentage of time spent with the GPU active. The average is computed over each time interval."
+        },
+        "clktks": {
+            "units": "insts/s",
+            "description": "Clock Ticks",
+            "help": "The total rate of clock ticks reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
+        },
         "memused_minus_diskcache": {
             "units": "GB",
             "description": "Node Memory RSS",
@@ -240,9 +250,28 @@ var summarydef = {
             }
         }, 
         "gpu": {
-            "documentation": "", 
-            "type": "", 
-            "unit": ""
+            "*": {
+                "gpuactive": {
+                    "documentation": "The average GPU usage.", 
+                    "type": "instant", 
+                    "unit": "%"
+                },
+                "gpuactivemax": {
+                    "documentation": "The peak GPU usage.", 
+                    "type": "instant", 
+                    "unit": "%"
+                },
+                "memused": {
+                    "documentation": "The average memory usage per GPU.", 
+                    "type": "instant", 
+                    "unit": "byte"
+                },
+                "memusedmax": {
+                    "documentation": "The peak memory usage for each GPU.", 
+                    "type": "instant", 
+                    "unit": "byte"
+                }
+            }
         }, 
         "proc": {
             "documentation": "", 
@@ -323,6 +352,13 @@ var summarydef = {
                     "type": "instant",
                     "unit": "ratio"
                 }
+            },
+            "effectivecpus": {
+                "user": {
+                    "documentation": "The effective cpu metric reports the statistics of the subset of CPU cores that have an average usage above a threshold. The metric is intended to be used to distinguish cpu cores that are running user processes from those that are not. The threshold value is resource-specific.",
+                    "type": "instant",
+                    "unit": "ratio"
+                }
             }
         },
         "block": {
@@ -349,6 +385,23 @@ var summarydef = {
                 }
             }
         }, 
+        "gemini": {
+            "totalinput": {
+                "documentation": "",
+                "type": "instant",
+                "unit": "byte"
+            },
+            "totaloutput_optA": {
+                "documentation": "",
+                "type": "instant",
+                "unit": "byte"
+            },
+            "totaloutput_optB": {
+                "documentation": "",
+                "type": "instant",
+                "unit": "byte"
+            }
+        },
         "network": {
             "*": {
                 "in-bytes": {
