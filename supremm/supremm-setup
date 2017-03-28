@@ -70,6 +70,7 @@ def getdirectsettings(display, defaults):
     """ obtain the database settings from user """
     display.print_text("Direct DB Credentials")
     sqlhost = display.prompt_string("  XDMoD mysqldb hostname", defaults['mysqlhostname'])
+    sqlport = display.prompt_string("  XDMoD mysqldb port number", defaults['mysqlport'])
     sqluser = display.prompt_string("  XDMoD mysqldb username", defaults['mysqlusername'])
     sqlpass = display.prompt_password("  XDMoD mysqldb password")
     sprompt = "  Location of my.cnf file (where the username and passsword will be stored)"
@@ -79,6 +80,7 @@ def getdirectsettings(display, defaults):
 
     outconfig = {"datawarehouse": {"db_engine": "MySQLDB",
                                    "host": sqlhost,
+                                   "port": int(sqlport),
                                    "defaultsfile": mycnffilename},
                  "outputdatabase": {"db_engine": "mongodb",
                                     "uri": mongouri,
@@ -97,6 +99,7 @@ def default_settings(confpath):
     defaults['xdmodpath'] = '/etc/xdmod'
     defaults['archiveoutdir'] = '/dev/shm/supremm'
     defaults['mysqlhostname'] = 'localhost'
+    defaults['mysqlport'] = 3306
     defaults['mysqlusername'] = 'xdmod'
     defaults['mycnffilename'] = '~/.supremm.my.cnf'
     defaults['mongouri'] = 'mongodb://localhost:27017/supremm'
@@ -113,6 +116,7 @@ def default_settings(confpath):
             dwconfig = existingconf.getsection('datawarehouse')
             defaults['usexdmodconfig'] = 'n'
             defaults['mysqlhostname'] = dwconfig['host']
+            defaults['mysqlport'] = dwconfig.get('port', defaults['mysqlport'])
             defaults['mycnffilename'] = dwconfig['defaultsfile']
 
             try:
