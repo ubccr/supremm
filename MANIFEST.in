@@ -15,6 +15,7 @@ include supremm/outputter.py
 include supremm/pcparchive.py
 include supremm/plugin.py
 include supremm/processhelpers.py
+include supremm/profile.py
 include supremm/scripthelpers.py
 include supremm/statistics.py
 include supremm/subsample.py
