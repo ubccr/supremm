@@ -9,6 +9,7 @@ import time
 import logging
 import traceback
 from supremm.plugin import NodeMetadata
+from supremm.rangechange import RangeChange, DataCache
 
 import numpy
 import copy
@@ -34,7 +35,7 @@ class Summarize(object):
     and managing the calls to the various analytics to process the data
     """
 
-    def __init__(self, preprocessors, analytics, job):
+    def __init__(self, preprocessors, analytics, job, config):
 
         self.preprocs = preprocessors
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
@@ -45,6 +46,8 @@ class Summarize(object):
         self.archives_processed = 0
 
         self.indomcache = None
+
+        self.rangechange = RangeChange(config)
 
     def adderror(self, category, errormsg):
         """ All errors reported with this function show up in the job summary """
@@ -79,6 +82,12 @@ class Summarize(object):
         """
         return self.job.nodecount == self.archives_processed
 
+    def good_enough(self):
+        """ A job is good_enough if archives for 95% of nodes have
+            been processed sucessfullly
+        """
+        return self.archives_processed >= 0.95 * float(self.job.nodecount)
+
     def get(self):
         """ Return a dict with the summary information """
         output = {}
@@ -102,6 +111,7 @@ class Summarize(object):
         output['summarization'] = {
             "version": VERSION,
             "elapsed": time.time() - self.start,
+            "created": time.time(),
             "srcdir": self.job.jobdir,
             "complete": self.complete()}
 
@@ -149,11 +159,13 @@ class Summarize(object):
             for the analytic """
 
         metriclist = []
+        metricnames = []
 
         for derived in analytic.derivedMetrics:
             context.pmRegisterDerived(derived['name'], derived['formula'])
             required = context.pmLookupName(derived['name'])
             metriclist.append(required[0])
+            metricnames.append(derived['name'])
 
         if len(analytic.requiredMetrics) > 0:
             metricOk = False
@@ -161,22 +173,25 @@ class Summarize(object):
                 r = Summarize.loadrequiredmetrics(context, analytic.requiredMetrics)
                 if len(r) > 0:
                     metriclist += r
+                    metricnames.extend(analytic.requiredMetrics)
                     metricOk = True
             else:
                 for reqarray in analytic.requiredMetrics:
                     r = Summarize.loadrequiredmetrics(context, reqarray)
                     if len(r) > 0:
                         metriclist += r
+                        metricnames.extend(reqarray)
                         metricOk = True
                         break
 
             if not metricOk:
-                return []
+                return [], []
 
         for optional in analytic.optionalMetrics:
             try:
                 opt = context.pmLookupName(optional)
                 metriclist.append(opt[0])
+                metricnames.append(optional)
             except pmapi.pmErr as e:
                 if e.args[0] == c_pmapi.PM_ERR_NAME or e.args[0] == c_pmapi.PM_ERR_NONLEAF:
                     # Optional metrics are allowed to not exist
@@ -188,7 +203,7 @@ class Summarize(object):
         for i in xrange(0, len(metriclist)):
             metricarray[i] = metriclist[i]
 
-        return metricarray
+        return metricarray, metricnames
 
     @staticmethod
     def getmetrictypes(context, metric_ids):
@@ -248,6 +263,7 @@ class Summarize(object):
             description.append([tmpidx, tmpnames])
 
         try:
+            self.rangechange.normalise_data(float(result.contents.timestamp), data)
             retval = analytic.process(mdata, float(result.contents.timestamp), data, description)
             return retval
         except Exception as e:
@@ -305,7 +321,11 @@ class Summarize(object):
 
         preproc.hoststart(mdata.nodename)
 
-        metric_id_array = self.getmetricstofetch(ctx, preproc)
+        metric_id_array, metricnames = self.getmetricstofetch(ctx, preproc)
+
+        # Range correction is not performed for the pre-processors. They always
+        # see the original data
+        self.rangechange.set_fetched_metrics([])
 
         if len(metric_id_array) == 0:
             logging.debug("Skipping %s (%s)" % (type(preproc).__name__, preproc.name))
@@ -340,11 +360,13 @@ class Summarize(object):
         """ fetch the data from the archive, reformat as a python data structure
         and call the analytic process function """
 
-        metric_id_array = self.getmetricstofetch(ctx, analytic)
+        metric_id_array, metricnames = self.getmetricstofetch(ctx, analytic)
 
         if len(metric_id_array) == 0:
             logging.debug("Skipping %s (%s)" % (type(analytic).__name__, analytic.name))
             return
+
+        self.rangechange.set_fetched_metrics(metricnames)
 
         mtypes = self.getmetrictypes(ctx, metric_id_array)
         self.indomcache = None
@@ -386,10 +408,12 @@ class Summarize(object):
         """ fetch the data from the archive, reformat as a python data structure
         and call the analytic process function """
 
-        metric_id_array = self.getmetricstofetch(ctx, analytic)
+        metric_id_array, metricnames = self.getmetricstofetch(ctx, analytic)
 
         if len(metric_id_array) == 0:
             return
+
+        self.rangechange.set_fetched_metrics(metricnames)
 
         mtypes = self.getmetrictypes(ctx, metric_id_array)
         self.indomcache = None
@@ -399,27 +423,62 @@ class Summarize(object):
             firstimestamp = copy.deepcopy(result.contents.timestamp)
 
             if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
-                ctx.pmFreeResult(result)
-                return
-
-            ctx.pmFreeResult(result)
-            ctx.pmSetMode(c_pmapi.PM_MODE_BACK, ctx.pmGetArchiveEnd(), 0)
-
-            result = ctx.pmFetch(metric_id_array)
-
-            if result.contents.timestamp.tv_sec == firstimestamp.tv_sec and result.contents.timestamp.tv_usec == firstimestamp.tv_usec:
-                # This achive must only contain one data point for these metrics
-                ctx.pmFreeResult(result)
-                return
-
-            if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
                 analytic.status = "failure"
                 ctx.pmFreeResult(result)
                 return
 
+            ctx.pmFreeResult(result)
+            result = None
+
+            if self.rangechange.passthrough == False:
+                # need to process every timestamp and only pass the last one to the plugin
+                done = False
+                datacache = DataCache()
+                while not done:
+                    try:
+                        result = ctx.pmFetch(metric_id_array)
+                        if False == self.runcallback(datacache, result, mtypes, ctx, mdata, metric_id_array):
+                            # A return value of false from process indicates the computation
+                            # failed and no more data should be sent.
+                            done = True
+                    except pmapi.pmErr as exp:
+                        if exp.args[0] == c_pmapi.PM_ERR_EOL:
+                            done = True
+                        else:
+                            logging.warning("%s (%s) raised exception %s", type(analytic).__name__, analytic.name, str(exp))
+                            analytic.status = "failure"
+                            raise exp
+                    finally:
+                        if result != None:
+                            ctx.pmFreeResult(result)
+                            result = None
+
+                if False == datacache.docallback(analytic):
+                    analytic.status = "failure"
+                    return
+
+            else:
+                ctx.pmSetMode(c_pmapi.PM_MODE_BACK, ctx.pmGetArchiveEnd(), 0)
+
+                result = ctx.pmFetch(metric_id_array)
+
+                if result.contents.timestamp.tv_sec == firstimestamp.tv_sec and result.contents.timestamp.tv_usec == firstimestamp.tv_usec:
+                    # This achive must only contain one data point for these metrics
+                    ctx.pmFreeResult(result)
+                    result = None
+                    return
+
+                if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
+                    analytic.status = "failure"
+                    ctx.pmFreeResult(result)
+                    result = None
+                    return
+
             analytic.status = "complete"
 
-            ctx.pmFreeResult(result)
+            if result != None:
+                ctx.pmFreeResult(result)
+                result = None
 
         except pmapi.pmErr as e:
             if e.args[0] == c_pmapi.PM_ERR_EOL:
