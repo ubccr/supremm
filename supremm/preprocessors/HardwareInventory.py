@@ -43,7 +43,6 @@ class HardwareInventory(PreProcessor):
             self.data[self.hostname] = {'cores': self.corecount}
             self.cores.append(self.corecount)
 
-        self.cores.append(self.corecount)
         self.corecount = None
         self.hostname = None
 
