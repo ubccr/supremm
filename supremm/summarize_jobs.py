@@ -150,7 +150,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
 
         preprocessors = [x(job) for x in preprocs]
         analytics = [x(job) for x in plugins]
-        s = Summarize(preprocessors, analytics, job)
+        s = Summarize(preprocessors, analytics, job, conf)
 
         if 0 == mergeresult:
             logging.info("Success for %s files in %s", job.job_id, job.jobdir)
