@@ -139,9 +139,9 @@ class XDMoDAcct(Accounting):
 
         query = self._query
 
-        query += " AND (p.process_version != %s OR p.process_version IS NULL)"
+        query += " AND p.process_version IS NULL"
 
-        data = (self._resource_id, Accounting.PROCESS_VERSION)
+        data = (self._resource_id, )
         if start != None:
             query += " AND jf.end_time_ts >= %s "
             data = data + (start, )
