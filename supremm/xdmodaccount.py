@@ -1,5 +1,6 @@
 """ Implementation for account reader that gets data from the XDMoD datawarehouse """
 
+from MySQLdb import OperationalError
 from supremm.config import Config
 from supremm.accounting import Accounting, ArchiveCache
 from supremm.scripthelpers import getdbconnection
@@ -67,9 +68,10 @@ class XDMoDAcct(Accounting):
                            AND (a.jobid = CAST(j.local_job_id_raw AS CHAR) OR a.jobid IS NULL)
                        GROUP BY 1, 2 ORDER BY 1 ASC, a.start_time_ts ASC """
 
-        self.con = getdbconnection(config.getsection("datawarehouse"), True)
-        self.hostcon = getdbconnection(config.getsection("datawarehouse"), False)
-        self.madcon = getdbconnection(config.getsection("datawarehouse"), False)
+        self.dbsettings = config.getsection("datawarehouse")
+        self.con = None
+        self.hostcon = None
+        self.madcon = None
 
     def getbylocaljobid(self, localjobid):
         """ Yields one or more Jobs that match the localjobid """
@@ -79,17 +81,54 @@ class XDMoDAcct(Accounting):
         for job in  self.executequery(query, data):
             yield job
 
-    def getbytimerange(self, start, end):
+    def getbytimerange(self, start, end, opts):
         """ Search for all jobs based on the time interval. Matches based on the end
-        timestamp of the job. Will process all jobs in time interval whether or not
-        they have already been processed """
+        timestamp of the job. Will process jobs in time interval based on the process
+        flags"""
 
         query = self._query + " AND jf.end_time_ts BETWEEN unix_timestamp(%s) AND unix_timestamp(%s)"
         data = (self._resource_id, start, end)
 
+        logging.info("Using time interval: %s - %s", start, end)
+
+        process_selectors=[]
+        # ALL & NONE will select the same jobs, simplify the query
+        if opts['process_all']:
+            logging.info("Processing all jobs")
+        else:
+            if opts['process_bad']:
+                logging.info("Processing bad jobs")
+                process_selectors.append("(p.process_version < 0 AND p.process_version > -1000)")
+            if opts['process_old']:
+                logging.info("Processing old jobs")
+                process_selectors.append("(p.process_version > 0 AND p.process_version != %s)")
+                data = data + (Accounting.PROCESS_VERSION, )
+            if opts['process_notdone']:
+                logging.info("Processing unprocessed jobs")
+                process_selectors.append("p.process_version IS NULL")
+            if opts['process_current']:
+                logging.info("Processing processed jobs")
+                process_selectors.append("p.process_version = %s")
+                data = data + (Accounting.PROCESS_VERSION, )
+            if opts['process_big']:
+                logging.info("Processing jobs marked previously as too big")
+                process_selectors.append("p.process_version = %s")
+                data = data + (-1000-ProcessingError.JOB_TOO_BIG, )
+            if opts['process_error'] != 0:
+                logging.info("Processing jobs marked previously with %s", opts['process_error'])
+                process_selectors.append("p.process_version = %s")
+                data = data + (opts['process_error'], )
+
+        # Add a "AND ( cond1 OR cond2 ...) clause
+        if len(process_selectors) > 0:
+            job_selector=" OR ".join(process_selectors)
+            job_selector = " AND( " + job_selector + " )"
+            query += job_selector
+
         if self._nthreads != None and self._threadidx != None:
             query += " AND (CRC32(jf.local_job_id_raw) %% %s) = %s"
             data = data + (self._nthreads, self._threadidx)
+
         query += " ORDER BY jf.end_time_ts ASC"
 
         for job in  self.executequery(query, data):
@@ -100,9 +139,9 @@ class XDMoDAcct(Accounting):
 
         query = self._query
 
-        query += " AND (p.process_version != %s OR p.process_version IS NULL)"
+        query += " AND p.process_version IS NULL"
 
-        data = (self._resource_id, Accounting.PROCESS_VERSION)
+        data = (self._resource_id, )
         if start != None:
             query += " AND jf.end_time_ts >= %s "
             data = data + (start, )
@@ -119,8 +158,16 @@ class XDMoDAcct(Accounting):
 
     def executequery(self, query, data):
         """ run the sql queries and yield a job object for each result """
+        if self.con == None:
+            self.con = getdbconnection(self.dbsettings, True)
+        if self.hostcon == None:
+            self.hostcon = getdbconnection(self.dbsettings, False)
+
         cur = self.con.cursor()
         cur.execute(query, data)
+
+        rows_returned=cur.rowcount
+        logging.info("Processing %s jobs", rows_returned)
 
         for record in cur:
 
@@ -144,7 +191,7 @@ class XDMoDAcct(Accounting):
 
             yield job
 
-    def markasdone(self, job, success, elapsedtime):
+    def markasdone(self, job, success, elapsedtime, error=None):
         """ log a job as being processed (either successfully or not) """
         query = """
             INSERT INTO modw_supremm.`process` 
@@ -152,11 +199,26 @@ class XDMoDAcct(Accounting):
             ON DUPLICATE KEY UPDATE process_version = %s, process_timestamp = NOW(), process_time = %s
             """
 
-        version = Accounting.PROCESS_VERSION if success else -1 * Accounting.PROCESS_VERSION
+        if error != None:
+            version = -1000 - error
+        else:
+            version = Accounting.PROCESS_VERSION if success else -1 * Accounting.PROCESS_VERSION
+
         data = (job.job_pk_id, version, elapsedtime, version, elapsedtime)
 
+        if self.madcon == None:
+            self.madcon = getdbconnection(self.dbsettings, False)
+
         cur = self.madcon.cursor()
-        cur.execute(query, data)
+
+        try:
+            cur.execute(query, data)
+        except OperationalError:
+            logging.warning("Lost MySQL Connection. Attempting single reconnect")
+            self.madcon = getdbconnection(self.dbsettings, False)
+            cur = self.madcon.cursor()
+            cur.execute(query, data)
+
         self.madcon.commit()
 
 
