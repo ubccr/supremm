@@ -10,7 +10,17 @@ class ProcessingError(object):
     CPUSET_UNKNOWN = 5
     PMDA_RESTARTED_DURING_JOB = 6
     INDOMS_CHANGED_DURING_JOB = 7
-    MAX_ERROR = 8
+    PMLOGEXTRACT_ERROR = 8
+    PARALLEL_TOO_SHORT = 9
+    INVALID_NODECOUNT = 10
+    JOB_TOO_BIG = 11
+    TIME_TOO_SHORT = 12
+    TIME_TOO_LONG = 13
+    UNKNOWN_CANNOT_PROCESS = 14
+    NO_ARCHIVES = 15
+    SUMMARIZATION_ERROR = 16
+    RAW_ARCHIVES = 17
+    MAX_ERROR = 18
 
     def __init__(self, err_id):
         self._id = err_id
@@ -23,7 +33,17 @@ class ProcessingError(object):
             ProcessingError.INSUFFICIENT_HOSTDATA: "Not all of the hosts had raw metrics available",
             ProcessingError.CPUSET_UNKNOWN: "The cpuset that was assigned to the job is unavailable",
             ProcessingError.PMDA_RESTARTED_DURING_JOB: "The PMDA restarted during the job",
-            ProcessingError.INDOMS_CHANGED_DURING_JOB: "The instance domains for required metrics changed during the job"
+            ProcessingError.INDOMS_CHANGED_DURING_JOB: "The instance domains for required metrics changed during the job",
+            ProcessingError.PMLOGEXTRACT_ERROR: "Generic failure in the pmlogextract step",
+            ProcessingError.PARALLEL_TOO_SHORT: "Parallel job ran for too short of a time",
+            ProcessingError.INVALID_NODECOUNT: "Fewer than 1 node reported for this job",
+            ProcessingError.JOB_TOO_BIG: "Processing skipped due to large node count in job",
+            ProcessingError.TIME_TOO_SHORT: "Job ran for too short of a time to provide enough performance data",
+            ProcessingError.TIME_TOO_LONG: "Job consumed an impossible amount of walltime",
+            ProcessingError.UNKNOWN_CANNOT_PROCESS: "Job cannot be summarized for unknown reason",
+            ProcessingError.NO_ARCHIVES: "None of the nodes in the job have pcp archives",
+            ProcessingError.SUMMARIZATION_ERROR: "There were enough archives to try summarization, but too few archives were successfully processed",
+            ProcessingError.RAW_ARCHIVES: "Not enough raw archives to try pmlogextract"
         }
         return names[self._id]
 

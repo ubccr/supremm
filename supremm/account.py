@@ -258,7 +258,7 @@ class DbAcct(Accounting):
 
             yield self.recordtojob(jobrec, jobrec['host_list'], hostarchives)
 
-    def getbytimerange(self, start, end):
+    def getbytimerange(self, start, end, onlynew):
         """
         Search for jobs based on the time interval
         """
@@ -274,6 +274,10 @@ class DbAcct(Accounting):
                 """
 
         data = (self._resource_id, start, end)
+
+        if onlynew != None and onlynew != False:
+            query += " AND (p.process_version != %s OR p.process_version IS NULL)"
+            data = data + (Accounting.PROCESS_VERSION, )
 
         if self.totalprocs != None and self.procid != None:
             query += " AND (CRC32(local_job_id) %% %s) = %s"
