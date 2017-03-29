@@ -49,6 +49,8 @@ include supremm/plugins/TaccUncoreCounters.py
 include supremm/plugins/__init__.py
 include supremm/preprocessors/__init__.py
 include supremm/preprocessors/SlurmProc.py
+include supremm/pypmlogextract/dlsymdefs.pxd
+include supremm/pypmlogextract/pypmlogextract.pyx
 include config/config.json
 include config/templates/slurm/slurm-epilog
 include config/templates/slurm/slurm-prolog

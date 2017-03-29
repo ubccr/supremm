@@ -63,6 +63,7 @@ def getoptions():
         "dodelete": True,
         "extractonly": False,
         "job_output_dir": None,
+        "libextract": False,
         "force_timeout": 2 * 24 * 3600,
         "resource": None
     }
@@ -142,7 +143,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
 
     try:
         mergestart = time.time()
-        mergeresult = extract_and_merge_logs(job, conf, resconf)
+        mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
         mergeend = time.time()
 
         if opts['extractonly']: 
