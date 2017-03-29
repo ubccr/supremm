@@ -38,9 +38,16 @@ def usage(has_mpi):
     print "  -b --process-big      when using a timerange, look for jobs that were previously marked as being too big"
     print "  -P --process-error N  when using a timerange, look for jobs that were previously marked with error N"
     print "  -T --timeout SECONDS  amount of elapsed time from a job ending to when it"
+    print "                        is marked as process even if the source data is not available"
     print "  -M --max-nodes NODES  only process jobs with fewer than this many nodes"
     print "                        can be marked as processed even if the raw data is"
     print "                        absent"
+    print "     --min-duration SECONDS   only process jobs with a duration longer than SECONDS"
+    print "                              (default no limit)"
+    print "     --min-parallel-duration SECONDS   only process parallel jobs with a"
+    print "                                       duration longer than SECONDS (default no limit)"
+    print "     --max-duration SECONDS   only process jobs with a duration shorter than SECONDS"
+    print "                              (default 176400 seconds)"
     print "  -t --tag              tag to add to the summarization field in mongo"
     print "  -D --delete T|F       whether to delete job-level archives after processing."
     print "  -E --extract-only     only extract the job-level archives (sets delete=False)"
@@ -75,6 +82,9 @@ def getoptions(has_mpi):
         "process_big": False,
         "process_error": 0,
         "max_nodes": 0,
+        "min_duration": None,
+        "min_parallel_duration": None,
+        "max_duration": 176400,
         "job_output_dir": None,
         "tag": None,
         "force_timeout": 2 * 24 * 3600,
@@ -97,6 +107,9 @@ def getoptions(has_mpi):
                       "process-big",
                       "process-error=",
                       "max-nodes=",
+                      "min-duration=",
+                      "min-parallel-duration=",
+                      "max-duration=",
                       "timeout=",
                       "tag=",
                       "delete=",
@@ -106,7 +119,7 @@ def getoptions(has_mpi):
                       "help"])
 
     for opt in opts:
-        if opt[0] in ("-j", "--jobid"):
+        if opt[0] in ("-j", "--localjobid"):
             localjobid = opt[1]
         if opt[0] in ("-r", "--resource"):
             resource = opt[1]
@@ -138,6 +151,12 @@ def getoptions(has_mpi):
             retdata['libextract'] = True
         if opt[0] in ("-M", "--max-nodes"):
             retdata['max_nodes'] = int(opt[1])
+        if opt[0] == "--min-duration":
+            retdata['min_duration'] = int(opt[1])
+        if opt[0] == "--min-parallel-duration":
+            retdata['min_parallel_duration'] = int(opt[1])
+        if opt[0] == "--max-duration":
+            retdata['max_duration'] = int(opt[1])
         if opt[0] in ("-T", "--timeout"):
             retdata['force_timeout'] = int(opt[1])
         if opt[0] in ("-t", "--tag"):
@@ -206,14 +225,14 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
 
         summarizeerror = None
 
-        if job.nodecount > 1 and job.walltime < 5 * 60:
+        if job.nodecount > 1 and opts['min_parallel_duration'] != None and job.walltime < opts['min_parallel_duration']:
             mergeresult = 1
             mdata["skipped_parallel_too_short"] = True
             summarizeerror = ProcessingError.PARALLEL_TOO_SHORT
             # Was "skipped"
             missingnodes = job.nodecount
             logging.info("Skipping %s, skipped_parallel_too_short", job.job_id)
-        elif job.walltime <= 180:
+        elif opts['min_duration'] != None and job.walltime < opts['min_duration']:
             mergeresult = 1
             mdata["skipped_too_short"] = True
             summarizeerror = ProcessingError.TIME_TOO_SHORT
@@ -243,7 +262,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
             summarizeerror = ProcessingError.JOB_TOO_BIG
             missingnodes = job.nodecount
             logging.info("Skipping %s, skipped_job_too_big", job.job_id)
-        elif job.walltime >= 176400:
+        elif job.walltime >= opts['max_duration']:
             mergeresult = 1
             mdata["skipped_too_long"] = True
             summarizeerror = ProcessingError.TIME_TOO_LONG
