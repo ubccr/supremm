@@ -18,7 +18,7 @@ class TestGetOptions(unittest.TestCase):
                 'max_nodes': 0,
                 'min_duration': None,
                 'min_parallel_duration': None,
-                'max_duration': 176400,
+                'max_duration': 864000,
                 'mode': 'all',
                 'process_all': False,
                 'process_bad': True,
@@ -147,6 +147,18 @@ class TestGetOptions(unittest.TestCase):
         expected['max_duration'] = 660
 
         self.helper(['--max-duration', '660'], expected)
+
+    def testsettag(self):
+        expected = self.defaults.copy()
+        expected['tag'] = 'job tag'
+
+        self.helper(['--tag', 'job tag'], expected)
+
+    def testsetthreads(self):
+        expected = self.defaults.copy()
+        expected['threads'] = 4
+
+        self.helper(['-t', '4'], expected)
 
 if __name__ == '__main__':
     unittest.main()
