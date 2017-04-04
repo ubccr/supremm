@@ -13,23 +13,22 @@ class CpuUsage(Plugin):
     mode = property(lambda x: "firstlast")
     requiredMetrics = property(lambda x: [[
             "kernel.percpu.cpu.user", 
+            "kernel.percpu.cpu.idle", 
             "kernel.percpu.cpu.nice",
             "kernel.percpu.cpu.sys", 
-            "kernel.percpu.cpu.idle", 
             "kernel.percpu.cpu.wait.total",
             "kernel.percpu.cpu.irq.hard",
             "kernel.percpu.cpu.irq.soft"
         ], [
             "kernel.percpu.cpu.user", 
-            "kernel.percpu.cpu.sys", 
             "kernel.percpu.cpu.idle", 
-            "kernel.percpu.cpu.wait.total",
-            "kernel.percpu.cpu.intr"
+            "kernel.percpu.cpu.sys", 
+            "kernel.percpu.cpu.wait.total"
         ], [
             "kernel.all.cpu.user",
+            "kernel.all.cpu.idle",
             "kernel.all.cpu.nice",
             "kernel.all.cpu.sys",
-            "kernel.all.cpu.idle",
             "kernel.all.cpu.wait.total"
         ]])
 
@@ -98,7 +97,7 @@ class CpuUsage(Plugin):
         proc = self._job.getdata('proc')
 
         if proc == None:
-            return {"error": ProcessingError.CPUSET_UNKNOWN}
+            return {"error": ProcessingError.CPUSET_UNKNOWN}, {"error": ProcessingError.CPUSET_UNKNOWN}
 
         cpusallowed = self._job.getdata('proc')['cpusallowed']
 
@@ -110,19 +109,29 @@ class CpuUsage(Plugin):
             if host in cpusallowed and 'error' not in cpusallowed[host]:
                 elapsed = elapsed[:, cpusallowed[host]]
             else:
-                return {"error": ProcessingError.CPUSET_UNKNOWN}
+                return {"error": ProcessingError.CPUSET_UNKNOWN}, {"error": ProcessingError.CPUSET_UNKNOWN}
 
             coresperhost = len(elapsed[0, :])
             ratios[:, coreindex:(coreindex+coresperhost)] = 1.0 * elapsed / numpy.sum(elapsed, 0)
             coreindex += coresperhost
 
+        allowedcores = numpy.array(ratios[:, :coreindex])
+
         results = {}
         for i, name in enumerate(self._outnames):
-            results[name] = calculate_stats(ratios[i, :coreindex])
+            results[name] = calculate_stats(allowedcores[i, :])
 
         results['all'] = {"cnt": coreindex}
 
-        return results
+        effective = numpy.compress(allowedcores[1, :] < 0.95, allowedcores , axis=1)
+        effectiveresults = {
+            'all': len(effective[i, :])
+        }
+        if effectiveresults['all'] > 0:
+            for i, name in enumerate(self._outnames):
+                effectiveresults[name] = calculate_stats(effective[i, :])
+
+        return results, effectiveresults
         
 
     def results(self):
@@ -133,16 +142,18 @@ class CpuUsage(Plugin):
             return {"error": ProcessingError.INSUFFICIENT_DATA}
 
         if self._ncpumetrics == 7:
-            self._outnames = ["user", "nice", "system", "idle", "iowait", "irq", "softirq"] 
+            self._outnames = ["user", "idle", "nice", "system", "iowait", "irq", "softirq"] 
+        elif self._ncpumetrics == 4:
+            self._outnames = ["user", "idle", "system", "iowait"]
         else:
-            self._outnames = ["user", "system", "idle", "iowait", "irq"]
+            self._outnames = ["user", "idle", "nice", "system", "iowait"]
 
         nodecpus = self.computeallcpus()
         if "error" not in nodecpus:
-            jobcpus = self.computejobcpus()
+            jobcpus, effcpus = self.computejobcpus()
         else:
             jobcpus = nodecpus
             
 
-        return {"nodecpus": nodecpus, "jobcpus": jobcpus}
+        return {"nodecpus": nodecpus, "jobcpus": jobcpus, "effcpus": effcpus}
 
