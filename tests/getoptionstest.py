@@ -29,6 +29,7 @@ class TestGetOptions(unittest.TestCase):
                 'process_old': True,
                 'resource': None,
                 'tag': None,
+                'dump_proclist': False,
                 'threads': 1
         }
 
@@ -159,6 +160,12 @@ class TestGetOptions(unittest.TestCase):
         expected['threads'] = 4
 
         self.helper(['-t', '4'], expected)
+
+    def testdumpprolist(self):
+        expected = self.defaults.copy()
+        expected['dump_proclist'] = True
+
+        self.helper(['--dump-proclist'], expected)
 
 if __name__ == '__main__':
     unittest.main()
