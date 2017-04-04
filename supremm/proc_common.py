@@ -49,6 +49,8 @@ def usage(has_mpi):
     print "     --max-duration SECONDS   only process jobs with a duration shorter than SECONDS"
     print "                              (default 864000 seconds)"
     print "     --tag              tag to add to the summarization field in mongo"
+    if has_mpi:
+        print "     --dump-proclist    whether to output the MPI process information periodically"
     print "  -D --delete T|F       whether to delete job-level archives after processing."
     print "  -E --extract-only     only extract the job-level archives (sets delete=False)"
     print "  -L --use-lib-extract  use libpcp_pmlogextract.so.1 instead of pmlogextract"
@@ -87,6 +89,7 @@ def getoptions(has_mpi):
         "max_duration": 864000,
         "job_output_dir": None,
         "tag": None,
+        "dump_proclist": False,
         "force_timeout": 2 * 24 * 3600,
         "resource": None
     }
@@ -111,6 +114,7 @@ def getoptions(has_mpi):
                       "min-parallel-duration=",
                       "max-duration=",
                       "timeout=",
+                      "dump-proclist",
                       "tag=",
                       "delete=",
                       "extract-only",
@@ -161,6 +165,8 @@ def getoptions(has_mpi):
             retdata['force_timeout'] = int(opt[1])
         if opt[0] == "--tag":
             retdata['tag'] = str(opt[1])
+        if opt[0] == '--dump-proclist':
+            retdata['dump_proclist'] = True
         if opt[0] in ("-D", "--delete"):
             retdata['dodelete'] = True if opt[1].upper().startswith("T") else False
         if opt[0] in ("-E", "--extract-only"):

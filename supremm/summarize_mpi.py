@@ -72,7 +72,7 @@ def processjobs(config, opts, procid, comm):
                 for job in getjobs['cmd'](*(getjobs['opts'])):
                     if numsent >= numworkers:
                         list_procs += 1
-                        if list_procs == 1 or list_procs == 1000:
+                        if opts['dump_proclist'] and (list_procs == 1 or list_procs == 1000):
                             # Once all ranks are going, dump the process list for debugging
                             logging.info("Dumping process list")
                             allpinfo = {}
@@ -144,7 +144,7 @@ def processjobs(config, opts, procid, comm):
                         midtime = time.time()
 
                         list_procs += 1
-                        if list_procs == 1 or list_procs == 10:
+                        if opts['dump_proclist'] and (list_procs == 1 or list_procs == 10):
                             # Once all ranks are going, dump the process list for debugging
                             logging.info("Dumping process list")
                             allpinfo = {}
