@@ -153,6 +153,7 @@ class CpuUsage(Plugin):
             jobcpus, effcpus = self.computejobcpus()
         else:
             jobcpus = nodecpus
+            effcpus = nodecpus
             
 
         return {"nodecpus": nodecpus, "jobcpus": jobcpus, "effcpus": effcpus}
