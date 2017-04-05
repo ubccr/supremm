@@ -24,24 +24,52 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `modw_supremm` /*!40100 DEFAULT CHARACT
 USE `modw_supremm`;
 
 --
--- Table structure for table `archive`
+-- Table structure for table `archive_paths`
 --
 
-DROP TABLE IF EXISTS `archive`;
+DROP TABLE IF EXISTS `archive_paths`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `archive` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `hostid` int(11) NOT NULL,
-  `filename` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
-  `start_time_ts` double NOT NULL,
-  `end_time_ts` double NOT NULL,
-  `jobid` varchar(45) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `unique` (`filename`),
-  KEY `fk_archive_1_idx` (`hostid`),
-  KEY `timesonly` (`start_time_ts` ASC, `end_time_ts` ASC),
-  KEY `hosttimes` (`hostid` ASC, `start_time_ts` ASC, `end_time_ts` ASC)
+CREATE TABLE `archive_paths` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `filename` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `filename` (`filename`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `archives_joblevel`
+--
+
+DROP TABLE IF EXISTS `archives_joblevel`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `archives_joblevel` (
+      `archive_id` int(11) NOT NULL,
+      `host_id` int(11) NOT NULL,
+      `local_job_id_raw` int(11) NOT NULL,
+      `start_time_ts` int(11) NOT NULL,
+      `end_time_ts` int(11) NOT NULL,
+      PRIMARY KEY (`archive_id`),
+      KEY `hostjobs` (`host_id`,`local_job_id_raw`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `archives_nodelevel`
+--
+
+DROP TABLE IF EXISTS `archives_nodelevel`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `archives_nodelevel` (
+      `archive_id` int(11) NOT NULL,
+      `host_id` int(11) NOT NULL,
+      `start_time_ts` int(11) NOT NULL,
+      `end_time_ts` int(11) NOT NULL,
+      PRIMARY KEY (`archive_id`),
+      KEY `hosttimes` (`host_id`,`start_time_ts`,`end_time_ts`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

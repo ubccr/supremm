@@ -47,26 +47,46 @@ class XDMoDAcct(Accounting):
                 jf.resource_id = %s 
               """
 
-        self.hostquery = """SELECT
-                           h.hostname, a.filename
-                       FROM
-                           modw.`hosts` h,
-                           modw_supremm.`archive` a,
-                           modw.`jobhosts` jh,
-                           modw.`jobfact` j
-                       WHERE
-                           j.job_id = jh.job_id 
-                           AND jh.job_id = %s 
-                           AND jh.host_id = h.id
-                           AND a.hostid = h.id
-                           AND (
-                               (j.start_time_ts BETWEEN a.start_time_ts AND a.end_time_ts)
-                               OR (j.end_time_ts BETWEEN a.start_time_ts AND a.end_time_ts)
-                               OR (j.start_time_ts < a.start_time_ts and j.end_time_ts > a.end_time_ts)
-                               OR (CAST(j.local_job_id_raw AS CHAR) = a.jobid)
-                           )
-                           AND (a.jobid = CAST(j.local_job_id_raw AS CHAR) OR a.jobid IS NULL)
-                       GROUP BY 1, 2 ORDER BY 1 ASC, a.start_time_ts ASC """
+        self.hostquery = """
+            SELECT 
+                tt.hostname, tt.filename
+            FROM (
+            SELECT 
+                h.hostname, ap.filename, na.start_time_ts
+            FROM
+                modw_supremm.`archive_paths` ap,
+                modw_supremm.`archives_nodelevel` na,
+                modw.`hosts` h,
+                modw.`jobhosts` jh,
+                modw.`jobfact` j
+            WHERE
+                j.job_id = jh.job_id
+                    AND jh.job_id = %s
+                    AND jh.host_id = h.id
+                    AND na.host_id = h.id
+                    AND ((j.start_time_ts BETWEEN na.start_time_ts AND na.end_time_ts)
+                    OR (j.end_time_ts BETWEEN na.start_time_ts AND na.end_time_ts)
+                    OR (j.start_time_ts < na.start_time_ts
+                    AND j.end_time_ts > na.end_time_ts))
+                    AND ap.id = na.archive_id 
+            UNION 
+            SELECT 
+                h.hostname, ap.filename, ja.start_time_ts
+            FROM
+                modw_supremm.`archive_paths` ap,
+                modw_supremm.`archives_joblevel` ja,
+                modw.`hosts` h,
+                modw.`jobhosts` jh,
+                modw.`jobfact` j
+            WHERE
+                j.job_id = jh.job_id
+                    AND jh.job_id = %s
+                    AND jh.host_id = h.id
+                    AND ja.host_id = h.id
+                    AND ja.local_job_id_raw = j.local_job_id_raw
+                    AND ja.archive_id = ap.id
+            ) tt ORDER BY 1 ASC, tt.start_time_ts ASC
+                       """
 
         self.dbsettings = config.getsection("datawarehouse")
         self.con = None
@@ -172,7 +192,7 @@ class XDMoDAcct(Accounting):
         for record in cur:
 
             hostcur = self.hostcon.cursor()
-            hostcur.execute(self.hostquery, (record['job_id'], ))
+            hostcur.execute(self.hostquery, (record['job_id'], record['job_id']))
 
             hostarchives = {}
             hostlist = []
@@ -244,11 +264,43 @@ class XDMoDArchiveCache(ArchiveCache):
             logging.debug("Ignoring archive for host %s", hostname)
             return
 
-        query = """INSERT INTO modw_supremm.archive (hostid, filename, start_time_ts, end_time_ts, jobid) 
-                       VALUES( (SELECT id FROM modw.hosts WHERE hostname = %s),%s,%s,%s,%s) 
-                       ON DUPLICATE KEY UPDATE start_time_ts=%s, end_time_ts=%s"""
+        filenamequery = """INSERT INTO `modw_supremm`.`archive_paths` (`filename`) VALUES (%s) ON DUPLICATE KEY UPDATE id = id """
 
-        cur.execute(query, [hostname, filename, start, end, jobid, start, end])
+        cur.execute(filenamequery, [filename])
+        if cur.lastrowid != 0:
+            filenamequery = "%s"
+            filenameparam = cur.lastrowid
+        else:
+            filenamequery = "(SELECT id FROM `modw_supremm`.`archive_paths` WHERE `filename` = %s)"
+            filenameparam = filename
+
+        if jobid != None:
+            query = """INSERT INTO `modw_supremm`.`archives_joblevel` 
+                            (archive_id, host_id, local_job_id_raw, start_time_ts, end_time_ts) 
+                       VALUES (
+                            {0},
+                            (SELECT id FROM modw.hosts WHERE hostname = %s),
+                            %s,
+                            FLOOR(%s),
+                            CEILING(%s)
+                       )
+                       ON DUPLICATE KEY UPDATE start_time_ts = VALUES(start_time_ts), end_time_ts = VALUES(end_time_ts)
+                    """.format(filenamequery)
+
+            cur.execute(query, [filenameparam, hostname, jobid, start, end])
+        else:
+            query = """INSERT INTO `modw_supremm`.`archives_nodelevel`
+                            (archive_id, host_id, start_time_ts, end_time_ts)
+                       VALUES (
+                            {0},
+                            (SELECT id FROM modw.hosts WHERE hostname = %s),
+                            FLOOR(%s),
+                            CEILING(%s)
+                       )
+                       ON DUPLICATE KEY UPDATE start_time_ts = VALUES(start_time_ts), end_time_ts = VALUES(end_time_ts)
+                    """.format(filenamequery)
+
+            cur.execute(query, [filenameparam, hostname, start, end])
 
         self.buffered += 1
         if self.buffered > 100:
