@@ -32,6 +32,7 @@ class TestSummarizeJob(unittest.TestCase):
                 'min_duration': None,
                 'min_parallel_duration': None,
                 'max_duration': 176400,
+                'max_nodetime': None,
                 'mode': 'all',
                 'process_all': False,
                 'process_bad': True,
@@ -42,6 +43,7 @@ class TestSummarizeJob(unittest.TestCase):
                 'process_old': True,
                 'resource': None,
                 'tag': None,
+                'dump_proclist': False,
                 'threads': 1
         }
 
@@ -106,6 +108,21 @@ class TestSummarizeJob(unittest.TestCase):
         self.mocklog.markasdone.assert_called_once()
         summarizeerror = self.mocklog.markasdone.call_args[0][3]
         self.assertEquals(ProcessingError.TIME_TOO_LONG, summarizeerror)
+
+    @patch('supremm.proc_common.extract_and_merge_logs')
+    @patch('supremm.proc_common.Summarize')
+    def test_jobtoonodehours(self, summaryclass, extract):
+        """ test the too many nodehours error """
+        extract.return_value = 0
+
+        self.mockjob.configure_mock(walltime=1000, nodecount=500)
+        self.options['max_nodetime'] = 499999
+
+        summarizejob(self.mockjob, self.mockconf, {}, [], [], self.mockoutput, self.mocklog, self.options)
+
+        self.mocklog.markasdone.assert_called_once()
+        summarizeerror = self.mocklog.markasdone.call_args[0][3]
+        self.assertEquals(ProcessingError.JOB_TOO_MANY_NODEHOURS, summarizeerror)
 
 if __name__ == '__main__':
     unittest.main()

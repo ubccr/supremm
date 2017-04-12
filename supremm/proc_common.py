@@ -84,6 +84,7 @@ def getoptions(has_mpi):
         "process_big": False,
         "process_error": 0,
         "max_nodes": 0,
+        "max_nodetime": None,
         "min_duration": None,
         "min_parallel_duration": None,
         "max_duration": 864000,
@@ -110,6 +111,7 @@ def getoptions(has_mpi):
                       "process-big",
                       "process-error=",
                       "max-nodes=",
+                      "max-nodetime=",
                       "min-duration=",
                       "min-parallel-duration=",
                       "max-duration=",
@@ -155,6 +157,8 @@ def getoptions(has_mpi):
             retdata['libextract'] = True
         if opt[0] in ("-M", "--max-nodes"):
             retdata['max_nodes'] = int(opt[1])
+        if opt[0] == "--max-nodetime":
+            retdata['max_nodetime'] = int(opt[1])
         if opt[0] == "--min-duration":
             retdata['min_duration'] = int(opt[1])
         if opt[0] == "--min-parallel-duration":
@@ -268,6 +272,12 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
             summarizeerror = ProcessingError.JOB_TOO_BIG
             missingnodes = job.nodecount
             logging.info("Skipping %s, skipped_job_too_big", job.job_id)
+        elif opts['max_nodetime'] != None and (job.nodecount * job.walltime) > opts['max_nodetime']:
+            mergeresult = 1
+            mdata["skipped_job_nodehours"] = True
+            summarizeerror = ProcessingError.JOB_TOO_MANY_NODEHOURS
+            missingnodes = job.nodecount
+            logging.info("Skipping %s, skipped_job_too_big (node time)", job.job_id)
         elif job.walltime >= opts['max_duration']:
             mergeresult = 1
             mdata["skipped_too_long"] = True

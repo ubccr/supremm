@@ -19,6 +19,7 @@ class TestGetOptions(unittest.TestCase):
                 'min_duration': None,
                 'min_parallel_duration': None,
                 'max_duration': 864000,
+                'max_nodetime': None,
                 'mode': 'all',
                 'process_all': False,
                 'process_bad': True,
@@ -166,6 +167,12 @@ class TestGetOptions(unittest.TestCase):
         expected['dump_proclist'] = True
 
         self.helper(['--dump-proclist'], expected)
+
+    def testmaxnodetime(self):
+        expected = self.defaults.copy()
+        expected['max_nodetime'] = 3455
+
+        self.helper(['--max-nodetime', "3455"], expected)
 
 if __name__ == '__main__':
     unittest.main()
