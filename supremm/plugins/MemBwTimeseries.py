@@ -112,7 +112,7 @@ class MemBwTimeseries(Plugin):
 
             for devid in self._hostdevnames[hostidx].iterkeys():
                 dpnts = len(values[hostidx, :, 0])
-                retdata['hosts'][str(hostidx)]['dev'][devid] = (numpy.diff(self._hostdata[hostidx][:dpnts, devid]) / numpy.diff(values[hostidx, :, 0])).tolist()
+                retdata['hosts'][str(hostidx)]['dev'][devid] = (numpy.diff(self._hostdata[hostidx][:dpnts, numpy.int(devid)]) / numpy.diff(values[hostidx, :, 0])).tolist()
 
             retdata['hosts'][str(hostidx)]['names'] = self._hostdevnames[hostidx]
 
