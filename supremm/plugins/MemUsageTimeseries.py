@@ -85,7 +85,7 @@ class MemUsageTimeseries(Plugin):
 
             for devid in self._hostdevnames[hostidx].iterkeys():
                 dpnts = len(values[hostidx, :, 0])
-                retdata['hosts'][str(hostidx)]['dev'][devid] = self._hostdata[hostidx][:dpnts, devid].tolist()
+                retdata['hosts'][str(hostidx)]['dev'][devid] = self._hostdata[hostidx][:dpnts, numpy.int(devid)].tolist()
 
             retdata['hosts'][str(hostidx)]['names'] = self._hostdevnames[hostidx]
 
