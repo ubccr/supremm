@@ -13,7 +13,7 @@ class TimeseriesAccumulator(object):
         self._samplewindow = None
         self._leadout = None
         self._data = numpy.empty((nhosts, TimeseriesAccumulator.MAX_DATAPOINTS, 2))
-        self._count = numpy.zeros(nhosts)
+        self._count = numpy.zeros(nhosts, dtype=int)
 
     def adddata(self, hostidx, timestamp, value):
         """ Add a datapoint to the collection.
