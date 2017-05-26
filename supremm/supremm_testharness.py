@@ -3,12 +3,18 @@
 from supremm.summarize import Summarize
 from supremm.plugin import loadplugins, loadpreprocessors
 from supremm.config import Config
+from supremm.proc_common import filter_plugins
+
+from pcp import pmapi
+import cpmapi as c_pmapi
 
 import json
 from getopt import getopt
 import sys
 import os
 import logging
+import datetime
+import math
 
 def usage():
     """ print usage """
@@ -17,19 +23,29 @@ def usage():
 def getoptions():
     """ process comandline options """
 
-    opts, args = getopt(sys.argv[1:], "dqh",
-                     ["debug", 
-                      "quiet", 
-                      "help"])
+    opts, args = getopt(sys.argv[1:], "dqhi:e:",
+                     ["debug",
+                      "quiet",
+                      "help",
+                      "plugin-include",
+                      "plugin-exclude"])
 
-    retdata = {"log": logging.INFO}
+    retdata = {
+            "log": logging.INFO,
+            "plugin_whitelist": [],
+            "plugin_blacklist": []
+            }
 
-    for opt in opts:
-        if opt[0] in ("-d", "--debug"):
+    for opt, arg in opts:
+        if opt in ("-d", "--debug"):
             retdata['log'] = logging.DEBUG
-        if opt[0] in ("-q", "--quiet"):
+        if opt in ("-q", "--quiet"):
             retdata['log'] = logging.ERROR
-        if opt[0] in ("-h", "--help"):
+        if opt in ("-i", "--plugin-include"):
+            retdata['plugin_whitelist'].append(arg)
+        if opt in ("-e", "--plugin-exclude"):
+            retdata['plugin_blacklist'].append(arg)
+        if opt in ("-h", "--help"):
             usage()
             sys.exit(0)
 
@@ -46,6 +62,18 @@ class MockJob(object):
         self.acct = {"end_time": 12312, "id": 1, "uid": "sdf", "user": "werqw"}
         self.nodes = ["node" + str(i) for i in xrange(len(archivelist))]
         self._data = {}
+
+        archive_starts = []
+        archive_ends = []
+        for archive in archivelist:
+            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+            mdata = context.pmGetArchiveLabel()
+            archive_starts.append(datetime.datetime.utcfromtimestamp(math.floor(mdata.start)))
+            archive_ends.append(datetime.datetime.utcfromtimestamp(math.ceil(context.pmGetArchiveEnd())))
+
+        self.start_datetime = min(archive_starts)
+        self.end_datetime = max(archive_ends)
+
 
     def get_errors(self):
         return []
@@ -87,9 +115,14 @@ def main():
         logging.captureWarnings(True)
 
     preprocs = loadpreprocessors()
-    logging.debug("Loaded %s preprocessors", len(preprocs))
-
     plugins = loadplugins()
+
+    if len(opts['plugin_whitelist']) > 0:
+        preprocs, plugins = filter_plugins({"plugin_whitelist": opts['plugin_whitelist']}, preprocs, plugins)
+    elif len(opts['plugin_blacklist']) > 0:
+        preprocs, plugins = filter_plugins({"plugin_blacklist": opts['plugin_blacklist']}, preprocs, plugins)
+
+    logging.debug("Loaded %s preprocessors", len(preprocs))
     logging.debug("Loaded %s plugins", len(plugins))
 
     archivelist = args
