@@ -5,6 +5,7 @@ from supremm.config import Config
 from supremm.accounting import Accounting, ArchiveCache
 from supremm.scripthelpers import getdbconnection
 from supremm.Job import Job
+from supremm.errors import ProcessingError
 import logging
 
 class XDMoDAcct(Accounting):

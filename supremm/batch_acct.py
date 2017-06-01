@@ -16,6 +16,8 @@ def special_char_stripper(fp):
 class BatchAcct(object):
 
   def __init__(self,batch_kind,acct_file,host_name_ext,delimiter=":"):
+    if not hasattr(self, 'fields'):
+      self.fields = []
     self.batch_kind=batch_kind
     self.acct_file=acct_file
     self.field_names = [tup[0] for tup in self.fields]
@@ -133,10 +135,6 @@ class SGEAcct(BatchAcct):
       )
     
     BatchAcct.__init__(self,'SGE',acct_file,host_name_ext)
-
-  def keymap(key): # Batch account keywords are based on SGE names for
-                   # historical reasons
-    return key
 
   def get_host_list_path(self,acct,host_list_dir):
     """Return the path of the host list written during the prolog."""
