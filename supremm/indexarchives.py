@@ -79,6 +79,7 @@ class PcpArchiveProcessor(object):
             logging.debug("processed archive %s", archive)
 
         except pmapi.pmErr as exc:
+            #pylint: disable=not-callable
             logging.error("archive %s. %s", archive, exc.message())
 
     def close(self):

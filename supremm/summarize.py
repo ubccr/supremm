@@ -69,6 +69,7 @@ class Summarize(object):
                 self.archives_processed += 1
             except pmapi.pmErr as exc:
                 success -= 1
+                #pylint: disable=not-callable
                 self.adderror("archive", "{0}: pmapi.pmErr: {1}".format(archive, exc.message()))
             except Exception as exc:
                 success -= 1

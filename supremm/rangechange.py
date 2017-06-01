@@ -36,7 +36,7 @@ class RangeChange(object):
         except KeyError:
             self.config = []
 
-        self.passthrough = False
+        self._passthrough = False
         self.accumulator = []
         self.last = []
         self.needsfixup = []
@@ -48,23 +48,24 @@ class RangeChange(object):
         self.accumulator = [None] * len(metriclist)
         self.last = [None] * len(metriclist)
         self.needsfixup = []
-        self.passthrough = True
+        self._passthrough = True
 
         for metric in metriclist:
             if metric in self.config:
                 self.needsfixup.append(self.config[metric])
-                self.passthrough = False
+                self._passthrough = False
             else:
                 self.needsfixup.append(None)
 
+    @property
     def passthrough(self):
         """ Returns whether the range changer will not modify data """
-        return self.passthrough
+        return self._passthrough
 
     def normalise_data(self, timestamp, data):
         """ Convert the data if needed """
 
-        if self.passthrough:
+        if self._passthrough:
             return
 
         i = 0
