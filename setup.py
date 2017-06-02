@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """ setup script for SUPReMM job summarization utilities """
-from setuptools import setup
-from distutils.core import Extension
+from distutils.core import setup, Extension
 from Cython.Distutils import build_ext
 import sys
 import os
