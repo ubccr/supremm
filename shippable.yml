@@ -9,7 +9,10 @@ build:
         options: "--user root -e HOME=/root"
     ci:
         - python setup.py install
-        - python setup.py develop
-        - nosetests --with-xunit --xunit-file=shippable/testresults/nosetests.xml
-        - nosetests --with-coverage --cover-erase --cover-package=supremm --cover-branches --cover-xml --cover-xml-file=shippable/codecoverage/coverage.xml
-        - pylint --errors-only supremm
+        - pylint --errors-only --disable=E0611 supremm
+        - summarize_jobs.py -h > /dev/null
+        - indexarchives.py -h > /dev/null
+        #- pylint --errors-only supremm
+        #- python setup.py develop
+        #- nosetests --with-xunit --xunit-file=shippable/testresults/nosetests.xml
+        #- nosetests --with-coverage --cover-erase --cover-package=supremm --cover-branches --cover-xml --cover-xml-file=shippable/codecoverage/coverage.xml
