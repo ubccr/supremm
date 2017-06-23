@@ -23,17 +23,19 @@ def usage():
 def getoptions():
     """ process comandline options """
 
-    opts, args = getopt(sys.argv[1:], "dqhi:e:",
+    opts, args = getopt(sys.argv[1:], "dqhi:e:c:",
                      ["debug",
                       "quiet",
                       "help",
                       "plugin-include",
-                      "plugin-exclude"])
+                      "plugin-exclude",
+                      "config"])
 
     retdata = {
             "log": logging.INFO,
             "plugin_whitelist": [],
-            "plugin_blacklist": []
+            "plugin_blacklist": [],
+            "config": None
             }
 
     for opt, arg in opts:
@@ -45,6 +47,8 @@ def getoptions():
             retdata['plugin_whitelist'].append(arg)
         if opt in ("-e", "--plugin-exclude"):
             retdata['plugin_blacklist'].append(arg)
+        if opt in ("-c", "--config"):
+            retdata['config'] = arg
         if opt in ("-h", "--help"):
             usage()
             sys.exit(0)
@@ -128,7 +132,7 @@ def main():
     archivelist = args
 
     job = MockJob(archivelist)
-    config = Config()
+    config = Config(confpath=opts['config'])
 
     preprocessors = [x(job) for x in preprocs]
     analytics = [x(job) for x in plugins]
