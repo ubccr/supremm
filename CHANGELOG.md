@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [1.0.3] - 2017-08-01
+
+### Changed
+- Updated text content of indexarchives debug message to clarify meaning of ignored archives.
+
+### Fixed
+- Fix issue with timeseries documents not being saved with the Centos 6 EPEL
+  version of MongoDB (2.4). It is likely that this issue affects newer versions
+  of MongoDB too.
 
 
 ## [1.0.2] - 2017-01-26
