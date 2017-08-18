@@ -29,7 +29,8 @@ setup(
     author_email='jpwhite4@buffalo.edu',
     url='https://github.com/ubccr/supremm',
 
-    packages=find_packages(exclude=['tests']),
+    package_dir={'': 'src'},
+    packages=find_packages(where='src'),
     data_files=[
         (confpath,                         ['config/config.json']),
         ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
@@ -39,23 +40,23 @@ setup(
         ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
         ('share/supremm/setup/', ['assets/modw_supremm.sql', 'assets/mongo_setup.js'])
     ],
-    scripts=['supremm/gen-pmlogger-control.py',
-             'supremm/summarize_jobs.py',
-             'supremm/summarize_mpi.py',
-             'supremm/indexarchives.py',
-             'supremm/account.py',
-             'supremm/supremmconf.py',
-             'supremm/supremm_update',
-             'supremm/supremm-setup',
-             'supremm/ingest_jobscripts.py'],
+    scripts=['src/supremm/gen-pmlogger-control.py',
+             'src/supremm/summarize_jobs.py',
+             'src/supremm/summarize_mpi.py',
+             'src/supremm/indexarchives.py',
+             'src/supremm/account.py',
+             'src/supremm/supremmconf.py',
+             'src/supremm/supremm_update',
+             'src/supremm/supremm-setup',
+             'src/supremm/ingest_jobscripts.py'],
     requires=['numpy',
               'MySQLdb',
               'pcp',
               'Cython'],
     cmdclass={'build_ext': build_ext},
     ext_modules=[
-        Extension('supremm.pcpfast.libpcpfast', ['supremm/pcpfast/pcpfast.c'], libraries=['pcp']),
-        Extension("supremm.pypmlogextract", ["supremm/pypmlogextract/pypmlogextract.pyx"])
+        Extension('supremm.pcpfast.libpcpfast', ['src/supremm/pcpfast/pcpfast.c'], libraries=['pcp']),
+        Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
     ]
 )
 
