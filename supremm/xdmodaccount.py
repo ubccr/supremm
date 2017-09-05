@@ -249,8 +249,8 @@ class XDMoDArchiveCache(ArchiveCache):
     def __init__(self, config):
         super(XDMoDArchiveCache, self).__init__(config)
 
-        self.con = getdbconnection(config.getsection("datawarehouse"))
-        self.buffered = 0
+        self.dbconfig = config.getsection("datawarehouse")
+        self.con = getdbconnection(self.dbconfig)
         self._hostnamecache = {}
 
         cur = self.con.cursor()
@@ -259,7 +259,16 @@ class XDMoDArchiveCache(ArchiveCache):
             self._hostnamecache[host[0]] = 1
 
     def insert(self, resource_id, hostname, filename, start, end, jobid):
-        """ Insert a job record """
+        """ Insert an archive record """
+        try:
+            self.insertImpl(resource_id, hostname, filename, start, end, jobid)
+        except OperationalError:
+            logging.error("Lost MySQL Connection. Attempting single reconnect")
+            self.con = getdbconnection(self.dbconfig)
+            self.insertImpl(resource_id, hostname, filename, start, end, jobid)
+
+    def insertImpl(self, resource_id, hostname, filename, start, end, jobid):
+        """ Main implementation of archive record insert """
         cur = self.con.cursor()
         if hostname not in self._hostnamecache:
             logging.debug("Ignoring archive for host \"%s\" because there are no jobs in the XDMoD datawarehouse that ran on this host.", hostname)
@@ -276,7 +285,7 @@ class XDMoDArchiveCache(ArchiveCache):
             filenameparam = filename
 
         if jobid != None:
-            query = """INSERT INTO `modw_supremm`.`archives_joblevel` 
+            query = """INSERT INTO `modw_supremm`.`archives_joblevel`
                             (archive_id, host_id, local_job_id_raw, start_time_ts, end_time_ts) 
                        VALUES (
                             {0},
@@ -303,10 +312,7 @@ class XDMoDArchiveCache(ArchiveCache):
 
             cur.execute(query, [filenameparam, hostname, start, end])
 
-        self.buffered += 1
-        if self.buffered > 100:
-            self.con.commit()
-            self.buffered = 0
+        self.postinsert()
 
     def postinsert(self):
         """
