@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from supremm.plugins.TimeseriesPatterns import TimeseriesPatterns
+from supremm.TimeseriesPatterns import TimeseriesPatterns
 
 
 class TimeseriesPatternsGpfs(TimeseriesPatterns):
