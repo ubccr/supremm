@@ -58,6 +58,7 @@ class PcpArchiveProcessor(object):
             records and hostname. Store this in the DbArchiveCache
         """
         try:
+            start = time.time()
             context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
             mdata = context.pmGetArchiveLabel()
             hostname = mdata.hostname
@@ -73,10 +74,13 @@ class PcpArchiveProcessor(object):
 
             jobid = self.parsejobid(archive)
 
+            fileiotime = time.time() - start
+
             self.dbac.insert(self.resource_id, hostname, archive[:-6],
                              float(mdata.start), float(context.pmGetArchiveEnd()), jobid)
 
-            logging.debug("processed archive %s", archive)
+            elapsed = time.time() - start - fileiotime
+            logging.debug("processed archive %s (fileio %s, dbacins %s)", archive, fileiotime, elapsed)
 
         except pmapi.pmErr as exc:
             #pylint: disable=not-callable
@@ -180,12 +184,14 @@ class PcpArchiveFinder(object):
 
         for hostname in hosts:
             hostdir = os.path.join(topdir, hostname)
+            listdirtime = 0.0
+            yieldtime = 0.0
             t1 = time.time()
             datdirs = os.listdir(hostdir)
-            t2 = time.time()
-            t3 = t2
-            t4 = t2
+            listdirtime += (time.time() - t1)
+
             for datedir in datdirs:
+                t1 = time.time()
 
                 yeardirOk = self.ymdok(datedir)
 
@@ -196,7 +202,10 @@ class PcpArchiveFinder(object):
                                 if self.ymdok(datedir, monthdir, daydir) == True:
                                     for filename in os.listdir(os.path.join(hostdir, datedir, monthdir, daydir)):
                                         if filename.endswith(".index") and self.filenameok(filename):
+                                            beforeyield = time.time()
                                             yield os.path.join(hostdir, datedir, monthdir, daydir, filename)
+                                            yieldtime += (time.time() - beforeyield)
+                    listdirtime += (time.time() - t1 - yieldtime)
                     continue
                 elif yeardirOk == False:
                     continue
@@ -204,15 +213,11 @@ class PcpArchiveFinder(object):
 
                 datedirOk = self.subdirok(datedir)
                 if datedirOk == None:
-                    t3 = t2
-                    t4 = t2
                     if datedir.endswith(".index") and self.filenameok(datedir):
                         yield os.path.join(hostdir, datedir)
                 elif datedirOk == True:
                     dirpath = os.path.join(hostdir, datedir)
-                    t3 = time.time()
                     filenames = os.listdir(dirpath)
-                    t4 = time.time()
                     for filename in filenames:
                         if filename.endswith(".index") and self.filenameok(filename):
                             yield os.path.join(dirpath, filename)
@@ -220,8 +225,8 @@ class PcpArchiveFinder(object):
             hostcount += 1
             lasttime = currtime
             currtime = time.time()
-            logging.info("Processed %s of %s (last %s = (%s + %s +) total %s estimated completion %s",
-                         hostcount, len(hosts), currtime-lasttime, t2-t1, t4-t3, currtime - starttime,
+            logging.info("Processed %s of %s (hosttime %s, listdirtime %s, yieldtime %s) total %s estimated completion %s",
+                         hostcount, len(hosts), currtime-lasttime, listdirtime, yieldtime, currtime - starttime,
                          datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
 
