@@ -262,7 +262,7 @@ class XDMoDArchiveCache(ArchiveCache):
         """ Insert a job record """
         cur = self.con.cursor()
         if hostname not in self._hostnamecache:
-            logging.debug("Ignoring archive for host %s", hostname)
+            logging.debug("Ignoring archive for host \"%s\" because there are no jobs in the XDMoD datawarehouse that ran on this host.", hostname)
             return
 
         filenamequery = """INSERT INTO `modw_supremm`.`archive_paths` (`filename`) VALUES (%s) ON DUPLICATE KEY UPDATE id = id """
