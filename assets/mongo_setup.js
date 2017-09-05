@@ -20,7 +20,7 @@ var sdef = {
         },
         "gpu_usage": {
             "units": "GPU %",
-            "description": "GPU utilzation %",
+            "description": "GPU utilization %",
             "help": "The average percentage of time spent with the GPU active. The average is computed over each time interval."
         },
         "clktks": {
