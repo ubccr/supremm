@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.4] - 2017-11-22
+
+### Fixed
+- Update to array indexing for compatibility with numpy >= 1.12.0
+
 ## [1.0.3] - 2017-08-01
 
 ### Changed
