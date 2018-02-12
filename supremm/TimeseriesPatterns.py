@@ -5,6 +5,7 @@ from datetime import datetime
 
 import numpy as np
 from autoperiod import Autoperiod
+from supremm.datadumper import ImageOutput
 from autoperiod.helpers import convert_to_rates
 from six import iteritems
 from six.moves import range
@@ -18,6 +19,7 @@ class TimeseriesPatterns(Plugin):
     SECTIONS = 4
     DISTANCE_THRESHOLD = 60
     MIN_NODES = 1
+    MIN_WALLTIME = 600
 
     @property
     def mode(self):
@@ -43,7 +45,13 @@ class TimeseriesPatterns(Plugin):
         self.section_start_timestamps = [[] for _ in xrange(self.SECTIONS)]
         self.metricNames = [str.replace(metric, '.', '-') for metric in self.requiredMetrics]
 
+        self.resource = job.acct['partition']
+        self.jobid = job.acct['local_job_id']
+
     def process(self, nodemeta, timestamp, data, description):
+
+        if self.end_time - self.start_time < self.MIN_WALLTIME:
+            return False
 
         # associate each metric with its data point, as tuples of (metric, data)
         # sum across the mountpoints to get one total data point
@@ -98,6 +106,9 @@ class TimeseriesPatterns(Plugin):
 
     def results(self):
 
+        if self.end_time - self.start_time < self.MIN_WALLTIME:
+            return {'error': ProcessingError.JOB_TOO_SHORT}
+
         metric_data = {
             metric: {
                 # Store data for each node (inner array), for each section (outer array)
@@ -133,7 +144,7 @@ class TimeseriesPatterns(Plugin):
             metric['sections'] = [calculate_stats(nodes) for nodes in metric['sections']]
             metric['section_start_timestamps'] = [calculate_stats(sect) for sect in self.section_start_timestamps]
 
-        autoperiods = _calculate_autoperiod(self.nodes, self.metricNames)
+        autoperiods = _calculate_autoperiod(self.nodes, self.metricNames, self.resource, self.jobid)
 
         for metric in self.metricNames:
             metric_data[metric].update({"autoperiod": autoperiods[metric]})
@@ -141,7 +152,7 @@ class TimeseriesPatterns(Plugin):
         return metric_data
 
 
-def _calculate_autoperiod(nodes, metrics):
+def _calculate_autoperiod(nodes, metrics, resource, jobid):
     times_interp = None
     summed_values = {metric: None for metric in metrics}
 
@@ -163,10 +174,15 @@ def _calculate_autoperiod(nodes, metrics):
     for metric in metrics:
         values = summed_values[metric]
 
+        plotter = ImageOutput(resource, jobid, metric)
+
         autoperiod = Autoperiod(
             *convert_to_rates(times_interp, values),
+            plotter=plotter,
             threshold_method='stat'
         ) if not np.allclose(values, 0) else None
+
+        plotter.show()
 
         if autoperiod is None or autoperiod.period is None:
             autoperiods[metric] = None
