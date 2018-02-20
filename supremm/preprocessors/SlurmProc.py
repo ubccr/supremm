@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """ Proc information pre-processor """
 
+from collections import Counter
+
 from supremm.plugin import PreProcessor
 from supremm.errors import ProcessingError
 from supremm.linuxhelpers import parsecpusallowed
@@ -38,7 +40,7 @@ class SlurmProc(PreProcessor):
         self.cgroupcpuset = None
         self.hostname = None
 
-        self.output = {"procDump": {"constrained": set(), "unconstrained": set()}, "cpusallowed": {}}
+        self.output = {"procDump": {"constrained": Counter(), "unconstrained": Counter()}, "cpusallowed": {}}
 
     @staticmethod
     def slurmcgroupparser(s):
@@ -127,8 +129,11 @@ class SlurmProc(PreProcessor):
             if len(allcores) > 0:
                 self.cpusallowed = allcores
 
-        self.output['procDump']['constrained'] |= set(containedprocs.values())
-        self.output['procDump']['unconstrained'] |= set(unconstrainedprocs.values())
+        for procname in containedprocs.itervalues():
+            self.output['procDump']['constrained'][procname] += 1
+
+        for procname in unconstrainedprocs.itervalues():
+            self.output['procDump']['unconstrained'][procname] += 1
 
         return True
 
@@ -147,8 +152,11 @@ class SlurmProc(PreProcessor):
 
     def results(self):
 
-        result = {"constrained": list(self.output['procDump']['constrained']),
-                  "unconstrained": list(self.output['procDump']['unconstrained']),
+        constrained = [x[0] for x in self.output['procDump']['constrained'].most_common()]
+        unconstrained = [x[0] for x in self.output['procDump']['unconstrained'].most_common()]
+
+        result = {"constrained": constrained,
+                  "unconstrained": unconstrained,
                   "cpusallowed": {}}
 
         sizelimit = 150

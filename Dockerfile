@@ -16,6 +16,7 @@ RUN yum install -y \
     python2-pip \
     python2-mock \
     python-ctypes \
+    python-psutil \
     python-pcp \
     python-pymongo \
     MySQL-python \
