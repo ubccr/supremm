@@ -20,6 +20,7 @@ class TimeseriesPatterns(Plugin):
     DISTANCE_THRESHOLD = 60
     MIN_NODES = 1
     MIN_WALLTIME = 600
+    DATAPOINT_THRESHOLD = MIN_WALLTIME / 30
 
     @property
     def mode(self):
@@ -119,6 +120,10 @@ class TimeseriesPatterns(Plugin):
         }
 
         for nodename, node in iteritems(self.nodes):
+            if not len(node['all_times']) > self.DATAPOINT_THRESHOLD:
+                node['data_error'] = True
+                continue
+
             for metric, data in node['last_value']:
 
                 # calculate last section
@@ -138,72 +143,62 @@ class TimeseriesPatterns(Plugin):
             # If a metric didn't have enough viable nodes, report error due to insufficient data
             if metric['nodes_used'] < self.MIN_NODES:
                 metric_data[metric_name] = {'error': ProcessingError.INSUFFICIENT_DATA}
-                break
+                continue
 
             # Use stats across the nodes instead of reporting all node data individually
             metric['sections'] = [calculate_stats(nodes) for nodes in metric['sections']]
             metric['section_start_timestamps'] = [calculate_stats(sect) for sect in self.section_start_timestamps]
-
-        autoperiods = _calculate_autoperiod(self.nodes, self.metricNames, self.resource, self.jobid)
-
-        for metric in self.metricNames:
-            metric_data[metric].update({"autoperiod": autoperiods[metric]})
+            metric['autoperiod'] = _calculate_autoperiod(self.nodes, metric_name, self.resource, self.jobid)
 
         return metric_data
 
 
-def _calculate_autoperiod(nodes, metrics, resource, jobid):
+def _calculate_autoperiod(nodes, metric, resource, jobid):
     times_interp = None
-    summed_values = {metric: None for metric in metrics}
+    summed_values = None
 
     # Interpolate times and values so sampling interval is constant, and sum nodes
     for nodename, node in iteritems(nodes):
-        for metric in metrics:
-            if times_interp is None:
-                times_interp = np.linspace(min(node['all_times']), max(node['all_times']),
-                                           len(node['all_times']))
-                summed_values[metric] = np.interp(times_interp, node['all_times'], node['all_data'][metric])
-            else:
-                if summed_values[metric] is None:
-                    summed_values[metric] = np.interp(times_interp, node['all_times'], node['all_data'][metric])
-                else:
-                    summed_values[metric] += np.interp(times_interp, node['all_times'],
-                                                       node['all_data'][metric])
-
-    autoperiods = {}
-    for metric in metrics:
-        values = summed_values[metric]
-
-        plotter = ImageOutput(resource, jobid, metric)
-
-        autoperiod = Autoperiod(
-            *convert_to_rates(times_interp, values),
-            plotter=plotter,
-            threshold_method='stat'
-        ) if not np.allclose(values, 0) else None
-
-        plotter.show()
-
-        if autoperiod is None or autoperiod.period is None:
-            autoperiods[metric] = None
+        if times_interp is None:
+            times_interp = np.linspace(min(node['all_times']), max(node['all_times']),
+                                        len(node['all_times']))
+            summed_values = np.interp(times_interp, node['all_times'], node['all_data'][metric])
         else:
-            ap_data = {
-                "period": autoperiod.period,
-                "phase_shift_guess": autoperiod.phase_shift_guess
-            }
+            if summed_values is None:
+                summed_values = np.interp(times_interp, node['all_times'], node['all_data'][metric])
+            else:
+                summed_values += np.interp(times_interp, node['all_times'],
+                                                    node['all_data'][metric])
 
-            on_period_block_areas, off_period_block_areas = autoperiod.period_block_areas()
-            on_period = calculate_stats(on_period_block_areas)
-            off_period = calculate_stats(off_period_block_areas)
+    plotter = ImageOutput(resource, jobid, metric)
 
-            on_period['sum'] = np.sum(on_period_block_areas)
-            off_period['sum'] = np.sum(off_period_block_areas)
+    autoperiod = Autoperiod(
+        *convert_to_rates(times_interp, summed_values),
+        plotter=plotter,
+        threshold_method='stat'
+    ) if not np.allclose(summed_values, 0) else None
 
-            ap_data['on_period'] = on_period
-            ap_data['off_period'] = off_period
+    plotter.show()
 
-            normalized_score = (on_period['sum'] - off_period['sum']) / (on_period['sum'] + off_period['sum'])
-            ap_data['normalized_score'] = normalized_score
-            autoperiods[metric] = ap_data
 
-    return autoperiods
+    if autoperiod is None or autoperiod.period is None:
+        return None
+    else:
+        ap_data = {
+            "period": autoperiod.period,
+            "phase_shift_guess": autoperiod.phase_shift_guess
+        }
+
+        on_period_block_areas, off_period_block_areas = autoperiod.period_block_areas()
+        on_period = calculate_stats(on_period_block_areas)
+        off_period = calculate_stats(off_period_block_areas)
+
+        on_period['sum'] = np.sum(on_period_block_areas)
+        off_period['sum'] = np.sum(off_period_block_areas)
+
+        ap_data['on_period'] = on_period
+        ap_data['off_period'] = off_period
+
+        normalized_score = (on_period['sum'] - off_period['sum']) / (on_period['sum'] + off_period['sum'])
+        ap_data['normalized_score'] = normalized_score
+        return ap_data
