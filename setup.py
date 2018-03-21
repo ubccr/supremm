@@ -49,10 +49,14 @@ setup(
              'src/supremm/supremm_update',
              'src/supremm/supremm-setup',
              'src/supremm/ingest_jobscripts.py'],
-    requires=['numpy',
-              'MySQLdb',
-              'pcp',
-              'Cython'],
+    install_requires=[
+        'numpy',
+        'MySQL-python',
+        'pcp',
+        'Cython',
+        'scipy',
+        'pymongo'
+    ],
     cmdclass={'build_ext': build_ext},
     ext_modules=[
         Extension('supremm.pcpfast.libpcpfast', ['src/supremm/pcpfast/pcpfast.c'], libraries=['pcp']),
