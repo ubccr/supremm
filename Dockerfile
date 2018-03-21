@@ -25,7 +25,7 @@ RUN yum install -y \
     jq \
     pcp-devel
 
-RUN pip install pylint coverage
+RUN pip install pylint coverage pytest
 
 ADD . /root
 
