@@ -25,7 +25,7 @@ RUN yum install -y \
     jq \
     pcp-devel
 
-RUN pip install pylint==1.8.3 coverage pytest pytest-cov psutil
+RUN pip install pylint==1.8.3 coverage pytest pytest-cov psutil six>=1.10.0
 
 ADD . /root
 
