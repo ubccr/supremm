@@ -5,6 +5,8 @@ import json
 import ConfigParser
 import re
 import glob
+import pkg_resources
+import logging
 
 def iscomment(line):
     """ check is line is a c++ style comment """
@@ -24,10 +26,11 @@ class Config(object):
         if confpath == None:
             confpath = self.autodetectconfpath()
 
-        if os.path.isdir(confpath) == False:
+        if confpath is None or os.path.isdir(confpath) == False:
             raise Exception("Missing configuration path %s" % confpath)
 
         conffile = os.path.join(confpath, "config.json")
+        logging.debug("Using config file %s", conffile)
         with open(conffile, "rb") as conffp:
             confdata = ""
             for line in conffp:
@@ -43,12 +46,17 @@ class Config(object):
     @staticmethod
     def autodetectconfpath():
         """ search known paths for the configuration directory
-            List of paths support the two typical install locations 1) rpm based install
-            and 2) src install
+            List of paths support the three typical install locations
+            1) source install with pip
+            2) rpm based install
+            3) source install with python setup.py install
             @returns Directory name or None if no suitable directory found
         """
-        searchpaths = [os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm",
-                       "/etc/supremm"]
+        searchpaths = [
+            os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm",
+            "/etc/supremm",
+            pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
+        ]
 
         for path in searchpaths:
             if os.path.exists(os.path.join(path, "config.json")):
