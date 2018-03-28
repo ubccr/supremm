@@ -61,7 +61,7 @@ setup(
     cmdclass={'build_ext': build_ext},
     ext_modules=[
         Extension('supremm.pcpfast.libpcpfast', ['src/supremm/pcpfast/pcpfast.c'], libraries=['pcp']),
-        Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
+        Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx", "src/supremm/pypmlogextract/dlsymdefs.pxd"])
     ]
 )
 
