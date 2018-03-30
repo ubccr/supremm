@@ -1,4 +1,4 @@
-FROM       centos:centos7
+FROM       tas-tools-ext-01.ccr.xdmod.org/xdmod-centos7:open7.5-supremm7.5-v3
 MAINTAINER Joseph P. White <jpwhite4@buffalo.edu>
 
 RUN yum -y install epel-release && yum -y update
@@ -20,16 +20,15 @@ RUN yum install -y \
     python-pcp \
     python-pymongo \
     MySQL-python \
-    python-setuptools \
     Cython \
     jq \
     pcp-devel
 
-RUN pip install pylint==1.8.3 coverage pytest pytest-cov psutil
+RUN pip install pylint==1.8.3 coverage pytest pytest-cov psutil setuptools==36.4.0
 
 RUN pip install --ignore-installed six>=1.10.0
 
-ADD . /root
+ADD . /root/supremm
 
-WORKDIR /root
+WORKDIR /root/supremm
 
