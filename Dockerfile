@@ -24,7 +24,7 @@ RUN yum install -y \
     jq \
     pcp-devel
 
-RUN pip install pylint==1.8.3 coverage pytest pytest-cov psutil setuptools==36.4.0
+RUN pip install pylint==1.8.3 coverage pytest pytest-cov psutil setuptools==36.4.0 pexpect==4.4.0
 
 RUN pip install --ignore-installed six>=1.10.0
 
