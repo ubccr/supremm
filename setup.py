@@ -40,15 +40,22 @@ setup(
         ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
         ('share/supremm/setup/', ['assets/modw_supremm.sql', 'assets/mongo_setup.js'])
     ],
-    scripts=['src/supremm/gen-pmlogger-control.py',
-             'src/supremm/summarize_jobs.py',
-             'src/supremm/summarize_mpi.py',
-             'src/supremm/indexarchives.py',
-             'src/supremm/account.py',
-             'src/supremm/supremmconf.py',
-             'src/supremm/supremm_update',
-             'src/supremm/supremm-setup',
-             'src/supremm/ingest_jobscripts.py'],
+    scripts=[
+             'src/supremm/supremm_update'
+    ],
+    entry_points={
+        'console_scripts': [
+            'gen-pmlogger-control.py = supremm.gen-pmlogger-control:main',
+            'summarize_jobs.py = supremm.summarize_jobs:main',
+            'summarize_mpi.py = supremm.summarize_mpi:main',
+            'indexarchives.py = supremm.indexarchives:runindexing',
+            'account.py = supremm.account:runingest',
+            'supremmconf.py = supremm.supremmconf:main',
+            'supremm-setup = supremm.supremm-setup:main',
+            'ingest_jobscripts.py = supremm.ingest_jobscripts:main'
+
+        ]
+    },
     install_requires=[
         'numpy',
         'MySQL-python',
