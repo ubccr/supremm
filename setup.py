@@ -45,13 +45,13 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'gen-pmlogger-control.py = supremm.gen-pmlogger-control:main',
+            'gen-pmlogger-control.py = supremm.gen_pmlogger_control:main',
             'summarize_jobs.py = supremm.summarize_jobs:main',
             'summarize_mpi.py = supremm.summarize_mpi:main',
             'indexarchives.py = supremm.indexarchives:runindexing',
             'account.py = supremm.account:runingest',
             'supremmconf.py = supremm.supremmconf:main',
-            'supremm-setup = supremm.supremm-setup:main',
+            'supremm-setup = supremm.supremm_setup:main',
             'ingest_jobscripts.py = supremm.ingest_jobscripts:main'
 
         ]
