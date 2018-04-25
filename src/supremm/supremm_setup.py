@@ -305,7 +305,7 @@ def create_mysql_tables(display):
 
     config = promptconfig(display)
 
-    scriptpath = pkg_resources.resource_filename(__name__, "modw_supremm.sql")
+    scriptpath = pkg_resources.resource_filename(__name__, "assets/modw_supremm.sql")
 
     dbsettings = config.getsection("datawarehouse")
     host = display.prompt_string("DB hostname", dbsettings['host'])
@@ -358,7 +358,7 @@ def create_mongodb(display):
 
     config = promptconfig(display)
 
-    scriptpath = pkg_resources.resource_filename(__name__, "mongo_setup.js")
+    scriptpath = pkg_resources.resource_filename(__name__, "assets/mongo_setup.js")
 
     dbsettings = config.getsection("outputdatabase")
 
