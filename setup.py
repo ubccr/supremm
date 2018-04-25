@@ -31,6 +31,9 @@ setup(
 
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
+    package_data={
+        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js']
+    },
     data_files=[
         (confpath,                         ['config/config.json']),
         ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
@@ -38,7 +41,6 @@ setup(
         ('share/supremm/templates/pmie',        ['config/templates/pmie/control',        'config/templates/pmie/pmie-supremm.config',
                                                  'config/templates/pmie/pcp-restart.sh', 'config/templates/pmie/procpmda_check.sh']),
         ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
-        ('share/supremm/setup/', ['assets/modw_supremm.sql', 'assets/mongo_setup.js'])
     ],
     scripts=[
              'src/supremm/supremm_update'
