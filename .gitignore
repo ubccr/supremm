@@ -1,1 +1,14 @@
 build/
+dist/
+*.egg-info/
+*.pyc
+*.so
+pypmlogextract.c
+
+.idea/
+.vscode/
+.cache/
+
+# ci or testing files
+.coverage
+shippable/

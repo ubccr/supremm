@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """ setup script for SUPReMM job summarization utilities """
-from distutils.core import setup, Extension
+from setuptools import setup, find_packages, Extension
 from Cython.Distutils import build_ext
 import sys
 import os
@@ -19,39 +19,51 @@ else:
     confpath = 'etc/supremm'
 
 
-setup(name='supremm',
-      version='1.0.4',
-      description='SUPReMM Job Summarization Utilities',
-      long_description='Utilities for generating job-level summary data from host level PCP archives.\nAlso includes template configuration files for running PCP on an HPC system.',
-      license='LGPLv3',
-      author='Joseph P White',
-      author_email='jpwhite4@buffalo.edu',
-      url='https://github.com/ubccr/supremm',
-      packages=['supremm', 'supremm.pcpfast', 'supremm.plugins', 'supremm.preprocessors'],
-      data_files=[(confpath,                         ['config/config.json']),
-                  ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
-                  ('share/supremm/templates/pmlogger',    ['config/templates/pmlogger/control',    'config/templates/pmlogger/pmlogger-supremm.config']),
-                  ('share/supremm/templates/pmie',        ['config/templates/pmie/control',        'config/templates/pmie/pmie-supremm.config',
-                                                           'config/templates/pmie/pcp-restart.sh', 'config/templates/pmie/procpmda_check.sh']),
-                  ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
-                  ('share/supremm/setup/', ['assets/modw_supremm.sql', 'assets/mongo_setup.js'])
-      ],
-      scripts=['supremm/gen-pmlogger-control.py',
-               'supremm/summarize_jobs.py', 
-               'supremm/summarize_mpi.py',
-               'supremm/indexarchives.py',
-               'supremm/account.py',
-               'supremm/supremmconf.py',
-               'supremm/supremm_update',
-               'supremm/supremm-setup',
-               'supremm/ingest_jobscripts.py'],
-      requires=['numpy',
-                'MySQLdb',
-                'pcp',
-                'Cython'],
-      cmdclass = {'build_ext': build_ext},
-      ext_modules=[Extension('supremm.pcpfast.libpcpfast', ['supremm/pcpfast/pcpfast.c'], libraries=['pcp']), Extension("supremm.pypmlogextract", ["supremm/pypmlogextract/pypmlogextract.pyx"])]
-     )
+setup(
+    name='supremm',
+    version='1.0.4',
+    description='SUPReMM Job Summarization Utilities',
+    long_description='Utilities for generating job-level summary data from host level PCP archives.\nAlso includes template configuration files for running PCP on an HPC system.',
+    license='LGPLv3',
+    author='Joseph P White',
+    author_email='jpwhite4@buffalo.edu',
+    url='https://github.com/ubccr/supremm',
+
+    package_dir={'': 'src'},
+    packages=find_packages(where='src'),
+    data_files=[
+        (confpath,                         ['config/config.json']),
+        ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
+        ('share/supremm/templates/pmlogger',    ['config/templates/pmlogger/control',    'config/templates/pmlogger/pmlogger-supremm.config']),
+        ('share/supremm/templates/pmie',        ['config/templates/pmie/control',        'config/templates/pmie/pmie-supremm.config',
+                                                 'config/templates/pmie/pcp-restart.sh', 'config/templates/pmie/procpmda_check.sh']),
+        ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
+        ('share/supremm/setup/', ['assets/modw_supremm.sql', 'assets/mongo_setup.js'])
+    ],
+    scripts=['src/supremm/gen-pmlogger-control.py',
+             'src/supremm/summarize_jobs.py',
+             'src/supremm/summarize_mpi.py',
+             'src/supremm/indexarchives.py',
+             'src/supremm/account.py',
+             'src/supremm/supremmconf.py',
+             'src/supremm/supremm_update',
+             'src/supremm/supremm-setup',
+             'src/supremm/ingest_jobscripts.py'],
+    install_requires=[
+        'numpy',
+        'MySQL-python',
+        'pcp',
+        'Cython',
+        'scipy',
+        'pymongo',
+        'psutil'
+    ],
+    cmdclass={'build_ext': build_ext},
+    ext_modules=[
+        Extension('supremm.pcpfast.libpcpfast', ['src/supremm/pcpfast/pcpfast.c'], libraries=['pcp']),
+        Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx", "src/supremm/pypmlogextract/dlsymdefs.pxd"])
+    ]
+)
 
 if IS_RPM_BUILD:
     os.unlink('.rpm_install_script.txt')
