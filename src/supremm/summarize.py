@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """ Summarize module """
 
+import datetime
+
 from ctypes import c_uint
 from pcp import pmapi
 import cpmapi as c_pmapi
@@ -115,6 +117,8 @@ class Summarize(object):
             "created": time.time(),
             "srcdir": self.job.jobdir,
             "complete": self.complete()}
+
+        output['created'] = datetime.datetime.utcnow()
 
         output['acct'] = self.job.acct
         output['acct']['id'] = self.job.job_id
