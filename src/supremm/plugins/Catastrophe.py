@@ -57,6 +57,9 @@ class Catastrophe(Plugin):
 
         for _, data in self._data.iteritems():
 
+            if data['x'][-1] - data['x'][0] == 0.0:
+                return {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
+
             start = 2
             end = len(data['x'])-2
 
