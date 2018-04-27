@@ -31,6 +31,9 @@ setup(
 
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
+    package_data={
+        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js']
+    },
     data_files=[
         (confpath,                         ['config/config.json']),
         ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
@@ -38,17 +41,23 @@ setup(
         ('share/supremm/templates/pmie',        ['config/templates/pmie/control',        'config/templates/pmie/pmie-supremm.config',
                                                  'config/templates/pmie/pcp-restart.sh', 'config/templates/pmie/procpmda_check.sh']),
         ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
-        ('share/supremm/setup/', ['assets/modw_supremm.sql', 'assets/mongo_setup.js'])
     ],
-    scripts=['src/supremm/gen-pmlogger-control.py',
-             'src/supremm/summarize_jobs.py',
-             'src/supremm/summarize_mpi.py',
-             'src/supremm/indexarchives.py',
-             'src/supremm/account.py',
-             'src/supremm/supremmconf.py',
-             'src/supremm/supremm_update',
-             'src/supremm/supremm-setup',
-             'src/supremm/ingest_jobscripts.py'],
+    scripts=[
+             'src/supremm/supremm_update'
+    ],
+    entry_points={
+        'console_scripts': [
+            'gen-pmlogger-control.py = supremm.gen_pmlogger_control:main',
+            'summarize_jobs.py = supremm.summarize_jobs:main',
+            'summarize_mpi.py = supremm.summarize_mpi:main',
+            'indexarchives.py = supremm.indexarchives:runindexing',
+            'account.py = supremm.account:runingest',
+            'supremmconf.py = supremm.supremmconf:main',
+            'supremm-setup = supremm.supremm_setup:main',
+            'ingest_jobscripts.py = supremm.ingest_jobscripts:main'
+
+        ]
+    },
     install_requires=[
         'numpy',
         'MySQL-python',

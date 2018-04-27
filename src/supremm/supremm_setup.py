@@ -11,10 +11,8 @@ import socket
 import subprocess
 import sys
 import signal
+import pkg_resources
 
-def getsharedir():
-    """ return the path to the share/ directory """
-    return os.path.realpath(os.path.join(os.path.dirname(__file__), "../share/supremm"))
 
 def promptconfig(display):
     """ prompt user for configuration path """
@@ -307,7 +305,7 @@ def create_mysql_tables(display):
 
     config = promptconfig(display)
 
-    scriptpath = os.path.join(getsharedir(), "setup/modw_supremm.sql")
+    scriptpath = pkg_resources.resource_filename(__name__, "assets/modw_supremm.sql")
 
     dbsettings = config.getsection("datawarehouse")
     host = display.prompt_string("DB hostname", dbsettings['host'])
@@ -360,7 +358,7 @@ def create_mongodb(display):
 
     config = promptconfig(display)
 
-    scriptpath = os.path.join(getsharedir(), "setup/mongo_setup.js")
+    scriptpath = pkg_resources.resource_filename(__name__, "assets/mongo_setup.js")
 
     dbsettings = config.getsection("outputdatabase")
 

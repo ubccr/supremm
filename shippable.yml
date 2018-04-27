@@ -6,13 +6,15 @@ build:
         image_name: pseudo_repo/supremm_centos7
         image_tag: latest
         pull: false
-        options: "--user root -e HOME=/root"
+        options: "--user root -e HOME=/root -t"
     ci:
+        - ./tests/integration_tests/bootstrap.sh
+        - ./tests/integration_tests/integration_test.bash
+        - summarize_jobs.py -h > /dev/null
+        - indexarchives.py -h > /dev/null
         - python setup.py install
         - pylint --errors-only --disable=E0611 supremm
         - pytest --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
-        - summarize_jobs.py -h > /dev/null
-        - indexarchives.py -h > /dev/null
         #- pylint --errors-only supremm
         #- python setup.py develop
         #- nosetests --with-xunit --xunit-file=shippable/testresults/nosetests.xml
