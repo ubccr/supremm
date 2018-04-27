@@ -28,7 +28,7 @@ Want to be notified about SUPReMM package releases and news? Subscribe to the
 Software Build Requirements 
 ---------------------------
 
-### Centos 6 & 7
+### Centos 7
 
 Install the PCP repository configuration following the instructions on the [pcp packages
 page][pcpbintray]. Install the EPEL repository configuration:
