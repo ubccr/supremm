@@ -1,6 +1,6 @@
 """ Implementation for account reader that gets data from the XDMoD datawarehouse """
 
-from MySQLdb import OperationalError
+from MySQLdb import OperationalError, ProgrammingError
 from supremm.config import Config
 from supremm.accounting import Accounting, ArchiveCache
 from supremm.scripthelpers import getdbconnection
@@ -13,40 +13,86 @@ class XDMoDAcct(Accounting):
     def __init__(self, resource_id, config, nthreads, threadidx):
         super(XDMoDAcct, self).__init__(resource_id, config, nthreads, threadidx)
 
-        self._query = """
-            SELECT 
-                jf.`job_id` as `job_id`,
-                jf.`resource_id` as `resource_id`, 
-                COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) as `local_job_id`,
-                jf.`start_time_ts` as `start_time`,
-                jf.`end_time_ts` as `end_time`,
-                jf.`submit_time_ts` as `submit`,
-                jf.`eligible_time_ts` as `eligible`,
-                jf.`queue_id` as `partition`,
-                jf.`uid_number` as `uid`,
-                aa.`charge_number` as `account`,
-                sa.`username` as `user`,
-                jf.`name` as `jobname`,
-                jf.`nodecount` as `nodes`,
-                jf.`processors` as `ncpus`,
-                jf.`group_name` as `group`,
-                jf.`gid_number` as `gid`,
-                jf.`exit_code` as `exit_code`,
-                jf.`exit_state` as `exit_status`,
-                jf.`cpu_req` as `reqcpus`,
-                jf.`mem_req` as `reqmem`,
-                jf.`timelimit` as `timelimit`
-            FROM 
-                modw.jobfact jf
-            LEFT JOIN 
-                modw_supremm.`process` p ON jf.job_id = p.jobid
-            INNER JOIN 
-                modw.systemaccount sa ON jf.systemaccount_id = sa.id
-            INNER JOIN
-                modw.account aa ON jf.account_id = aa.id
-            WHERE
-                jf.resource_id = %s 
-              """
+        self.dbsettings = config.getsection("datawarehouse")
+
+        xdmod_schema_version = self.detectXdmodSchema()
+
+        if xdmod_schema_version == 8:
+            jobfacttable = 'job_tasks'
+
+            self._query = """
+                SELECT
+                    jf.`job_id` AS `job_id`,
+                    jf.`resource_id` AS `resource_id`,
+                    COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) AS `local_job_id`,
+                    jf.`start_time_ts` AS `start_time`,
+                    jf.`end_time_ts` AS `end_time`,
+                    jf.`submit_time_ts` AS `submit`,
+                    jf.`eligible_time_ts` AS `eligible`,
+                    jr.`queue` AS `partition`,
+                    jf.`uid_number` AS `uid`,
+                    aa.`charge_number` AS `account`,
+                    sa.`username` AS `user`,
+                    jf.`name` AS `jobname`,
+                    jf.`node_count` AS `nodes`,
+                    jf.`processor_count` AS `ncpus`,
+                    jf.`group_name` AS `group`,
+                    jf.`gid_number` AS `gid`,
+                    jf.`exit_code` AS `exit_code`,
+                    jf.`exit_state` AS `exit_status`,
+                    jf.`cpu_req` AS `reqcpus`,
+                    jf.`mem_req` AS `reqmem`,
+                    jf.`timelimit` AS `timelimit`
+                FROM
+                    modw.job_tasks jf
+                        INNER JOIN
+                    modw.job_records jr ON jf.job_record_id = jr.job_record_id
+                        INNER JOIN
+                    modw.systemaccount sa ON jf.systemaccount_id = sa.id
+                        INNER JOIN
+                    modw.account aa ON jr.account_id = aa.id
+                        LEFT JOIN
+                    modw_supremm.`process` p ON jf.job_id = p.jobid
+                WHERE
+                    jf.resource_id = %s
+            """
+        else:
+            jobfacttable = 'jobfact'
+
+            self._query = """
+                SELECT
+                    jf.`job_id` as `job_id`,
+                    jf.`resource_id` as `resource_id`,
+                    COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) as `local_job_id`,
+                    jf.`start_time_ts` as `start_time`,
+                    jf.`end_time_ts` as `end_time`,
+                    jf.`submit_time_ts` as `submit`,
+                    jf.`eligible_time_ts` as `eligible`,
+                    jf.`queue_id` as `partition`,
+                    jf.`uid_number` as `uid`,
+                    aa.`charge_number` as `account`,
+                    sa.`username` as `user`,
+                    jf.`name` as `jobname`,
+                    jf.`nodecount` as `nodes`,
+                    jf.`processors` as `ncpus`,
+                    jf.`group_name` as `group`,
+                    jf.`gid_number` as `gid`,
+                    jf.`exit_code` as `exit_code`,
+                    jf.`exit_state` as `exit_status`,
+                    jf.`cpu_req` as `reqcpus`,
+                    jf.`mem_req` as `reqmem`,
+                    jf.`timelimit` as `timelimit`
+                FROM
+                    modw.jobfact jf
+                LEFT JOIN
+                    modw_supremm.`process` p ON jf.job_id = p.jobid
+                INNER JOIN
+                    modw.systemaccount sa ON jf.systemaccount_id = sa.id
+                INNER JOIN
+                    modw.account aa ON jf.account_id = aa.id
+                WHERE
+                    jf.resource_id = %s
+            """
 
         self.hostquery = """
             SELECT 
@@ -59,7 +105,7 @@ class XDMoDAcct(Accounting):
                 modw_supremm.`archives_nodelevel` na,
                 modw.`hosts` h,
                 modw.`jobhosts` jh,
-                modw.`jobfact` j
+                modw.`{0}` j
             WHERE
                 j.job_id = jh.job_id
                     AND jh.job_id = %s
@@ -78,7 +124,7 @@ class XDMoDAcct(Accounting):
                 modw_supremm.`archives_joblevel` ja,
                 modw.`hosts` h,
                 modw.`jobhosts` jh,
-                modw.`jobfact` j
+                modw.`{0}` j
             WHERE
                 j.job_id = jh.job_id
                     AND jh.job_id = %s
@@ -87,12 +133,30 @@ class XDMoDAcct(Accounting):
                     AND ja.local_job_id_raw = j.local_job_id_raw
                     AND ja.archive_id = ap.id
             ) tt ORDER BY 1 ASC, tt.start_time_ts ASC
-                       """
+        """.format(jobfacttable)
 
-        self.dbsettings = config.getsection("datawarehouse")
         self.con = None
         self.hostcon = None
         self.madcon = None
+
+    def detectXdmodSchema(self):
+        """ Query the XDMoD datawarehouse to determine which version of the data schema
+            is in use """
+
+        xdmod_schema_version = 7
+
+        testconnection = getdbconnection(self.dbsettings, True)
+        curs = testconnection.cursor()
+        try:
+            curs.execute('SELECT 1 FROM `modw`.`job_tasks` LIMIT 1')
+            curs.close()
+            xdmod_schema_version = 8
+        except ProgrammingError:
+            pass
+
+        testconnection.close()
+
+        return xdmod_schema_version
 
     def getbylocaljobid(self, localjobid):
         """ Yields one or more Jobs that match the localjobid """
