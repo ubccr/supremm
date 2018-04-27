@@ -15,7 +15,3 @@ build:
         - python setup.py install
         - pylint --errors-only --disable=E0611 supremm
         - pytest --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
-        #- pylint --errors-only supremm
-        #- python setup.py develop
-        #- nosetests --with-xunit --xunit-file=shippable/testresults/nosetests.xml
-        #- nosetests --with-coverage --cover-erase --cover-package=supremm --cover-branches --cover-xml --cover-xml-file=shippable/codecoverage/coverage.xml
