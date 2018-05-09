@@ -73,7 +73,7 @@ setup(
     cmdclass={'build_ext': build_ext},
     ext_modules=cythonize([
         Extension("supremm.puffypcp", ["src/supremm/puffypcp/puffypcp.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
-        Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx", "src/supremm/pypmlogextract/dlsymdefs.pxd"])
+        Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
     ])
 )
 
