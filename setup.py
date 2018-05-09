@@ -2,8 +2,10 @@
 """ setup script for SUPReMM job summarization utilities """
 from setuptools import setup, find_packages, Extension
 from Cython.Distutils import build_ext
+from Cython.Build import cythonize
 import sys
 import os
+import numpy
 
 # For rpm-based builds want the configuration files to
 # go in the standard location. Also need to rewrite the file list so that
@@ -33,7 +35,7 @@ setup(
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     package_data={
-        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js']
+        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', 'puffypcp/pcp.pxd', 'pypmlogextract/dlsymdefs.pxd']
     },
     data_files=[
         (confpath,                         ['config/config.json']),
@@ -69,10 +71,10 @@ setup(
         'psutil'
     ],
     cmdclass={'build_ext': build_ext},
-    ext_modules=[
-        Extension('supremm.pcpfast.libpcpfast', ['src/supremm/pcpfast/pcpfast.c'], libraries=['pcp']),
+    ext_modules=cythonize([
+        Extension("supremm.puffypcp", ["src/supremm/puffypcp/puffypcp.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
         Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx", "src/supremm/pypmlogextract/dlsymdefs.pxd"])
-    ]
+    ])
 )
 
 if IS_RPM_BUILD:
