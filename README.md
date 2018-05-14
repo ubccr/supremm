@@ -28,7 +28,7 @@ Want to be notified about SUPReMM package releases and news? Subscribe to the
 Software Build Requirements 
 ---------------------------
 
-### Centos 6 & 7
+### Centos 7
 
 Install the PCP repository configuration following the instructions on the [pcp packages
 page][pcpbintray]. Install the EPEL repository configuration:
@@ -42,9 +42,13 @@ Install the build dependencies:
 Installation
 ------------
 
-This project uses the [python distutils][pydist] for package creation.
+This project uses the [python setuptools][pydist] for package creation, and
+the setup script is known to work with setuptools version 36.4.0 or later.
+To install in a conda environment:
 
-    python setup.py install --prefix=PATH_TO_INSTALL_DIR
+    conda create -n supremm python=2.7 cython numpy scipy
+    source activate supremm
+    python setup.py install 
 
 RPM packages are created using:
 
@@ -126,5 +130,5 @@ the [GNU Lesser General Public License ("LGPL") Version 3.0][lgpl3].
 [nsf-1445806]:http://www.nsf.gov/awardsearch/showAward?AWD_ID=1445806
 [listserv]:   http://listserv.buffalo.edu/cgi-bin/wa?SUBED1=ccr-xdmod-list&A=1
 [ghpr]:       https://help.github.com/articles/using-pull-requests/
-[pydist]:     https://docs.python.org/2.7/distutils/index.html
+[pydist]:     https://setuptools.readthedocs.io/en/latest/
 [pcpbintray]: https://bintray.com/pcp/

@@ -29,6 +29,7 @@ setup(
     author_email='jpwhite4@buffalo.edu',
     url='https://github.com/ubccr/supremm',
 
+    zip_safe=False,
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     package_data={
