@@ -1,15 +1,10 @@
 FROM       tas-tools-ext-01.ccr.xdmod.org/xdmod-centos7:open7.5-supremm7.5-v3
 MAINTAINER Joseph P. White <jpwhite4@buffalo.edu>
 
-RUN yum -y install epel-release && yum -y update
-RUN yum -y install wget && wget https://centos7.iuscommunity.org/ius-release.rpm && rpm -i ius-release.rpm 
-
 RUN yum install -y \
     gcc \
     rsync \
-    vim \
     sudo \
-    git2u \
     numpy \
     scipy \
     python-devel \
