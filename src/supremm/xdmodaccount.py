@@ -327,7 +327,7 @@ class XDMoDArchiveCache(ArchiveCache):
         try:
             self.insertImpl(resource_id, hostname, filename, start, end, jobid)
         except OperationalError:
-            logging.error("Lost MySQL Connection. Attempting single reconnect")
+            logging.warning("Lost MySQL Connection. Attempting single reconnect")
             self.con = getdbconnection(self.dbconfig)
             self.insertImpl(resource_id, hostname, filename, start, end, jobid)
 
