@@ -394,11 +394,13 @@ def getmetricstofetch(context, analytic):
         for the analytic """
 
     metriclist = []
+    metricnames = []
 
     for derived in analytic.derivedMetrics:
         context.pmRegisterDerived(derived['name'], derived['formula'])
         required = context.pmLookupName(derived['name'])
         metriclist.append(required[0])
+        metricnames.append(derived['name'])
 
     if len(analytic.requiredMetrics) > 0:
         metricOk = False
@@ -406,12 +408,14 @@ def getmetricstofetch(context, analytic):
             r = loadrequiredmetrics(context, analytic.requiredMetrics)
             if len(r) > 0:
                 metriclist += r
+                metricnames.extend(analytic.requiredMetrics)
                 metricOk = True
         else:
             for reqarray in analytic.requiredMetrics:
                 r = loadrequiredmetrics(context, reqarray)
                 if len(r) > 0:
                     metriclist += r
+                    metricnames.extend(reqarray)
                     metricOk = True
                     break
 
@@ -422,6 +426,7 @@ def getmetricstofetch(context, analytic):
         try:
             opt = context.pmLookupName(optional)
             metriclist.append(opt[0])
+            metricnames.append(optional)
         except pmapi.pmErr as e:
             if e.args[0] == c_pmapi.PM_ERR_NAME or e.args[0] == c_pmapi.PM_ERR_NONLEAF:
                 # Optional metrics are allowed to not exist
@@ -435,7 +440,7 @@ def getmetricstofetch(context, analytic):
     for i in xrange(0, len(metriclist)):
         metricarray[i] = metriclist[i]
 
-    return metricarray
+    return metricarray, metricnames
 
 def getmetrictypes(context, py_metric_ids):
     """ returns a list with the datatype of the provided array of metric ids """

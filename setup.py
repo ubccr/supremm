@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """ setup script for SUPReMM job summarization utilities """
+from Cython.Build import cythonize
 from setuptools import setup, find_packages, Extension
 from Cython.Distutils import build_ext
-from Cython.Build import cythonize
 import sys
 import os
 import numpy
@@ -72,7 +72,7 @@ setup(
     ],
     cmdclass={'build_ext': build_ext},
     ext_modules=cythonize([
-        Extension("supremm.puffypcp", ["src/supremm/puffypcp/puffypcp.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
+        Extension("supremm.puffypcp", ["src/supremm/puffypcp/puffypcp.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include(), "."]),
         Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
     ])
 )
