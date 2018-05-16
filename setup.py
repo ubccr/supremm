@@ -71,10 +71,10 @@ setup(
         'psutil'
     ],
     cmdclass={'build_ext': build_ext},
-    ext_modules=cythonize([
+    ext_modules=[
         Extension("supremm.puffypcp", ["src/supremm/puffypcp/puffypcp.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include(), "."]),
         Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
-    ])
+    ]
 )
 
 if IS_RPM_BUILD:
