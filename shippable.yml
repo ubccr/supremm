@@ -12,6 +12,7 @@ build:
         - ./tests/integration_tests/integration_test.bash
         - summarize_jobs.py -h > /dev/null
         - indexarchives.py -h > /dev/null
+        - ingest_jobscripts.py -d
         - yum remove -y supremm
         - python setup.py install
         - pylint --errors-only --disable=E0611 supremm
