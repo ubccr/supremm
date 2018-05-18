@@ -27,6 +27,7 @@ class TestSummarizeJob(unittest.TestCase):
         }
 
         self.options = {
+                'dry_run': False,
                 'dodelete': True,
                 'extractonly': False,
                 'force_timeout': 172800,
