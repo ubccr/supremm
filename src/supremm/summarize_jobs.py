@@ -36,7 +36,7 @@ def processjobs(config, opts, procid):
         logging.debug("Using %s preprocessors", len(preprocs))
         logging.debug("Using %s plugins", len(plugins))
 
-        with outputter.factory(config, resconf) as m:
+        with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
 
             if resconf['batch_system'] == "XDMoD":
                 dbif = XDMoDAcct(resconf['resource_id'], config, opts['threads'], procid)

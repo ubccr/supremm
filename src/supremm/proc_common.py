@@ -58,6 +58,7 @@ def usage(has_mpi):
     print "                        This directory will be emptied before used and no"
     print "                        subdirectories will be created. This option is ignored "
     print "                        if multiple jobs are to be processed."
+    print "  -n --dry-run          process jobs but do not write to database."
     print "  -h --help             display this help message and exit."
 
 
@@ -92,10 +93,11 @@ def getoptions(has_mpi):
         "tag": None,
         "dump_proclist": False,
         "force_timeout": 2 * 24 * 3600,
-        "resource": None
+        "resource": None,
+        "dry_run": False
     }
 
-    opts, _ = getopt(sys.argv[1:], "ABONCbP:M:j:r:t:dqs:e:LT:t:D:Eo:h",
+    opts, _ = getopt(sys.argv[1:], "ABONCbP:M:j:r:t:dqs:e:LT:t:D:Eo:hn",
                      ["localjobid=",
                       "resource=",
                       "threads=",
@@ -122,7 +124,8 @@ def getoptions(has_mpi):
                       "extract-only",
                       "use-lib-extract",
                       "output=",
-                      "help"])
+                      "help",
+                      "dry-run"])
 
     for opt in opts:
         if opt[0] in ("-j", "--localjobid"):
@@ -177,6 +180,8 @@ def getoptions(has_mpi):
             retdata['extractonly'] = True
         if opt[0] in ("-o", "--output"):
             joboutdir = opt[1]
+        if opt[0] in ("-n", "--dry-run"):
+            retdata["dry_run"] = True
         if opt[0] in ("-h", "--help"):
             usage(has_mpi)
             sys.exit(0)
@@ -334,7 +339,8 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
             if (datetime.datetime.now() - job.end_datetime) > datetime.timedelta(seconds=force_timeout):
                 force_success = True
 
-        dblog.markasdone(job, success or force_success, time.time() - mergestart, summarizeerror)
+        if not opts["dry_run"]:
+            dblog.markasdone(job, success or force_success, time.time() - mergestart, summarizeerror)
 
     except Exception as e:
         logging.error("Failure for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
