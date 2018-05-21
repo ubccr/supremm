@@ -47,6 +47,8 @@ cdef object topyobj(pcp.pmAtomValue atom, int dtype):
         return long(atom.ull)
     elif dtype == pcp.PM_TYPE_DOUBLE:
         return long(atom.d)
+    elif dtype == pcp.PM_TYPE_FLOAT:
+        return long(atom.f)
     else: # Don't know how to handle data type
         return None
 
@@ -132,6 +134,20 @@ cdef numpy.ndarray[double, ndim=1, mode="c"] doubleinnerloop(int numval, pcp.pmR
         tmp_datap[j] = atom.d
     return tmp_data
 
+cdef numpy.ndarray[double, ndim=1, mode="c"] floatinnerloop(int numval, pcp.pmResult* res, int i):
+    cdef Py_ssize_t j
+    cdef pcp.pmAtomValue atom
+    cdef int status
+    cdef numpy.ndarray[float, ndim=1, mode="c"] tmp_data = numpy.empty(numval, dtype=numpy.float32)
+    cdef float* tmp_datap = &tmp_data[0]
+    for j in xrange(numval):
+        inst = res.vset[i].vlist[j].inst
+        status = pcp.pmExtractValue(res.vset[i].valfmt, &res.vset[i].vlist[j], pcp.PM_TYPE_FLOAT, &atom, pcp.PM_TYPE_FLOAT)
+        if status < 0:
+            raise pmapi.pmErr(status)
+        tmp_datap[j] = atom.f
+    return tmp_data
+
 # All numeric types return numpy.float64 (c double) arrays
 # Functions are seperated based on type to handle any quirks from converting to double
 cdef object extractValuesInnerLoop(Py_ssize_t numval, pcp.pmResult* res, int dtype, int i):
@@ -148,6 +164,8 @@ cdef object extractValuesInnerLoop(Py_ssize_t numval, pcp.pmResult* res, int dty
         return uint64innerloop(numval, res, i)
     elif dtype == pcp.PM_TYPE_DOUBLE:
         return doubleinnerloop(numval, res, i)
+    elif dtype == pcp.PM_TYPE_FLOAT:
+        return floatinnerloop(numval, res, i)
     else: # Don't know how to handle data type
         return []
 
