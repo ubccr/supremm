@@ -360,7 +360,7 @@ def extractpreprocValues(context, result, py_metric_id_array, mtypes):
         data.append(tmp_data)
 
     PyBuffer_Release(&buf)
-    return data, description
+    return numpy.array(data), description
 
 def loadrequiredmetrics(context, requiredMetrics):
     """ required metrics are those that must be present for the analytic to be run """
@@ -420,7 +420,7 @@ def getmetricstofetch(context, analytic):
                     break
 
         if not metricOk:
-            return []
+            return [], []
 
     for optional in analytic.optionalMetrics:
         try:
