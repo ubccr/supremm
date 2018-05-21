@@ -73,9 +73,12 @@ class Summarize(object):
                 success -= 1
                 #pylint: disable=not-callable
                 self.adderror("archive", "{0}: pmapi.pmErr: {1}".format(archive, exc.message()))
+                traceback.print_exc()
+
             except Exception as exc:
                 success -= 1
                 self.adderror("archive", "{0}: Exception: {1}. {2}".format(archive, str(exc), traceback.format_exc()))
+                traceback.print_exc()
 
         return success == 0
 
@@ -351,42 +354,32 @@ class Summarize(object):
 
     def processarchive(self, nodename, nodeidx, archive):
         """ process the archive """
-        context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-        mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
-        context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
-
         # TODO need to benchmark code to see if there is a benefit to interleaving the calls to
         # pmFetch for the different contexts. This version runs all the pmFetches for each analytic
         # in turn.
 
-        basecontext = context.ctx
-
         for preproc in self.preprocs:
-            context._ctx = basecontext
-            newctx = context.pmDupContext()
-            context._ctx = newctx
+            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+            mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
+            context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
 
             self.processforpreproc(context, mdata, preproc)
 
-            context.__del__()
+            del context
 
         for analytic in self.alltimestamps:
-            context._ctx = basecontext
-            newctx = context.pmDupContext()
-            context._ctx = newctx
+            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+            mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
+            context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
 
             self.processforanalytic(context, mdata, analytic)
 
-            context.__del__()
+            del context
 
         for analytic in self.firstlast:
-            context._ctx = basecontext
-            newctx = context.pmDupContext()
-            context._ctx = newctx
+            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+            mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
+            context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
 
             self.processfirstlast(context, mdata, analytic)
-
-            context.__del__()
-
-        context._ctx = basecontext
-        del context
+            del context
