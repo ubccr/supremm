@@ -73,7 +73,7 @@ def processfor(resource_id, respath, dbif, timedeltadays):
     """ find and ingest all job scripts for the given resource """
 
     count = 0
-    fglob = re.compile(r"^([0-9]*)\.savescript")
+    fglob = re.compile(r"^(([0-9]*)(?:\[\d+\])?)\.savescript")
 
     logging.debug("Processing path %s", respath)
 
