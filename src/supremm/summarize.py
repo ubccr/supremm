@@ -357,29 +357,17 @@ class Summarize(object):
         # TODO need to benchmark code to see if there is a benefit to interleaving the calls to
         # pmFetch for the different contexts. This version runs all the pmFetches for each analytic
         # in turn.
+        context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+        mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
 
         for preproc in self.preprocs:
-            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-            mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
             context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
-
             self.processforpreproc(context, mdata, preproc)
 
-            del context
-
         for analytic in self.alltimestamps:
-            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-            mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
             context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
-
             self.processforanalytic(context, mdata, analytic)
 
-            del context
-
         for analytic in self.firstlast:
-            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-            mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
             context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
-
             self.processfirstlast(context, mdata, analytic)
-            del context
