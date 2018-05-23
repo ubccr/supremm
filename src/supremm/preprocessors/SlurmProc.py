@@ -109,18 +109,18 @@ class SlurmProc(PreProcessor):
                 cgroupedprocs.append(idx)
             else:
                 otheruid, otherjobid = self.slurmcgroupparser(data[2][idx][0])
-                if otherjobid != None:
+                if otherjobid is not None:
                     otherjobs[pid] = command
                 else:
                     unconstrainedprocs[pid] = command
 
-        if len(data) > 3 and self.cgroupcpuset == None:
+        if len(data) > 3 and self.cgroupcpuset is None:
             for cpuset in itertools.ifilter(lambda x: x[1] == self.cgrouppath, description[3].iteritems()):
                 for content in itertools.ifilter(lambda x: int(x[1]) == cpuset[0], data[3]):
                     self.cgroupcpuset = parsecpusallowed(content[0])
                     break
 
-        if self.cpusallowed == None:
+        if self.cpusallowed is None:
             allcores = set()
             for idx in cgroupedprocs:
                 allcores |= parsecpusallowed(data[0][idx][0])
@@ -137,9 +137,9 @@ class SlurmProc(PreProcessor):
 
     def hostend(self):
 
-        if self.cgroupcpuset != None:
+        if self.cgroupcpuset is not None:
             self.output['cpusallowed'][self.hostname] = list(self.cgroupcpuset)
-        elif self.cpusallowed != None:
+        elif self.cpusallowed is not None:
             self.output['cpusallowed'][self.hostname] = list(self.cpusallowed)
 
         self.cgroupcpuset = None
