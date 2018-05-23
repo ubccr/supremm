@@ -9,6 +9,9 @@ from supremm.linuxhelpers import parsecpusallowed
 import re
 import itertools
 
+GROUP_RE = re.compile(r"^cpuset:/slurm/uid_(\d+)/job_(\d+)/")
+
+
 class SlurmProc(PreProcessor):
     """ Parse and analyse the proc information for a job that ran under slurm
         where the slurm cgroups plugin was enabled. 
@@ -49,15 +52,13 @@ class SlurmProc(PreProcessor):
         """
 
         groups = s.split(";")
-        groupre = re.compile(r"^cpuset:/slurm/uid_(\d+)/job_(\d+)/")
 
         for group in groups:
-            m = groupre.match(group)
+            m = GROUP_RE.match(group)
             if m:
                 return m.group(1), m.group(2)
 
         return None, None
-
 
     @staticmethod
     def instanceparser(s):
