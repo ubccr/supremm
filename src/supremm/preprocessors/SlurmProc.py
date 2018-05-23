@@ -9,9 +9,7 @@ from supremm.linuxhelpers import parsecpusallowed
 import re
 import itertools
 
-# Removing the ^|; anchor will probably improve performance of search but may slightly alter behavior in contrived cases
-# (CPython regex library has optimizations for constant string prefixes)
-GROUP_RE = re.compile(r"(^|;)cpuset:/slurm/uid_(\d+)/job_(\d+)/")
+GROUP_RE = re.compile(r"cpuset:/slurm/uid_(\d+)/job_(\d+)/")
 
 
 class SlurmProc(PreProcessor):
@@ -55,7 +53,7 @@ class SlurmProc(PreProcessor):
 
         m = GROUP_RE.search(s)
         if m:
-            return m.group(2), m.group(3)
+            return m.group(1), m.group(2)
         else:
             return None, None
 
