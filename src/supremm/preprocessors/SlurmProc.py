@@ -9,7 +9,9 @@ from supremm.linuxhelpers import parsecpusallowed
 import re
 import itertools
 
-GROUP_RE = re.compile(r"^cpuset:/slurm/uid_(\d+)/job_(\d+)/")
+# Removing the ^|; anchor will probably improve performance of search but may slightly alter behavior in contrived cases
+# (CPython regex library has optimizations for constant string prefixes)
+GROUP_RE = re.compile(r"(^|;)cpuset:/slurm/uid_(\d+)/job_(\d+)/")
 
 
 class SlurmProc(PreProcessor):
@@ -51,14 +53,11 @@ class SlurmProc(PreProcessor):
             the UID and jobid of each job
         """
 
-        groups = s.split(";")
-
-        for group in groups:
-            m = GROUP_RE.match(group)
-            if m:
-                return m.group(1), m.group(2)
-
-        return None, None
+        m = GROUP_RE.search(s)
+        if m:
+            return m.group(2), m.group(3)
+        else:
+            return None, None
 
     @staticmethod
     def instanceparser(s):
