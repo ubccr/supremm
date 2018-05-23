@@ -106,7 +106,7 @@ class SlurmProc(PreProcessor):
 
             command = description[1][pid].split(" ", 1)[1]
 
-            if data[2][idx][0].find(self.expectedcgroup) != -1:
+            if self.expectedcgroup in data[2][idx][0]:
                 containedprocs[pid] = command
                 cgroupedprocs.append(idx)
             else:
