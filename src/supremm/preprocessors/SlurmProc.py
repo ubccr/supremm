@@ -9,6 +9,9 @@ from supremm.linuxhelpers import parsecpusallowed
 import re
 import itertools
 
+GROUP_RE = re.compile(r"cpuset:/slurm/uid_(\d+)/job_(\d+)/")
+
+
 class SlurmProc(PreProcessor):
     """ Parse and analyse the proc information for a job that ran under slurm
         where the slurm cgroups plugin was enabled. 
@@ -48,16 +51,11 @@ class SlurmProc(PreProcessor):
             the UID and jobid of each job
         """
 
-        groups = s.split(";")
-        groupre = re.compile(r"^cpuset:/slurm/uid_(\d+)/job_(\d+)/")
-
-        for group in groups:
-            m = groupre.match(group)
-            if m:
-                return m.group(1), m.group(2)
-
-        return None, None
-
+        m = GROUP_RE.search(s)
+        if m:
+            return m.group(1), m.group(2)
+        else:
+            return None, None
 
     @staticmethod
     def instanceparser(s):
@@ -104,25 +102,26 @@ class SlurmProc(PreProcessor):
                 self.logerror("missing process name for pid {0}".format(pid))
                 continue
 
-            command = " ".join(description[1][pid].split(" ")[1:])
+            s = description[1][pid]
+            command = s[s.find(" ") + 1:]
 
-            if data[2][idx][0].find(self.expectedcgroup) != -1:
+            if self.expectedcgroup in data[2][idx][0]:
                 containedprocs[pid] = command
                 cgroupedprocs.append(idx)
             else:
                 otheruid, otherjobid = self.slurmcgroupparser(data[2][idx][0])
-                if otherjobid != None:
+                if otherjobid is not None:
                     otherjobs[pid] = command
                 else:
                     unconstrainedprocs[pid] = command
 
-        if len(data) > 3 and self.cgroupcpuset == None:
+        if len(data) > 3 and self.cgroupcpuset is None:
             for cpuset in itertools.ifilter(lambda x: x[1] == self.cgrouppath, description[3].iteritems()):
                 for content in itertools.ifilter(lambda x: int(x[1]) == cpuset[0], data[3]):
                     self.cgroupcpuset = parsecpusallowed(content[0])
                     break
 
-        if self.cpusallowed == None:
+        if self.cpusallowed is None:
             allcores = set()
             for idx in cgroupedprocs:
                 allcores |= parsecpusallowed(data[0][idx][0])
@@ -139,9 +138,9 @@ class SlurmProc(PreProcessor):
 
     def hostend(self):
 
-        if self.cgroupcpuset != None:
+        if self.cgroupcpuset is not None:
             self.output['cpusallowed'][self.hostname] = list(self.cgroupcpuset)
-        elif self.cpusallowed != None:
+        elif self.cpusallowed is not None:
             self.output['cpusallowed'][self.hostname] = list(self.cpusallowed)
 
         self.cgroupcpuset = None
