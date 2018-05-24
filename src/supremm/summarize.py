@@ -73,12 +73,10 @@ class Summarize(object):
                 success -= 1
                 #pylint: disable=not-callable
                 self.adderror("archive", "{0}: pmapi.pmErr: {1}".format(archive, exc.message()))
-                traceback.print_exc()
 
             except Exception as exc:
                 success -= 1
                 self.adderror("archive", "{0}: Exception: {1}. {2}".format(archive, str(exc), traceback.format_exc()))
-                traceback.print_exc()
 
         return success == 0
 
