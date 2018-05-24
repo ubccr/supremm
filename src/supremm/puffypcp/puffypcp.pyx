@@ -38,17 +38,17 @@ cdef object topyobj(pcp.pmAtomValue atom, int dtype):
         free(atom.cp)
         return ret
     elif dtype == pcp.PM_TYPE_32:
-        return long(atom.l)
+        return atom.l
     elif dtype == pcp.PM_TYPE_U32:
-        return long(atom.ul)
+        return atom.ul
     elif dtype == pcp.PM_TYPE_64:
-        return long(atom.ll)
+        return atom.ll
     elif dtype == pcp.PM_TYPE_U64:
-        return long(atom.ull)
+        return atom.ull
     elif dtype == pcp.PM_TYPE_DOUBLE:
-        return long(atom.d)
+        return atom.d
     elif dtype == pcp.PM_TYPE_FLOAT:
-        return long(atom.f)
+        return atom.f
     else: # Don't know how to handle data type
         return None
 
