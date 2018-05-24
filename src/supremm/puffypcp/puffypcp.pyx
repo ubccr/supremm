@@ -134,7 +134,7 @@ cdef numpy.ndarray[double, ndim=1, mode="c"] doubleinnerloop(int numval, pcp.pmR
         tmp_datap[j] = atom.d
     return tmp_data
 
-cdef numpy.ndarray[double, ndim=1, mode="c"] floatinnerloop(int numval, pcp.pmResult* res, int i):
+cdef numpy.ndarray[float, ndim=1, mode="c"] floatinnerloop(int numval, pcp.pmResult* res, int i):
     cdef Py_ssize_t j
     cdef pcp.pmAtomValue atom
     cdef int status
