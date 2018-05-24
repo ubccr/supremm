@@ -374,7 +374,7 @@ def extractpreprocValues(context, result, py_metric_id_array, mtypes):
             if status < 0:
                 tmp_data.append([])
             else:
-                tmp_data.append([topyobj(atom, dtype), res.vset[i].vlist[j].inst])
+                tmp_data.append((topyobj(atom, dtype), res.vset[i].vlist[j].inst))
         data.append(tmp_data)
 
     PyBuffer_Release(&buf)
