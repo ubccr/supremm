@@ -9,6 +9,7 @@ class TestGetOptions(unittest.TestCase):
 
     def setUp(self):
         self.defaults = {
+                'dry_run': False,
                 'dodelete': True,
                 'extractonly': False,
                 'force_timeout': 172800,

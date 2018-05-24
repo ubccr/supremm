@@ -4,6 +4,7 @@
 """
 
 import logging
+from multiprocessing import Process
 from supremm.config import Config
 from supremm.account import DbAcct
 from supremm.xdmodaccount import XDMoDAcct
@@ -11,9 +12,6 @@ from supremm import outputter
 from supremm.plugin import loadplugins, loadpreprocessors
 from supremm.proc_common import getoptions, summarizejob, override_defaults, filter_plugins
 from supremm.scripthelpers import setuplogger
-
-import sys
-from multiprocessing import Process
 
 
 def processjobs(config, opts, procid):
@@ -26,7 +24,7 @@ def processjobs(config, opts, procid):
     logging.debug("Loaded %s plugins", len(allplugins))
 
     for r, resconf in config.resourceconfigs():
-        if opts['resource'] == None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
+        if opts['resource'] is None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
             logging.info("Processing resource %s", r)
         else:
             continue
@@ -38,7 +36,7 @@ def processjobs(config, opts, procid):
         logging.debug("Using %s preprocessors", len(preprocs))
         logging.debug("Using %s plugins", len(plugins))
 
-        with outputter.factory(config, resconf) as m:
+        with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
 
             if resconf['batch_system'] == "XDMoD":
                 dbif = XDMoDAcct(resconf['resource_id'], config, opts['threads'], procid)
@@ -79,7 +77,7 @@ def main():
             proclist.append(p)
 
         for proc in proclist:
-            p.join()
+            proc.join()
 
 
 if __name__ == "__main__":

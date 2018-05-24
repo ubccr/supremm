@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euxo pipefail
+shopt -s extglob
 
 python setup.py bdist_rpm
-yum install -y dist/supremm-1.0.4-1.el7.centos.x86_64.rpm
+yum install -y dist/supremm-+([0-9.])*.x86_64.rpm
 ~/bin/services start
 rm -rf /var/lib/mongodb/*
 mongod -f /etc/mongod.conf

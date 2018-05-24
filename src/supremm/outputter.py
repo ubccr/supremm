@@ -7,7 +7,7 @@ import json
 
 class factory(object):
     """ output class generator helper """
-    def __init__(self, config, resconf):
+    def __init__(self, config, resconf, dry_run=False):
         outconf = config.getsection("outputdatabase")
 
         if 'db_engine' not in outconf and 'type' in outconf:
@@ -16,7 +16,7 @@ class factory(object):
             outconf['db_engine'] = outconf['type']
 
         if outconf['db_engine'].lower() == "mongodb":
-            self._impl = MongoOutput(outconf, resconf)
+            self._impl = MongoOutput(outconf, resconf) if not dry_run else NullOutput()
         elif outconf['db_engine'].lower() == "stdout":
             self._impl = StdoutOutput(outconf, resconf)
         elif outconf['db_engine'] == 'file':
@@ -147,6 +147,21 @@ class StdoutOutput(object):
         """
         print(self._resid, json.dumps(summary.get(), indent=4))
         print("MDATA: ", json.dumps(mdata, indent=4))
+
+    def __exit__(self, exception_type, exception_val, trace):
+        pass
+
+
+class NullOutput(object):
+    """
+    Outputter used when configured outputter is a database (Mongo) but the dry-run option is set.
+    Discards all data.
+    """
+    def __enter__(self):
+        return self
+
+    def process(self, summary, mdata):
+        pass
 
     def __exit__(self, exception_type, exception_val, trace):
         pass
