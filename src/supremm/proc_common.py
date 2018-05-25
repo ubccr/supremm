@@ -2,11 +2,6 @@
 """
   Commandline options
 """
-from supremm.scripthelpers import parsetime
-from supremm.pcparchive import extract_and_merge_logs
-from supremm.summarize import Summarize
-from supremm.errors import ProcessingError
-
 import sys
 from getopt import getopt
 import os
@@ -15,6 +10,11 @@ import time
 import datetime
 import shutil
 import logging
+
+from supremm.scripthelpers import parsetime
+from supremm.pcparchive import extract_and_merge_logs
+from supremm.summarize import Summarize
+from supremm.errors import ProcessingError, NotApplicableError
 
 def usage(has_mpi):
     """ print usage """
@@ -229,6 +229,17 @@ def getoptions(has_mpi):
     usage(has_mpi)
     sys.exit(1)
 
+def instantiatePlugins(plugins, job):
+    """ Create plugin/preprocessor instances from the list of class names """
+    instances = []
+    for plugin in plugins:
+        try:
+            instances.append(plugin(job))
+        except NotApplicableError:
+            logging.debug("Skipping (not applicable) %s", plugin)
+
+    return instances
+
 def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
     """ Main job processing, Called for every job to be processed """
 
@@ -297,8 +308,8 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
         if opts['extractonly']:
             return 0 == mergeresult
 
-        preprocessors = [x(job) for x in preprocs]
-        analytics = [x(job) for x in plugins]
+        preprocessors = instantiatePlugins(preprocs, job)
+        analytics = instantiatePlugins(plugins, job)
         s = Summarize(preprocessors, analytics, job, conf)
 
         enough_nodes = False
