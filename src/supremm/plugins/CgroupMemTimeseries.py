@@ -3,11 +3,11 @@
 
 from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
-from supremm.errors import ProcessingError
+from supremm.errors import ProcessingError, NotApplicableError
 import numpy
 from collections import Counter
 
-class SlurmCgroupMemTimeseries(Plugin):
+class CgroupMemTimeseries(Plugin):
     """ Generate timeseries summary for memory usage viewed from CGroup
         This code is SLURM-specific because of the SLURM cgroup naming convention.
     """
@@ -19,11 +19,16 @@ class SlurmCgroupMemTimeseries(Plugin):
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
-        super(SlurmCgroupMemTimeseries, self).__init__(job)
+        super(CgroupMemTimeseries, self).__init__(job)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
         self._hostcounts = {}
-        self._expectedcgroup = "/slurm/uid_{0}/job_{1}".format(job.acct['uid'], job.job_id)
+        if job.acct['resource_manager'] == 'pbs':
+            self._expectedcgroup = "/torque/{0}".format(job.job_id)
+        elif job.acct['resource_manager'] == 'slurm':
+            self._expectedcgroup = "/slurm/uid_{0}/job_{1}".format(job.acct['uid'], job.job_id)
+        else:
+            raise NotApplicableError
 
     def process(self, nodemeta, timestamp, data, description):
 
