@@ -35,7 +35,9 @@ setup(
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     package_data={
-        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', 'puffypcp/pcp.pxd', 'pypmlogextract/dlsymdefs.pxd']
+        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
+        'supremm.puffypcp': ['*.pxd', '*.pyx'],
+        'supremm.pypmlogextract': ['*.pxd', '*.pyx']
     },
     data_files=[
         (confpath,                         ['config/config.json']),
