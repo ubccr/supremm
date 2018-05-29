@@ -11,7 +11,7 @@ import logging
 import traceback
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
-import puffypcp
+from supremm.puffypcp import puffypcp
 
 import numpy
 import copy

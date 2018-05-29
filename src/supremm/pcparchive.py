@@ -14,7 +14,7 @@ import traceback
 from pcp import pmapi
 import cpmapi as c_pmapi
 
-from supremm import pypmlogextract
+from supremm.pypmlogextract import pypmlogextract
 
 def get_datetime_from_timeval(tv):
     """
