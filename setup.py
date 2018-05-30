@@ -65,8 +65,7 @@ setup(
         'pcp',
         'Cython',
         'scipy',
-        'pymongo',
-        'psutil'
+        'pymongo'
     ],
     cmdclass={'build_ext': build_ext},
     ext_modules=[

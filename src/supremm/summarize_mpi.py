@@ -2,6 +2,7 @@
 """
     Main script for converting host-based pcp archives to job-level summaries.
 """
+# pylint: disable=import-error
 
 from mpi4py import MPI
 
