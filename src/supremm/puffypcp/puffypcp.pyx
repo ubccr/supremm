@@ -481,10 +481,3 @@ def getmetrictypes(context, py_metric_ids):
         metrictypes.append(ty)
 
     return metrictypes
-
-def pcptypetonumpy(pcptype):
-    """ Convert pcp data types to numpy equivalents """
-    if pcptype == c_pcp.PM_TYPE_STRING:
-        return object
-    return numpy.float
-
