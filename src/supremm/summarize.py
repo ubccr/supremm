@@ -47,8 +47,6 @@ class Summarize(object):
         self.start = time.time()
         self.archives_processed = 0
 
-        self.indomcache = None
-
         self.rangechange = RangeChange(config)
 
     def adderror(self, category, errormsg):
@@ -232,7 +230,6 @@ class Summarize(object):
         self.rangechange.set_fetched_metrics(metricnames)
 
         mtypes = puffypcp.getmetrictypes(ctx, metric_id_array)
-        self.indomcache = None
 
         done = False
 
@@ -279,7 +276,6 @@ class Summarize(object):
         self.rangechange.set_fetched_metrics(metricnames)
 
         mtypes = puffypcp.getmetrictypes(ctx, metric_id_array)
-        self.indomcache = None
 
         try:
             result = ctx.pmFetch(metric_id_array)
