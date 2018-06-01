@@ -14,6 +14,19 @@ from supremm.proc_common import getoptions, summarizejob, override_defaults, fil
 from supremm.scripthelpers import setuplogger
 
 
+def get_jobs(opts, account):
+    """
+    Returns an iterable of Jobs from the appropriate method of Accounting,
+    as specified by the options
+    """
+    if opts['mode'] == "single":
+        return account.getbylocaljobid(opts['local_job_id'])
+    elif opts['mode'] == "timerange":
+        return account.getbytimerange(opts['start'], opts['end'], opts)
+    else:
+        return account.get(None, None)
+
+
 def processjobs(config, opts, procid):
     """ main function that does the work. One run of this function per process """
 
@@ -43,15 +56,8 @@ def processjobs(config, opts, procid):
             else:
                 dbif = DbAcct(resconf['resource_id'], config, opts['threads'], procid)
 
-            if opts['mode'] == "single":
-                for job in dbif.getbylocaljobid(opts['local_job_id']):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
-            elif opts['mode'] == "timerange":
-                for job in dbif.getbytimerange(opts['start'], opts['end'], opts):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
-            else:
-                for job in dbif.get(None, None):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+            for job in get_jobs(opts, dbif):
+                summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
 
 
 def main():
