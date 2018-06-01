@@ -10,10 +10,8 @@ from supremm.errors import ProcessingError
 import sys
 from getopt import getopt
 import os
-import traceback
 import time
 import datetime
-import shutil
 import logging
 
 def usage(has_mpi):
@@ -229,127 +227,118 @@ def getoptions(has_mpi):
     usage(has_mpi)
     sys.exit(1)
 
-def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
-    """ Main job processing, Called for every job to be processed """
 
-    success = False
+def summarizejob(job, conf, resconf, plugins, preprocs, opts):
+    """
+    Main job processing, called for every job to be processed.
+    Returns a tuple representing the results of summarizing:
+    (Summarize object, metadata dict, boolean success, error code if any).
+    """
 
-    try:
-        mdata = {}
-        mergestart = time.time()
+    mdata = {}
+    mergestart = time.time()
 
-        summarizeerror = None
+    summarizeerror = None
 
-        if job.nodecount > 1 and opts['min_parallel_duration'] != None and job.walltime < opts['min_parallel_duration']:
-            mergeresult = 1
-            mdata["skipped_parallel_too_short"] = True
-            summarizeerror = ProcessingError.PARALLEL_TOO_SHORT
-            # Was "skipped"
-            missingnodes = job.nodecount
-            logging.info("Skipping %s, skipped_parallel_too_short", job.job_id)
-        elif opts['min_duration'] != None and job.walltime < opts['min_duration']:
-            mergeresult = 1
-            mdata["skipped_too_short"] = True
-            summarizeerror = ProcessingError.TIME_TOO_SHORT
-            missingnodes = job.nodecount
-            logging.info("Skipping %s, skipped_too_short", job.job_id)
-        elif job.nodecount < 1:
-            mergeresult = 1
-            mdata["skipped_invalid_nodecount"] = True
-            summarizeerror = ProcessingError.INVALID_NODECOUNT
-            missingnodes = job.nodecount
-            logging.info("Skipping %s, skipped_invalid_nodecount", job.job_id)
-        elif not job.has_any_archives():
-            mergeresult = 1
-            mdata["skipped_noarchives"] = True
-            summarizeerror = ProcessingError.NO_ARCHIVES
-            missingnodes = job.nodecount
-            logging.info("Skipping %s, skipped_noarchives", job.job_id)
-        elif not job.has_enough_raw_archives():
-            mergeresult = 1
-            mdata["skipped_rawarchives"] = True
-            summarizeerror = ProcessingError.RAW_ARCHIVES
-            missingnodes = job.nodecount
-            logging.info("Skipping %s, skipped_rawarchives", job.job_id)
-        elif opts['max_nodes'] > 0 and job.nodecount > opts['max_nodes']:
-            mergeresult = 1
-            mdata["skipped_job_too_big"] = True
-            summarizeerror = ProcessingError.JOB_TOO_BIG
-            missingnodes = job.nodecount
-            logging.info("Skipping %s, skipped_job_too_big", job.job_id)
-        elif opts['max_nodetime'] != None and (job.nodecount * job.walltime) > opts['max_nodetime']:
-            mergeresult = 1
-            mdata["skipped_job_nodehours"] = True
-            summarizeerror = ProcessingError.JOB_TOO_MANY_NODEHOURS
-            missingnodes = job.nodecount
-            logging.info("Skipping %s, skipped_job_too_big (node time)", job.job_id)
-        elif job.walltime >= opts['max_duration']:
-            mergeresult = 1
-            mdata["skipped_too_long"] = True
-            summarizeerror = ProcessingError.TIME_TOO_LONG
-            missingnodes = job.nodecount
-            logging.info("Skipping %s, skipped_too_long", job.job_id)
-        else:
-            mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
-            missingnodes = -1.0 * mergeresult
-        mergeend = time.time()
+    if job.nodecount > 1 and opts['min_parallel_duration'] != None and job.walltime < opts['min_parallel_duration']:
+        mergeresult = 1
+        mdata["skipped_parallel_too_short"] = True
+        summarizeerror = ProcessingError.PARALLEL_TOO_SHORT
+        # Was "skipped"
+        missingnodes = job.nodecount
+        logging.info("Skipping %s, skipped_parallel_too_short", job.job_id)
+    elif opts['min_duration'] != None and job.walltime < opts['min_duration']:
+        mergeresult = 1
+        mdata["skipped_too_short"] = True
+        summarizeerror = ProcessingError.TIME_TOO_SHORT
+        missingnodes = job.nodecount
+        logging.info("Skipping %s, skipped_too_short", job.job_id)
+    elif job.nodecount < 1:
+        mergeresult = 1
+        mdata["skipped_invalid_nodecount"] = True
+        summarizeerror = ProcessingError.INVALID_NODECOUNT
+        missingnodes = job.nodecount
+        logging.info("Skipping %s, skipped_invalid_nodecount", job.job_id)
+    elif not job.has_any_archives():
+        mergeresult = 1
+        mdata["skipped_noarchives"] = True
+        summarizeerror = ProcessingError.NO_ARCHIVES
+        missingnodes = job.nodecount
+        logging.info("Skipping %s, skipped_noarchives", job.job_id)
+    elif not job.has_enough_raw_archives():
+        mergeresult = 1
+        mdata["skipped_rawarchives"] = True
+        summarizeerror = ProcessingError.RAW_ARCHIVES
+        missingnodes = job.nodecount
+        logging.info("Skipping %s, skipped_rawarchives", job.job_id)
+    elif opts['max_nodes'] > 0 and job.nodecount > opts['max_nodes']:
+        mergeresult = 1
+        mdata["skipped_job_too_big"] = True
+        summarizeerror = ProcessingError.JOB_TOO_BIG
+        missingnodes = job.nodecount
+        logging.info("Skipping %s, skipped_job_too_big", job.job_id)
+    elif opts['max_nodetime'] != None and (job.nodecount * job.walltime) > opts['max_nodetime']:
+        mergeresult = 1
+        mdata["skipped_job_nodehours"] = True
+        summarizeerror = ProcessingError.JOB_TOO_MANY_NODEHOURS
+        missingnodes = job.nodecount
+        logging.info("Skipping %s, skipped_job_too_big (node time)", job.job_id)
+    elif job.walltime >= opts['max_duration']:
+        mergeresult = 1
+        mdata["skipped_too_long"] = True
+        summarizeerror = ProcessingError.TIME_TOO_LONG
+        missingnodes = job.nodecount
+        logging.info("Skipping %s, skipped_too_long", job.job_id)
+    else:
+        mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
+        missingnodes = -1.0 * mergeresult
+    mergeend = time.time()
 
-        if opts['extractonly']:
-            return 0 == mergeresult
+    if opts['extractonly']:
+        return 0 == mergeresult
 
-        preprocessors = [x(job) for x in preprocs]
-        analytics = [x(job) for x in plugins]
-        s = Summarize(preprocessors, analytics, job, conf)
+    preprocessors = [x(job) for x in preprocs]
+    analytics = [x(job) for x in plugins]
+    s = Summarize(preprocessors, analytics, job, conf)
 
-        enough_nodes = False
+    enough_nodes = False
 
-        if 0 == mergeresult or (job.nodecount != 0 and (missingnodes / job.nodecount < 0.05)):
-            enough_nodes = True
-            logging.info("Success for %s files in %s (%s/%s)", job.job_id, job.jobdir, missingnodes, job.nodecount)
-            s.process()
-        elif summarizeerror == None and job.nodecount != 0 and (missingnodes / job.nodecount >= 0.05):
-            # Don't overwrite existing error
-            # Don't have enough node data to even try summarization
-            mdata["skipped_pmlogextract_error"] = True
-            logging.info("Skipping %s, skipped_pmlogextract_error", job.job_id)
-            summarizeerror = ProcessingError.PMLOGEXTRACT_ERROR
+    if 0 == mergeresult or (job.nodecount != 0 and (missingnodes / job.nodecount < 0.05)):
+        enough_nodes = True
+        logging.info("Success for %s files in %s (%s/%s)", job.job_id, job.jobdir, missingnodes, job.nodecount)
+        s.process()
+    elif summarizeerror == None and job.nodecount != 0 and (missingnodes / job.nodecount >= 0.05):
+        # Don't overwrite existing error
+        # Don't have enough node data to even try summarization
+        mdata["skipped_pmlogextract_error"] = True
+        logging.info("Skipping %s, skipped_pmlogextract_error", job.job_id)
+        summarizeerror = ProcessingError.PMLOGEXTRACT_ERROR
 
-        mdata["mergetime"] = mergeend - mergestart
+    mdata["mergetime"] = mergeend - mergestart
 
-        if opts['tag'] != None:
-            mdata['tag'] = opts['tag']
+    if opts['tag'] != None:
+        mdata['tag'] = opts['tag']
 
-        if missingnodes > 0:
-            mdata['missingnodes'] = missingnodes
+    if missingnodes > 0:
+        mdata['missingnodes'] = missingnodes
 
-        m.process(s, mdata)
+    success = s.good_enough()
 
-        success = s.good_enough()
+    if not success and enough_nodes:
+        # We get here if the pmlogextract step gave us enough nodes but summarization didn't succeed for enough nodes
+        # All other "known" errors should already be handled above.
+        mdata["skipped_summarization_error"] = True
+        logging.info("Skipping %s, skipped_summarization_error", job.job_id)
+        summarizeerror = ProcessingError.SUMMARIZATION_ERROR
 
-        if not success and enough_nodes:
-            # We get here if the pmlogextract step gave us enough nodes but summarization didn't succeed for enough nodes
-            # All other "known" errors should already be handled above.
-            mdata["skipped_summarization_error"] = True
-            logging.info("Skipping %s, skipped_summarization_error", job.job_id)
-            summarizeerror = ProcessingError.SUMMARIZATION_ERROR
+    force_success = False
+    if not success:
+        force_timeout = opts['force_timeout']
+        if (datetime.datetime.now() - job.end_datetime) > datetime.timedelta(seconds=force_timeout):
+            force_success = True
 
-        force_success = False
-        if not success:
-            force_timeout = opts['force_timeout']
-            if (datetime.datetime.now() - job.end_datetime) > datetime.timedelta(seconds=force_timeout):
-                force_success = True
+    return s, mdata, success or force_success, summarizeerror
 
-        if not opts["dry_run"]:
-            dblog.markasdone(job, success or force_success, time.time() - mergestart, summarizeerror)
-
-    except Exception as e:
-        logging.error("Failure for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
-
-    if opts['dodelete'] and job.jobdir != None and os.path.exists(job.jobdir):
-        # Clean up
-        shutil.rmtree(job.jobdir)
-
-    return success
 
 def override_defaults(resconf, opts):
     """ Commandline options that override the configuration file settings """

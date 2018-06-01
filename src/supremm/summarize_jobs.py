@@ -4,6 +4,10 @@
 """
 
 import logging
+import os
+import shutil
+import time
+import traceback
 from multiprocessing import Process
 from supremm.config import Config
 from supremm.account import DbAcct
@@ -57,7 +61,24 @@ def processjobs(config, opts, procid):
                 dbif = DbAcct(resconf['resource_id'], config, opts['threads'], procid)
 
             for job in get_jobs(opts, dbif):
-                summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+                try:
+                    summarize_start = time.time()
+                    summarize, mdata, success, summarize_error = summarizejob(job, config, resconf, plugins, preprocs, opts)
+                    summarize_time = time.time() - summarize_start
+
+                    # TODO: change behavior so markasdone only happens if this is successful
+                    m.process(summarize, mdata)
+
+                    if not opts['dry_run']:
+                        dbif.markasdone(job, success, summarize_time, summarize_error)
+
+                except Exception as e:
+                    logging.error("Failure for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+
+                finally:
+                    if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
+                        # Clean up
+                        shutil.rmtree(job.jobdir)
 
 
 def main():
