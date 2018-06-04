@@ -47,7 +47,7 @@ def processjobs(config, opts, procid, comm):
         with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
 
             if resconf['batch_system'] == "XDMoD":
-                dbif = XDMoDAcct(resconf['resource_id'], config, None, None)
+                dbif = XDMoDAcct(resconf['resource_id'], config)
             else:
                 dbif = DbAcct(resconf['resource_id'], config)
 
