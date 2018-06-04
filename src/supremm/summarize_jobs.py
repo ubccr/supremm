@@ -37,7 +37,7 @@ def clean_jobdir(opts, job):
         shutil.rmtree(job.jobdir)
 
 
-def process_summary(m, dbif, opts, job, summarize_time, mdata, success, summarize_error, summarize):
+def process_summary(m, dbif, opts, job, summarize_time, summarize, mdata, success, summarize_error):
     try:
         # TODO: change behavior so markasdone only happens if this is successful
         outputter_start = time.time()
