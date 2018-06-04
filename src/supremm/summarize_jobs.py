@@ -8,7 +8,7 @@ import os
 import shutil
 import time
 import traceback
-from multiprocessing import Process
+import multiprocessing as mp
 from supremm.config import Config
 from supremm.account import DbAcct
 from supremm.xdmodaccount import XDMoDAcct
@@ -31,7 +31,28 @@ def get_jobs(opts, account):
         return account.get(None, None)
 
 
-def processjobs(config, opts, procid):
+def clean_jobdir(opts, job):
+    if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
+        # Clean up
+        shutil.rmtree(job.jobdir)
+
+
+def process_summary(m, dbif, opts, job, summarize_time, mdata, success, summarize_error, summarize):
+    try:
+        # TODO: change behavior so markasdone only happens if this is successful
+        outputter_start = time.time()
+        m.process(summarize, mdata)
+        outputter_time = time.time() - outputter_start
+
+        if not opts['dry_run']:
+            # TODO: this attempts to emulate the old timing behavior. Keep it?
+            process_time = summarize_time + outputter_time
+            dbif.markasdone(job, success, process_time, summarize_error)
+    except Exception as e:
+        logging.error("Failure processing summary for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+
+
+def processjobs(config, opts, process_pool=None):
     """ main function that does the work. One run of this function per process """
 
     allpreprocs = loadpreprocessors()
@@ -52,33 +73,74 @@ def processjobs(config, opts, procid):
 
         logging.debug("Using %s preprocessors", len(preprocs))
         logging.debug("Using %s plugins", len(plugins))
+        if process_pool is not None:
+            process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, process_pool)
+        else:
+            process_resource(resconf, preprocs, plugins, config, opts)
 
-        with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
 
-            if resconf['batch_system'] == "XDMoD":
-                dbif = XDMoDAcct(resconf['resource_id'], config)
+def process_resource(resconf, preprocs, plugins, config, opts):
+    with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
+
+        if resconf['batch_system'] == "XDMoD":
+            dbif = XDMoDAcct(resconf['resource_id'], config)
+        else:
+            dbif = DbAcct(resconf['resource_id'], config)
+
+        for job in get_jobs(opts, dbif):
+            try:
+                summarize_start = time.time()
+                result = summarizejob(job, config, resconf, plugins, preprocs, opts)
+                summarize_time = time.time() - summarize_start
+            except Exception as e:
+                logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+                clean_jobdir(opts, job)
+                continue
+
+            process_summary(m, dbif, opts, job, summarize_time, *result)
+            clean_jobdir(opts, job)
+
+
+def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, pool):
+    with outputter.factory(config, resconf, dry_run=opts['dry_run']) as m:
+        if resconf['batch_system'] == "XDMoD":
+            dbif = XDMoDAcct(resconf['resource_id'], config)
+        else:
+            dbif = DbAcct(resconf['resource_id'], config)
+
+        jobs = get_jobs(opts, dbif)
+
+        it = iter_jobs(jobs, config, resconf, plugins, preprocs, opts)
+        for job, result, summarize_time in pool.imap_unordered(do_summarize, it):
+            if result is not None:
+                process_summary(m, dbif, opts, job, summarize_time, *result)
+                clean_jobdir(opts, job)
             else:
-                dbif = DbAcct(resconf['resource_id'], config)
+                clean_jobdir(opts, job)
 
-            for job in get_jobs(opts, dbif):
-                try:
-                    summarize_start = time.time()
-                    summarize, mdata, success, summarize_error = summarizejob(job, config, resconf, plugins, preprocs, opts)
-                    summarize_time = time.time() - summarize_start
 
-                    # TODO: change behavior so markasdone only happens if this is successful
-                    m.process(summarize, mdata)
+def iter_jobs(jobs, config, resconf, plugins, preprocs, opts):
+    """
+    Combines the db cursor job iterator with the other information needed to pass to summarizejob.
+    """
+    for job in jobs:
+        yield job, config, resconf, plugins, preprocs, opts
 
-                    if not opts['dry_run']:
-                        dbif.markasdone(job, success, summarize_time, summarize_error)
 
-                except Exception as e:
-                    logging.error("Failure for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+def do_summarize(args):
+    """
+    used in a separate process
+    """
+    job, config, resconf, plugins, preprocs, opts = args
+    try:
+        summarize_start = time.time()
+        result = summarizejob(job, config, resconf, plugins, preprocs, opts)
+        summarize_time = time.time() - summarize_start
+    except Exception as e:
+        logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+        return job, None, None
 
-                finally:
-                    if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
-                        # Clean up
-                        shutil.rmtree(job.jobdir)
+    return job, result, summarize_time
 
 
 def main():
@@ -93,18 +155,13 @@ def main():
 
     threads = opts['threads']
 
-    if threads <= 1:
-        processjobs(config, opts, None)
-        return
-    else:
-        proclist = []
-        for procid in xrange(threads):
-            p = Process(target=processjobs, args=(config, opts, procid))
-            p.start()
-            proclist.append(p)
+    process_pool = mp.Pool(threads) if threads > 1 else None
+    processjobs(config, opts, process_pool)
 
-        for proc in proclist:
-            proc.join()
+    if process_pool is not None:
+        # wait for all processes to finish
+        process_pool.close()
+        process_pool.join()
 
 
 if __name__ == "__main__":
