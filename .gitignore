@@ -4,6 +4,7 @@ dist/
 *.pyc
 *.so
 pypmlogextract.c
+puffypcp.c
 
 .idea/
 .vscode/
