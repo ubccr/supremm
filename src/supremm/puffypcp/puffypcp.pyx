@@ -134,12 +134,12 @@ cdef numpy.ndarray[double, ndim=1, mode="c"] doubleinnerloop(int numval, c_pcp.p
         tmp_datap[j] = atom.d
     return tmp_data
 
-cdef numpy.ndarray[float, ndim=1, mode="c"] floatinnerloop(int numval, c_pcp.pmResult* res, int i):
+cdef numpy.ndarray[double, ndim=1, mode="c"] floatinnerloop(int numval, c_pcp.pmResult* res, int i):
     cdef Py_ssize_t j
     cdef c_pcp.pmAtomValue atom
     cdef int status
-    cdef numpy.ndarray[float, ndim=1, mode="c"] tmp_data = numpy.empty(numval, dtype=numpy.float32)
-    cdef float* tmp_datap = &tmp_data[0]
+    cdef numpy.ndarray[double, ndim=1, mode="c"] tmp_data = numpy.empty(numval, dtype=numpy.float64)
+    cdef double* tmp_datap = &tmp_data[0]
     for j in xrange(numval):
         inst = res.vset[i].vlist[j].inst
         status = c_pcp.pmExtractValue(res.vset[i].valfmt, &res.vset[i].vlist[j], c_pcp.PM_TYPE_FLOAT, &atom, c_pcp.PM_TYPE_FLOAT)
