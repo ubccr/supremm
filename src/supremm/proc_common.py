@@ -232,7 +232,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
     """
     Main job processing, called for every job to be processed.
     Returns a tuple representing the results of summarizing:
-    (Summarize object, metadata dict, boolean success, error code if any).
+    (summary dict, metadata dict, boolean success, error code if any).
     """
 
     mdata = {}
@@ -337,7 +337,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
         if (datetime.datetime.now() - job.end_datetime) > datetime.timedelta(seconds=force_timeout):
             force_success = True
 
-    return s, mdata, success or force_success, summarizeerror
+    return s.get(), mdata, success or force_success, summarizeerror
 
 
 def override_defaults(resconf, opts):

@@ -37,11 +37,12 @@ def clean_jobdir(opts, job):
         shutil.rmtree(job.jobdir)
 
 
-def process_summary(m, dbif, opts, job, summarize_time, summarize, mdata, success, summarize_error):
+def process_summary(m, dbif, opts, job, summarize_time, result):
+    summary, mdata, success, summarize_error = result
     try:
         # TODO: change behavior so markasdone only happens if this is successful
         outputter_start = time.time()
-        m.process(summarize, mdata)
+        m.process(summary, mdata)
         outputter_time = time.time() - outputter_start
 
         if not opts['dry_run']:
@@ -97,7 +98,7 @@ def process_resource(resconf, preprocs, plugins, config, opts):
                 clean_jobdir(opts, job)
                 continue
 
-            process_summary(m, dbif, opts, job, summarize_time, *result)
+            process_summary(m, dbif, opts, job, summarize_time, result)
             clean_jobdir(opts, job)
 
 
@@ -113,7 +114,7 @@ def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, p
         it = iter_jobs(jobs, config, resconf, plugins, preprocs, opts)
         for job, result, summarize_time in pool.imap_unordered(do_summarize, it):
             if result is not None:
-                process_summary(m, dbif, opts, job, summarize_time, *result)
+                process_summary(m, dbif, opts, job, summarize_time, result)
                 clean_jobdir(opts, job)
             else:
                 clean_jobdir(opts, job)

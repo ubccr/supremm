@@ -74,10 +74,10 @@ class FileOutput(object):
         json print
         """
         if self._fragjson:
-            print(self._resid, json.dumps(summary.get(), indent=4, default=str), file=self._fragfile)
+            print(self._resid, json.dumps(summary, indent=4, default=str), file=self._fragfile)
             print("MDATA: ", json.dumps(mdata, indent=4, default=str), file=self._fragfile)
         if self._completejson:
-            self._jsonarray.append(summary.get())
+            self._jsonarray.append(summary)
             self._jsonarray.append(mdata)
 
     def __exit__(self, exception_type, exception_val, trace):
@@ -103,10 +103,9 @@ class MongoOutput(object):
         self._outdb = self._client[self._dname]
         return self
 
-    def process(self, summaryobj, mdata):
+    def process(self, summary, mdata):
         """ output the summary record """
 
-        summary = summaryobj.get()
         mongoid = str(summary['acct']['id']) + '-' + str(summary['acct']['end_time'])
         summary['_id'] = mongoid
         summary['summarization'].update(mdata)
@@ -139,7 +138,7 @@ class StdoutOutput(object):
         """
         json print
         """
-        print(self._resid, json.dumps(summary.get(), indent=4))
+        print(self._resid, json.dumps(summary, indent=4))
         print("MDATA: ", json.dumps(mdata, indent=4))
 
     def __exit__(self, exception_type, exception_val, trace):
