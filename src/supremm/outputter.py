@@ -112,10 +112,10 @@ class MongoOutput(object):
 
         if 'timeseries' in summary:
             summary['timeseries']['_id'] = summary["_id"]
-            self._outdb[self._timeseries].replace_one({"_id": summary["_id"]}, summary['timeseries'], upsert=True)
+            self._outdb[self._timeseries].update({"_id": summary["_id"]}, summary['timeseries'], upsert=True)
             del summary['timeseries']
 
-        self._outdb[self._collection].replace_one({"_id": summary["_id"]}, summary, upsert=True)
+        self._outdb[self._collection].update({"_id": summary["_id"]}, summary, upsert=True)
 
     def __exit__(self, exception_type, exception_val, trace):
         if self._client != None:
