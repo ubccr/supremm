@@ -91,14 +91,14 @@ def process_resource(resconf, preprocs, plugins, config, opts):
         for job in get_jobs(opts, dbif):
             try:
                 summarize_start = time.time()
-                result = summarizejob(job, config, resconf, plugins, preprocs, opts)
+                s, mdata, success, s_err = summarizejob(job, config, resconf, plugins, preprocs, opts)
                 summarize_time = time.time() - summarize_start
             except Exception as e:
                 logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
                 clean_jobdir(opts, job)
                 continue
 
-            process_summary(m, dbif, opts, job, summarize_time, result)
+            process_summary(m, dbif, opts, job, summarize_time, (s.get(), mdata, success, s_err))
             clean_jobdir(opts, job)
 
 
@@ -135,13 +135,14 @@ def do_summarize(args):
     job, config, resconf, plugins, preprocs, opts = args
     try:
         summarize_start = time.time()
-        result = summarizejob(job, config, resconf, plugins, preprocs, opts)
+        s, mdata, success, s_err = summarizejob(job, config, resconf, plugins, preprocs, opts)
         summarize_time = time.time() - summarize_start
     except Exception as e:
         logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
         return job, None, None
 
-    return job, result, summarize_time
+    # Ensure Summarize.get() is called on worker process since it is cpu-intensive
+    return job, (s.get(), mdata, success, s_err), summarize_time
 
 
 def main():

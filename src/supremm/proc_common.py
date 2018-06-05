@@ -337,7 +337,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
         if (datetime.datetime.now() - job.end_datetime) > datetime.timedelta(seconds=force_timeout):
             force_success = True
 
-    return s.get(), mdata, success or force_success, summarizeerror
+    return s, mdata, success or force_success, summarizeerror
 
 
 def override_defaults(resconf, opts):
