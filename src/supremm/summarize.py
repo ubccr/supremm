@@ -6,12 +6,12 @@ import datetime
 from ctypes import c_uint
 from pcp import pmapi
 import cpmapi as c_pmapi
-from supremm.pcpfast import pcpfast
 import time
 import logging
 import traceback
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
+from supremm.puffypcp import puffypcp
 
 import numpy
 import copy
@@ -47,8 +47,6 @@ class Summarize(object):
         self.start = time.time()
         self.archives_processed = 0
 
-        self.indomcache = None
-
         self.rangechange = RangeChange(config)
 
     def adderror(self, category, errormsg):
@@ -73,6 +71,7 @@ class Summarize(object):
                 success -= 1
                 #pylint: disable=not-callable
                 self.adderror("archive", "{0}: pmapi.pmErr: {1}".format(archive, exc.message()))
+
             except Exception as exc:
                 success -= 1
                 self.adderror("archive", "{0}: Exception: {1}. {2}".format(archive, str(exc), traceback.format_exc()))
@@ -144,128 +143,19 @@ class Summarize(object):
 
         return output
 
-    @staticmethod
-    def loadrequiredmetrics(context, requiredMetrics):
-        """ required metrics are those that must be present for the analytic to be run """
-        try:
-            required = context.pmLookupName(requiredMetrics)
-            return [required[i] for i in xrange(0, len(required))]
-
-        except pmapi.pmErr as e:
-            if e.args[0] == c_pmapi.PM_ERR_NAME:
-                # Required metric missing - this analytic cannot run on this archive
-                return []
-            else:
-                raise e
-
-    @staticmethod
-    def getmetricstofetch(context, analytic):
-        """ returns the c_type data structure with the list of metrics requested
-            for the analytic """
-
-        metriclist = []
-        metricnames = []
-
-        for derived in analytic.derivedMetrics:
-            context.pmRegisterDerived(derived['name'], derived['formula'])
-            required = context.pmLookupName(derived['name'])
-            metriclist.append(required[0])
-            metricnames.append(derived['name'])
-
-        if len(analytic.requiredMetrics) > 0:
-            metricOk = False
-            if isinstance(analytic.requiredMetrics[0], basestring):
-                r = Summarize.loadrequiredmetrics(context, analytic.requiredMetrics)
-                if len(r) > 0:
-                    metriclist += r
-                    metricnames.extend(analytic.requiredMetrics)
-                    metricOk = True
-            else:
-                for reqarray in analytic.requiredMetrics:
-                    r = Summarize.loadrequiredmetrics(context, reqarray)
-                    if len(r) > 0:
-                        metriclist += r
-                        metricnames.extend(reqarray)
-                        metricOk = True
-                        break
-
-            if not metricOk:
-                return [], []
-
-        for optional in analytic.optionalMetrics:
-            try:
-                opt = context.pmLookupName(optional)
-                metriclist.append(opt[0])
-                metricnames.append(optional)
-            except pmapi.pmErr as e:
-                if e.args[0] == c_pmapi.PM_ERR_NAME or e.args[0] == c_pmapi.PM_ERR_NONLEAF:
-                    # Optional metrics are allowed to not exist
-                    pass
-                else:
-                    raise e
-
-        metricarray = (c_uint * len(metriclist))()
-        for i in xrange(0, len(metriclist)):
-            metricarray[i] = metriclist[i]
-
-        return metricarray, metricnames
-
-    @staticmethod
-    def getmetrictypes(context, metric_ids):
-        """ returns a list with the datatype of the provided array of metric ids """
-        return [context.pmLookupDesc(metric_ids[i]).type for i in xrange(len(metric_ids))]
-
-    @staticmethod
-    def pcptypetonumpy(pcptype):
-        """ Convert pcp data types to numpy equivalents """
-        if pcptype == c_pmapi.PM_TYPE_STRING:
-            return object
-        return numpy.float
-
     def runcallback(self, analytic, result, mtypes, ctx, mdata, metric_id_array):
         """ get the data and call the analytic """
 
-        if self.indomcache == None:
-            # First time through populate the indom cache
-            self.indomcache = self.getindomdict(ctx, metric_id_array)
-            if self.indomcache == None:
-                # Unable to get indom information
-                return False
+        def logerr(err):
+            self.logerror(mdata.nodename, analytic.name, err)
+        data, description = puffypcp.extractValues(ctx, result, metric_id_array, mtypes, logerr)
 
-        data = []
-        description = []
-
-        for i in xrange(result.contents.numpmid):
-            ninstances = result.contents.get_numval(i)
-            if ninstances < 0:
-                logging.warning("%s %s ninstances = %s @ %s", mdata.nodename, analytic.name, ninstances, float(result.contents.timestamp))
-                self.logerror(mdata.nodename, analytic.name, "get_numval() error")
-                return False
-
-            tmp = numpy.empty(ninstances, dtype=self.pcptypetonumpy(mtypes[i]))
-            tmpnames = []
-            tmpidx = numpy.empty(ninstances, dtype=long)
-
-            for j in xrange(ninstances):
-                pcpdata = pcpfast.pcpfastExtractValues(result, i, j, mtypes[i])
-                tmp[j] = pcpdata[0]
-                if pcpdata[1] > -1:
-                    tmpidx[j] = pcpdata[1]
-                    if pcpdata[1] not in self.indomcache[i]:
-                        # indoms must have changed; rebuild the cache
-                        self.indomcache = self.getindomdict(ctx, metric_id_array)
-                        if self.indomcache == None:
-                            return False
-                    if pcpdata[1] not in self.indomcache[i]:
-                        # Unable to get indom information for one of the instance domains
-                        # Ignore this timestep, but carry on
-                        logging.warning("%s %s missing indom @ %s", mdata.nodename, analytic.name, float(result.contents.timestamp))
-                        self.logerror(mdata.nodename, analytic.name, "missing indom")
-                        return True
-                    tmpnames.append(self.indomcache[i][pcpdata[1]])
-
-            data.append(tmp)
-            description.append([tmpidx, tmpnames])
+        if data is None and description is None:
+            return False
+        elif data is True and description is True:
+            logging.warning("%s %s missing indom @ %s", mdata.nodename, analytic.name, float(result.contents.timestamp))
+            self.logerror(mdata.nodename, analytic.name, "missing indom")
+            return True
 
         try:
             self.rangechange.normalise_data(float(result.contents.timestamp), data)
@@ -279,46 +169,12 @@ class Summarize(object):
     def runpreproccall(self, preproc, result, mtypes, ctx, mdata, metric_id_array):
         """ Call the pre-processor data processing function """
 
-        description = self.getindomdict(ctx, metric_id_array)
-        if description == None:
-            return True
+        data, description = puffypcp.extractpreprocValues(ctx, result, metric_id_array, mtypes)
 
-        data = []
-        for i in xrange(result.contents.numpmid):
-            data.append(numpy.array([pcpfast.pcpfastExtractValues(result, i, j, mtypes[i])
-                                     for j in xrange(result.contents.get_numval(i))]))
+        if data is None and description is None:
+            return False
 
         return preproc.process(float(result.contents.timestamp), data, description)
-
-    @staticmethod
-    def getindomdict(ctx, metric_id_array):
-        """ build a list of dicts that contain the instance domain id to text mappings
-            The nth list entry is the nth metric in the metric_id_array
-            @throw MissingIndomException if the instance information is not available
-        """
-        indomdict = []
-        for i in xrange(len(metric_id_array)):
-            metric_desc = ctx.pmLookupDesc(metric_id_array[i])
-            if 4294967295 != pmapi.get_indom(metric_desc):
-                try:
-                    ivals, inames = ctx.pmGetInDom(metric_desc)
-                    if ivals == None:
-                        indomdict.append({})
-                    else:
-                        indomdict.append(dict(zip(ivals, inames)))
-
-                except pmapi.pmErr as exp:
-                    if exp.args[0] == c_pmapi.PM_ERR_INDOM:
-                        indomdict.append({})
-                    elif exp.args[0] == c_pmapi.PM_ERR_INDOM_LOG:
-                        return None
-                    else:
-                        raise exp
-
-            else:
-                indomdict.append({})
-
-        return indomdict
 
     def processforpreproc(self, ctx, mdata, preproc):
         """ fetch the data from the archive, reformat as a python data structure
@@ -326,7 +182,7 @@ class Summarize(object):
 
         preproc.hoststart(mdata.nodename)
 
-        metric_id_array, metricnames = self.getmetricstofetch(ctx, preproc)
+        metric_id_array, metricnames = puffypcp.getmetricstofetch(ctx, preproc)
 
         # Range correction is not performed for the pre-processors. They always
         # see the original data
@@ -337,7 +193,7 @@ class Summarize(object):
             preproc.hostend()
             return
 
-        mtypes = self.getmetrictypes(ctx, metric_id_array)
+        mtypes = puffypcp.getmetrictypes(ctx, metric_id_array)
 
         done = False
 
@@ -365,7 +221,7 @@ class Summarize(object):
         """ fetch the data from the archive, reformat as a python data structure
         and call the analytic process function """
 
-        metric_id_array, metricnames = self.getmetricstofetch(ctx, analytic)
+        metric_id_array, metricnames = puffypcp.getmetricstofetch(ctx, analytic)
 
         if len(metric_id_array) == 0:
             logging.debug("Skipping %s (%s)" % (type(analytic).__name__, analytic.name))
@@ -373,8 +229,7 @@ class Summarize(object):
 
         self.rangechange.set_fetched_metrics(metricnames)
 
-        mtypes = self.getmetrictypes(ctx, metric_id_array)
-        self.indomcache = None
+        mtypes = puffypcp.getmetrictypes(ctx, metric_id_array)
 
         done = False
 
@@ -413,15 +268,14 @@ class Summarize(object):
         """ fetch the data from the archive, reformat as a python data structure
         and call the analytic process function """
 
-        metric_id_array, metricnames = self.getmetricstofetch(ctx, analytic)
+        metric_id_array, metricnames = puffypcp.getmetricstofetch(ctx, analytic)
 
         if len(metric_id_array) == 0:
             return
 
         self.rangechange.set_fetched_metrics(metricnames)
 
-        mtypes = self.getmetrictypes(ctx, metric_id_array)
-        self.indomcache = None
+        mtypes = puffypcp.getmetrictypes(ctx, metric_id_array)
 
         try:
             result = ctx.pmFetch(metric_id_array)
@@ -494,42 +348,20 @@ class Summarize(object):
 
     def processarchive(self, nodename, nodeidx, archive):
         """ process the archive """
-        context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-        mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
-        context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
-
         # TODO need to benchmark code to see if there is a benefit to interleaving the calls to
         # pmFetch for the different contexts. This version runs all the pmFetches for each analytic
         # in turn.
-
-        basecontext = context.ctx
+        context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+        mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
 
         for preproc in self.preprocs:
-            context._ctx = basecontext
-            newctx = context.pmDupContext()
-            context._ctx = newctx
-
+            context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
             self.processforpreproc(context, mdata, preproc)
 
-            context.__del__()
-
         for analytic in self.alltimestamps:
-            context._ctx = basecontext
-            newctx = context.pmDupContext()
-            context._ctx = newctx
-
+            context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
             self.processforanalytic(context, mdata, analytic)
 
-            context.__del__()
-
         for analytic in self.firstlast:
-            context._ctx = basecontext
-            newctx = context.pmDupContext()
-            context._ctx = newctx
-
+            context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
             self.processfirstlast(context, mdata, analytic)
-
-            context.__del__()
-
-        context._ctx = basecontext
-        del context

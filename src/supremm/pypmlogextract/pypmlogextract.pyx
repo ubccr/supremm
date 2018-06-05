@@ -1,4 +1,4 @@
-cimport dlsymdefs
+from supremm.pypmlogextract cimport dlsymdefs
 
 from libc.stdlib cimport malloc, free
 from cpython.string cimport PyString_AsString
