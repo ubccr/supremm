@@ -2,17 +2,24 @@
 from __future__ import print_function, division
 
 from datetime import datetime
+import logging
 
 import numpy as np
-from autoperiod import Autoperiod
 from supremm.datadumper import ImageOutput
-from autoperiod.helpers import convert_to_rates
 from six import iteritems
 from six.moves import range
 
 from supremm.errors import ProcessingError
 from supremm.plugin import Plugin
 from supremm.statistics import calculate_stats
+
+try:
+    from autoperiod import Autoperiod
+    from autoperiod.helpers import convert_to_rates
+    _HAS_AUTOPERIOD = True
+except ImportError as e:
+    logging.warning("Autoperiod library not found, TimeseriesPatterns plugins will not do period analysis")
+    _HAS_AUTOPERIOD = False
 
 
 class TimeseriesPatterns(Plugin):
@@ -76,11 +83,12 @@ class TimeseriesPatterns(Plugin):
 
         node = self.nodes[nodename]
 
-        # we need to store every data point for now to do period analysis
-        # hopefully this won't be needed in the future
-        node['all_times'].append(timestamp)
-        for metric, data in metrics:
-            node['all_data'][metric].append(data)
+        node['all_times'].append(timestamp)  # this could potentially just be a counter if not doing autoperiod
+        if _HAS_AUTOPERIOD:
+            # we need to store every data point for now to do period analysis
+            # hopefully this won't be needed in the future
+            for metric, data in metrics:
+                node['all_data'][metric].append(data)
 
         # always store latest value since it is needed in the results stage
         # and we don't know when the processing will end
@@ -148,7 +156,9 @@ class TimeseriesPatterns(Plugin):
             # Use stats across the nodes instead of reporting all node data individually
             metric['sections'] = [calculate_stats(nodes) for nodes in metric['sections']]
             metric['section_start_timestamps'] = [calculate_stats(sect) for sect in self.section_start_timestamps]
-            metric['autoperiod'] = _calculate_autoperiod(self.nodes, metric_name, self.resource, self.jobid)
+            if _HAS_AUTOPERIOD:
+                # TODO: Decide on error message to have otherwise
+                metric['autoperiod'] = _calculate_autoperiod(self.nodes, metric_name, self.resource, self.jobid)
 
         return metric_data
 
