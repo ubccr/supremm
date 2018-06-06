@@ -5,7 +5,6 @@ from datetime import datetime
 import logging
 
 import numpy as np
-from supremm.datadumper import ImageOutput
 from six import iteritems
 from six.moves import range
 
@@ -180,16 +179,10 @@ def _calculate_autoperiod(nodes, metric, resource, jobid):
                 summed_values += np.interp(times_interp, node['all_times'],
                                                     node['all_data'][metric])
 
-    plotter = ImageOutput(resource, jobid, metric)
-
     autoperiod = Autoperiod(
         *convert_to_rates(times_interp, summed_values),
-        plotter=plotter,
         threshold_method='stat'
     ) if not np.allclose(summed_values, 0) else None
-
-    plotter.show()
-
 
     if autoperiod is None or autoperiod.period is None:
         return None
