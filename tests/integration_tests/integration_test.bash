@@ -13,3 +13,5 @@ EOF
 )
 
 [[ $count -eq 1 ]]
+
+pytest tests/integration_tests/integration_plugin_api.py
