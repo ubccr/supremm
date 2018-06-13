@@ -6,6 +6,7 @@ from supremm.subsample import TimeseriesAccumulator
 from supremm.errors import ProcessingError, NotApplicableError
 import numpy
 from collections import Counter
+import re
 
 class CgroupMemTimeseries(Plugin):
     """ Generate timeseries summary for memory usage viewed from CGroup
@@ -43,7 +44,14 @@ class CgroupMemTimeseries(Plugin):
             self._hostcounts[hostidx] = {'missing': 0, 'present': 0}
 
         try:
-            dataidx = description[0][1].index(self._expectedcgroup)
+            dataidx = None
+            for idx, desc in enumerate(description[0][1]):
+                if re.match(r"^" + re.escape(self._expectedcgroup) + r"($|\.)", desc):
+                    dataidx = idx
+                    break
+            # No cgroup info at this datapoint
+            if dataidx is None:
+                return True
             nodemem_gb = data[0][dataidx] / 1073741824.0
             self._hostcounts[hostidx]['present'] += 1
         except ValueError:
