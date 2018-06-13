@@ -23,3 +23,5 @@ for jobid in 197155 197182 197186 197199
 do
     echo "Job script for job $jobid" > $jspath/$jobid.savescript
 done
+
+indexarchives.py -da
