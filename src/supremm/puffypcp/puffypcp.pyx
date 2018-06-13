@@ -347,6 +347,7 @@ def extractpreprocValues(context, result, py_metric_id_array, mtypes):
     for i in xrange(mid_len):
         c_pcp.pmLookupDesc(metric_id_array[i], &metric_desc)
         if 4294967295 == metric_desc.indom: # Missing indom - skip
+            description.append({})
             continue
         status = c_pcp.pmGetInDom(metric_desc.indom, &ivals, &inames)
         if status <= 0:
