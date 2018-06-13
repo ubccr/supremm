@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """ Memory usage plugin """
 
+import re
 from supremm.plugin import Plugin
 from supremm.statistics import RollingStats, calculate_stats
 from supremm.errors import ProcessingError, NotApplicableError
@@ -43,8 +44,14 @@ class CgroupMemory(Plugin):
             return True
 
         try:
-            dataidx = description[0][1].index(self._expectedcgroup)
-
+            dataidx = None
+            for idx, desc in enumerate(description[0][1]):
+                if re.match(r"^" + re.escape(self._expectedcgroup) + r"($|\.)", desc):
+                    dataidx = idx
+                    break
+            # No cgroup info at this datapoint
+            if dataidx is None:
+                return True
             for i in xrange(len(self.requiredMetrics)):
                 if len(data[i]) < dataidx:
                     # Skip timesteps with incomplete information
