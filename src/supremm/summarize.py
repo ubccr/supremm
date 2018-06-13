@@ -37,7 +37,7 @@ class Summarize(object):
     and managing the calls to the various analytics to process the data
     """
 
-    def __init__(self, preprocessors, analytics, job, config):
+    def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
 
         self.preprocs = preprocessors
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
@@ -46,6 +46,7 @@ class Summarize(object):
         self.job = job
         self.start = time.time()
         self.archives_processed = 0
+        self.fail_fast = fail_fast
 
         self.rangechange = RangeChange(config)
 
@@ -75,6 +76,8 @@ class Summarize(object):
             except Exception as exc:
                 success -= 1
                 self.adderror("archive", "{0}: Exception: {1}. {2}".format(archive, str(exc), traceback.format_exc()))
+                if self.fail_fast:
+                    raise
 
         return success == 0
 

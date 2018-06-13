@@ -51,6 +51,8 @@ def process_summary(m, dbif, opts, job, summarize_time, result):
             dbif.markasdone(job, success, process_time, summarize_error)
     except Exception as e:
         logging.error("Failure processing summary for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+        if opts["fail_fast"]:
+            raise
 
 
 def processjobs(config, opts, process_pool=None):
@@ -99,7 +101,10 @@ def process_resource(resconf, preprocs, plugins, config, opts):
             except Exception as e:
                 logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
                 clean_jobdir(opts, job)
-                continue
+                if opts["fail_fast"]:
+                    raise
+                else:
+                    continue
 
             process_summary(m, dbif, opts, job, summarize_time, (s.get(), mdata, success, s_err))
             clean_jobdir(opts, job)
@@ -145,6 +150,8 @@ def do_summarize(args):
         summarize_time = time.time() - summarize_start
     except Exception as e:
         logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+        if opts["fail_fast"]:
+            raise
         return job, None, None
 
     # Ensure Summarize.get() is called on worker process since it is cpu-intensive
