@@ -9,6 +9,7 @@ class TestGetOptions(unittest.TestCase):
 
     def setUp(self):
         self.defaults = {
+                'fail_fast': False,
                 'dry_run': False,
                 'dodelete': True,
                 'extractonly': False,
