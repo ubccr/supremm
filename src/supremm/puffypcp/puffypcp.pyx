@@ -232,9 +232,8 @@ def extractValues(context, result, py_metric_id_array, mtypes, logerr):
 
     for i in xrange(numpmid):
         ninstances = res.vset[i].numval
-        ninstances = ninstances
         if ninstances < 0:
-            logerr("negative number of instances")
+            logerr("pmError ({})".format(<bytes>c_pcp.pmErrStr(ninstances)))
             PyBuffer_Release(&buf)
             return None, None
         # No instances, but there needs to be placeholders
@@ -363,7 +362,6 @@ def extractpreprocValues(context, result, py_metric_id_array, mtypes):
     # Initialize data
     for i in xrange(numpmid):
         ninstances = res.vset[i].numval
-        ninstances = ninstances
         c_pcp.pmLookupDesc(metric_id_array[i], &metric_desc)
 
         tmp_data = []
