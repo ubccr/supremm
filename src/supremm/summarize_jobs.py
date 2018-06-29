@@ -91,7 +91,10 @@ def process_resource(resconf, preprocs, plugins, config, opts):
         for job in get_jobs(opts, dbif):
             try:
                 summarize_start = time.time()
-                s, mdata, success, s_err = summarizejob(job, config, resconf, plugins, preprocs, opts)
+                res = summarizejob(job, config, resconf, plugins, preprocs, opts)
+                if res is None:
+                    continue  # Extract-only mode
+                s, mdata, success, s_err = res
                 summarize_time = time.time() - summarize_start
             except Exception as e:
                 logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
@@ -135,7 +138,10 @@ def do_summarize(args):
     job, config, resconf, plugins, preprocs, opts = args
     try:
         summarize_start = time.time()
-        s, mdata, success, s_err = summarizejob(job, config, resconf, plugins, preprocs, opts)
+        res = summarizejob(job, config, resconf, plugins, preprocs, opts)
+        if res is None:
+            return job, None, None  # Extract-only mode
+        s, mdata, success, s_err = res
         summarize_time = time.time() - summarize_start
     except Exception as e:
         logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())

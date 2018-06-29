@@ -295,7 +295,11 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
     mergeend = time.time()
 
     if opts['extractonly']:
-        return 0 == mergeresult
+        if mergeresult == 0:
+            return None
+        else:
+            logging.error("Failure extracting logs for job %s", job.job_id)
+            return None
 
     preprocessors = [x(job) for x in preprocs]
     analytics = [x(job) for x in plugins]
