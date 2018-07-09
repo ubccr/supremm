@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 """ setup script for SUPReMM job summarization utilities """
 from setuptools import setup, find_packages, Extension
-from Cython.Distutils import build_ext
 import sys
 import os
+import numpy
+
+from Cython.Build import cythonize
 
 # For rpm-based builds want the configuration files to
 # go in the standard location. Also need to rewrite the file list so that
@@ -33,7 +35,9 @@ setup(
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     package_data={
-        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js']
+        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
+        'supremm.puffypcp': ['*.pxd', '*.pyx'],
+        'supremm.pypmlogextract': ['*.pxd', '*.pyx']
     },
     data_files=[
         (confpath,                         ['config/config.json']),
@@ -65,14 +69,12 @@ setup(
         'pcp',
         'Cython',
         'scipy',
-        'pymongo',
-        'psutil'
+        'pymongo'
     ],
-    cmdclass={'build_ext': build_ext},
-    ext_modules=[
-        Extension('supremm.pcpfast.libpcpfast', ['src/supremm/pcpfast/pcpfast.c'], libraries=['pcp']),
-        Extension("supremm.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx", "src/supremm/pypmlogextract/dlsymdefs.pxd"])
-    ]
+    ext_modules=cythonize([
+        Extension("supremm.puffypcp.puffypcp", ["src/supremm/puffypcp/puffypcp.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
+        Extension("supremm.pypmlogextract.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
+    ])
 )
 
 if IS_RPM_BUILD:

@@ -171,12 +171,28 @@ class PcpArchiveFinder(object):
 
         return dirdate > self.mindate
 
+    @staticmethod
+    def listdir(pathname):
+        """ Return sorted list of paths under the supplied path. I/O errors
+            such as permission denied are logged at error level and an empty
+            list is returned """
+
+        dirents = []
+        try:
+            dirents = os.listdir(pathname)
+        except OSError as err:
+            logging.error(str(err))
+
+        dirents.sort()
+
+        return dirents
+
     def find(self, topdir):
         """  find all archive files in topdir """
         if topdir == "":
             return
 
-        hosts = os.listdir(topdir)
+        hosts = self.listdir(topdir)
 
         starttime = time.time()
         hostcount = 0
@@ -187,7 +203,7 @@ class PcpArchiveFinder(object):
             listdirtime = 0.0
             yieldtime = 0.0
             t1 = time.time()
-            datdirs = os.listdir(hostdir)
+            datdirs = self.listdir(hostdir)
             listdirtime += (time.time() - t1)
 
             for datedir in datdirs:
@@ -196,11 +212,11 @@ class PcpArchiveFinder(object):
                 yeardirOk = self.ymdok(datedir)
 
                 if yeardirOk == True:
-                    for monthdir in os.listdir(os.path.join(hostdir, datedir)):
+                    for monthdir in self.listdir(os.path.join(hostdir, datedir)):
                         if self.ymdok(datedir, monthdir) == True:
-                            for daydir in os.listdir(os.path.join(hostdir, datedir, monthdir)):
+                            for daydir in self.listdir(os.path.join(hostdir, datedir, monthdir)):
                                 if self.ymdok(datedir, monthdir, daydir) == True:
-                                    for filename in os.listdir(os.path.join(hostdir, datedir, monthdir, daydir)):
+                                    for filename in self.listdir(os.path.join(hostdir, datedir, monthdir, daydir)):
                                         if filename.endswith(".index") and self.filenameok(filename):
                                             beforeyield = time.time()
                                             yield os.path.join(hostdir, datedir, monthdir, daydir, filename)
@@ -217,7 +233,7 @@ class PcpArchiveFinder(object):
                         yield os.path.join(hostdir, datedir)
                 elif datedirOk == True:
                     dirpath = os.path.join(hostdir, datedir)
-                    filenames = os.listdir(dirpath)
+                    filenames = self.listdir(dirpath)
                     for filename in filenames:
                         if filename.endswith(".index") and self.filenameok(filename):
                             yield os.path.join(dirpath, filename)

@@ -3,13 +3,13 @@
 from datetime import datetime, timedelta
 import os
 import re
-from supremm.scripthelpers import getdbconnection
 import sys
 import logging
 import glob
-
 from getopt import getopt
+from MySQLdb import ProgrammingError
 from supremm.config import Config
+from supremm.scripthelpers import getdbconnection
 
 MAX_SCRIPT_LEN = (64 * 1024) - 1
 
@@ -17,18 +17,50 @@ MAX_SCRIPT_LEN = (64 * 1024) - 1
 class DbHelper(object):
     """ Helper class to interact with the database """
 
-    def __init__(self, dwconfig, tablename):
+    def __init__(self, dwconfig, schema):
 
         # The database schema should be created with utf8-unicode encoding.
         self.con = getdbconnection(dwconfig, False, {'charset': 'utf8', 'use_unicode': True})
-        self.tablename = tablename
-        self.query = "INSERT IGNORE INTO " + tablename + " (resource_id,local_job_id,script) VALUES(%s,%s,%s)"
+        self.tablename = "`{0}`.`batchscripts`".format(schema)
+        self.xdmod_schema_version = 7
+
+        try:
+            cur = self.con.cursor()
+            cur.execute('SELECT tg_job_id FROM `{0}`.`job_scripts` LIMIT 1'.format(schema))
+            cur.close()
+            self.xdmod_schema_version = 8
+            self.tablename = "`{0}`.`job_scripts`".format(schema)
+        except ProgrammingError:
+            pass
+
+        if self.xdmod_schema_version == 7:
+            self.query = "INSERT IGNORE INTO " + self.tablename + " (resource_id,local_job_id,script) VALUES(%s,%s,%s)"
+        else:
+            self.query = "INSERT IGNORE INTO " + self.tablename + """ (tg_job_id, resource_id, start_date, script)
+                        SELECT 
+                            job_id AS tg_job_id,
+                            resource_id,
+                            DATE(FROM_UNIXTIME(start_time_ts)) AS start_date,
+                            %s AS script
+                        FROM
+                            `modw`.`job_tasks`
+                        WHERE
+                            resource_id = %s 
+                            AND local_job_id_raw = %s
+                            AND DATE(FROM_UNIXTIME(start_time_ts)) = %s"""
+
         self.buffered = 0
 
     def insert(self, data):
         """ try to insert a record """
         cur = self.con.cursor()
-        cur.execute(self.query, data)
+
+        if self.xdmod_schema_version == 8:
+            qdata = [data['script'], data['resource_id'], data['local_job_id_raw'], data['start_date']]
+        else:
+            qdata = [data['resource_id'], data['local_job_id_raw'], data['script']]
+
+        cur.execute(self.query, qdata)
 
         self.buffered += 1
         if self.buffered > 100:
@@ -41,32 +73,41 @@ class DbHelper(object):
 
     def getmostrecent(self, resource_id):
         """ return the timestamp of the most recent entry for the resource """
-        query = "SELECT coalesce(MAX(updated),MAKEDATE(1970, 1)) FROM " + self.tablename + " WHERE resource_id = %s"
+        timecolumn = "updated"
+        if self.xdmod_schema_version == 8:
+            timecolumn = "start_date"
+
+        query = "SELECT COALESCE(CAST(MAX(" + timecolumn + ") AS DATETIME), MAKEDATE(1970, 1)) FROM " + self.tablename + " WHERE resource_id = %s"
         data = (resource_id, )
 
         cur = self.con.cursor()
         cur.execute(query, data)
         return cur.fetchone()[0]
 
-def pathfilter(path, mindate):
+def datefrompath(path):
+    """ Generate a date object from the subdirectory name. Returns None
+        if the subdirectroy is not named in the YYYYMMDD format """
+    date = None
+    try:
+        date = datetime.strptime(os.path.basename(path), "%Y%m%d")
+    except ValueError:
+        pass
+    return date
+
+
+def pathfilter(file_date, mindate):
     """ return whether path should not be processed based on mindate
         return value of False indicates no filtering
         return value of true indicates the path should be filtered
     """
 
-    if mindate == None:
-        return False
-
-    subdir = os.path.basename(path)
-    try:
-        if datetime.strptime(subdir, "%Y%m%d") < mindate:
-            logging.debug("Skip(1) subdir %s", subdir)
-            return True
-    except ValueError:
-        logging.debug("Skip(2) subdir %s", subdir)
+    if file_date is None:
         return True
 
-    return False
+    if mindate is None:
+        return False
+
+    return file_date < mindate
 
 
 def processfor(resource_id, respath, dbif, timedeltadays):
@@ -77,16 +118,20 @@ def processfor(resource_id, respath, dbif, timedeltadays):
 
     logging.debug("Processing path %s", respath)
 
-    if timedeltadays == None:
+    if timedeltadays is None:
         mindate = None
     else:
         mindate = dbif.getmostrecent(resource_id) - timedelta(days=timedeltadays)
 
     logging.debug("Start date is %s", mindate)
 
-    for path in glob.glob(respath + "/[0-9]*"):
+    paths = glob.glob(respath + "/[0-9]*")
+    paths.sort()
+    for path in paths:
 
-        if pathfilter(path, mindate):
+        start_date = datefrompath(path)
+
+        if pathfilter(start_date, mindate):
             continue
 
         logging.debug("processing files in %s", path)
@@ -95,7 +140,7 @@ def processfor(resource_id, respath, dbif, timedeltadays):
 
             for filename in files:
                 mtch = fglob.match(filename)
-                if mtch == None:
+                if mtch is None:
                     logging.debug("Ignore file %s", filename)
                     continue
 
@@ -106,7 +151,12 @@ def processfor(resource_id, respath, dbif, timedeltadays):
                         # Could happen if the script contains non-utf-8 chars
                         scriptdata = scriptdata[:MAX_SCRIPT_LEN]
 
-                    dbif.insert([resource_id, int(mtch.group(1)), scriptdata])
+                    dbif.insert({
+                        'resource_id': resource_id,
+                        'local_job_id_raw': int(mtch.group(1)),
+                        'start_date': start_date,
+                        'script': scriptdata
+                    })
                     count += 1
 
     return count
@@ -171,7 +221,7 @@ def main():
     config = Config(opts['config'])
 
     dwconfig = config.getsection("datawarehouse")
-    dbif = DbHelper(dwconfig, 'modw_supremm.batchscripts')
+    dbif = DbHelper(dwconfig, "modw_supremm")
 
     for resourcename, settings in config.resourceconfigs():
 

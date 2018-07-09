@@ -59,17 +59,11 @@ class FileOutput(object):
         if self._fragjson:
             self._fragpath = outconf['frag_file']
         if self._completejson:
-            self._comppath = outconf['comp_file']
-
-        if self._fragjson and not os.path.exists(self._fragpath):
-            raise Exception("Path specified by frag_file does not exist")
-        if self._completejson and not os.path.exists(self._comppath):
-            raise Exception("Path specified by comp_file does not exist")
+            self._comppath = outconf['comp_file'].replace("%r", resconf["name"])
 
         if self._fragjson:
             self._fragfile = open(self._fragpath, 'w')
         if self._completejson:
-            self._compfile = open(self._comppath, 'w')
             self._jsonarray = []
 
     def __enter__(self):
@@ -80,8 +74,8 @@ class FileOutput(object):
         json print
         """
         if self._fragjson:
-            print(self._resid, json.dumps(summary.get(), indent=4), file=self._fragfile)
-            print("MDATA: ", json.dumps(mdata, indent=4), file=self._fragfile)
+            print(self._resid, json.dumps(summary.get(), indent=4, default=str), file=self._fragfile)
+            print("MDATA: ", json.dumps(mdata, indent=4, default=str), file=self._fragfile)
         if self._completejson:
             self._jsonarray.append(summary.get())
             self._jsonarray.append(mdata)
@@ -90,8 +84,8 @@ class FileOutput(object):
         if self._fragjson:
             self._fragfile.close()
         if self._completejson:
-            print(json.dumps(self._jsonarray, indent=4), file=self._compfile)
-            self._compfile.close()
+            with open(self._comppath, 'w') as f:
+                json.dump(self._jsonarray, f, indent=4, default=str)
 
 
 class MongoOutput(object):
