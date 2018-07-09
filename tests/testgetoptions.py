@@ -19,7 +19,7 @@ class TestGetOptions(unittest.TestCase):
                 'max_nodes': 0,
                 'min_duration': None,
                 'min_parallel_duration': None,
-                'max_duration': 864000,
+                'max_duration': 0,
                 'max_nodetime': None,
                 'mode': 'all',
                 'process_all': False,
