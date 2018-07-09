@@ -78,3 +78,4 @@ cdef extern from "pcp/pmapi.h":
     int pmGetInDom(pmInDom, int **, char ***)
     int pmGetInDomArchive(pmInDom, int **, char ***)
     int pmExtractValue(int, const pmValue *, int, pmAtomValue *, int)
+    char *pmErrStr(int)
