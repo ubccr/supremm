@@ -69,8 +69,7 @@ setup(
         'pcp',
         'Cython',
         'scipy',
-        'pymongo',
-        'psutil'
+        'pymongo'
     ],
     ext_modules=cythonize([
         Extension("supremm.puffypcp.puffypcp", ["src/supremm/puffypcp/puffypcp.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),

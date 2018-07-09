@@ -47,7 +47,7 @@ def usage(has_mpi):
     print "     --min-parallel-duration SECONDS   only process parallel jobs with a"
     print "                                       duration longer than SECONDS (default no limit)"
     print "     --max-duration SECONDS   only process jobs with a duration shorter than SECONDS"
-    print "                              (default 864000 seconds)"
+    print "                              (default no limit)"
     print "     --tag              tag to add to the summarization field in mongo"
     if has_mpi:
         print "     --dump-proclist    whether to output the MPI process information periodically"
@@ -88,7 +88,7 @@ def getoptions(has_mpi):
         "max_nodetime": None,
         "min_duration": None,
         "min_parallel_duration": None,
-        "max_duration": 864000,
+        "max_duration": 0,
         "job_output_dir": None,
         "tag": None,
         "dump_proclist": False,
@@ -283,7 +283,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, m, dblog, opts):
             summarizeerror = ProcessingError.JOB_TOO_MANY_NODEHOURS
             missingnodes = job.nodecount
             logging.info("Skipping %s, skipped_job_too_big (node time)", job.job_id)
-        elif job.walltime >= opts['max_duration']:
+        elif opts['max_duration'] > 0 and job.walltime >= opts['max_duration']:
             mergeresult = 1
             mdata["skipped_too_long"] = True
             summarizeerror = ProcessingError.TIME_TOO_LONG
