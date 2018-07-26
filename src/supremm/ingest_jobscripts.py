@@ -153,7 +153,7 @@ def processfor(resource_id, respath, dbif, timedeltadays):
 
                     dbif.insert({
                         'resource_id': resource_id,
-                        'local_job_id_raw': int(mtch.group(1)),
+                        'local_job_id_raw': mtch.group(1),
                         'start_date': start_date,
                         'script': scriptdata
                     })
