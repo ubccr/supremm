@@ -3,6 +3,9 @@
 """
 
 import logging
+
+import pytz
+import tzlocal
 from pcp import pmapi
 import cpmapi as c_pmapi
 import time
@@ -28,6 +31,28 @@ def archive_cache_factory(resconf, config):
         return DbArchiveCache(config)
 
 
+def datetime_to_timestamp(dt):
+    return (dt - datetime.utcfromtimestamp(0)).total_seconds()
+
+
+JOB_ARCHIVE_RE = re.compile(
+    "job-(\d+)-(?:begin|end)-(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})\.(?P<hour>\d{2})\.(?P<minute>\d{2})\.(?P<second>\d{2})"
+)
+
+
+class TimezoneAdjuster(object):
+    def __init__(self, timezone_name, guess_early=True):
+        self.timezone = pytz.timezone(timezone_name) if timezone_name is not None else tzlocal.get_localzone()
+        self.guess_early = guess_early
+
+    def adjust(self, dt):
+        timestamp = datetime_to_timestamp(dt)
+        try:
+            return timestamp - self.timezone.utcoffset(dt).total_seconds()
+        except pytz.exceptions.AmbiguousTimeError:
+            return timestamp - self.timezone.utcoffset(dt, self.guess_early).total_seconds()
+
+
 class PcpArchiveProcessor(object):
     """ Parses a pcp archive and adds the archive information to the index """
 
@@ -37,6 +62,7 @@ class PcpArchiveProcessor(object):
         if self.hostname_mode == "fqdn":
             self.hostnameext = resconf['host_name_ext']
         self.dbac = archive_cache_factory(resconf, config)
+        self.tz_adjuster = TimezoneAdjuster(resconf.get("timezone"))
 
     @staticmethod
     def parsejobid(archivename):
@@ -53,38 +79,66 @@ class PcpArchiveProcessor(object):
 
         return jobid
 
-    def processarchive(self, archive):
+    def processarchive(self, archive, fast_index, host_from_path=None):
         """ Try to open the pcp archive and extract the timestamps of the first and last
             records and hostname. Store this in the DbArchiveCache
         """
-        try:
-            start = time.time()
-            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-            mdata = context.pmGetArchiveLabel()
-            hostname = mdata.hostname
-            if self.hostname_mode == "fqdn":
-                # The fully qualiifed domain name uniqly identifies the host. Ensure to
-                # add it if it is missing
-                if self.hostnameext != "" and (not hostname.endswith(self.hostnameext)):
-                    hostname += "." + self.hostnameext
-            elif self.hostname_mode == "hostname":
-                # The full domain name is ignored and only the hostname part matters
-                # to uniquely identify a node
-                hostname = mdata.hostname.split(".")[0]
+        start = time.time()
 
-            jobid = self.parsejobid(archive)
+        start_timestamp = None
+        if fast_index:
+            start_timestamp = self.get_archive_data_fast(archive)
 
-            fileiotime = time.time() - start
+        if start_timestamp is not None:
+            hostname = host_from_path
+            end_timestamp = start_timestamp
 
-            self.dbac.insert(self.resource_id, hostname, archive[:-6],
-                             float(mdata.start), float(context.pmGetArchiveEnd()), jobid)
+        else:
+            # fallback implementation that opens the archive
+            try:
+                context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+                mdata = context.pmGetArchiveLabel()
+                hostname = mdata.hostname
+                start_timestamp = float(mdata.start)
+                end_timestamp = float(context.pmGetArchiveEnd())
+            except pmapi.pmErr as exc:
+                #pylint: disable=not-callable
+                logging.error("archive %s. %s", archive, exc.message())
+                return
 
-            elapsed = time.time() - start - fileiotime
-            logging.debug("processed archive %s (fileio %s, dbacins %s)", archive, fileiotime, elapsed)
 
-        except pmapi.pmErr as exc:
-            #pylint: disable=not-callable
-            logging.error("archive %s. %s", archive, exc.message())
+        if self.hostname_mode == "fqdn":
+            # The fully qualiifed domain name uniqly identifies the host. Ensure to
+            # add it if it is missing
+            if self.hostnameext != "" and (not hostname.endswith(self.hostnameext)):
+                hostname += "." + self.hostnameext
+        elif self.hostname_mode == "hostname":
+            # The full domain name is ignored and only the hostname part matters
+            # to uniquely identify a node
+            hostname = hostname.split(".")[0]
+
+        jobid = self.parsejobid(archive)
+
+        fileiotime = time.time() - start
+
+        # print "{},{},{},{}".format(self.resource_id, hostname, start_timestamp, jobid)
+        self.dbac.insert(self.resource_id, hostname, archive[:-6],
+                         start_timestamp, end_timestamp, jobid)
+
+        elapsed = time.time() - start - fileiotime
+        logging.debug("processed archive %s (fileio %s, dbacins %s)", archive, fileiotime, elapsed)
+
+    def get_archive_data_fast(self, arch_path):
+        # return None
+        # TODO: option
+        arch_name = os.path.basename(arch_path)
+        match = JOB_ARCHIVE_RE.match(arch_name)
+        if not match:
+            return None
+
+        date_dict = {k: int(v) for k, v in match.groupdict().iteritems()}
+        start_datetime = datetime(**date_dict)
+        return self.tz_adjuster.adjust(start_datetime)
 
     def close(self):
         """ cleanup and close the connection """
@@ -219,7 +273,7 @@ class PcpArchiveFinder(object):
                                     for filename in self.listdir(os.path.join(hostdir, datedir, monthdir, daydir)):
                                         if filename.endswith(".index") and self.filenameok(filename):
                                             beforeyield = time.time()
-                                            yield os.path.join(hostdir, datedir, monthdir, daydir, filename)
+                                            yield os.path.join(hostdir, datedir, monthdir, daydir, filename), True, hostname
                                             yieldtime += (time.time() - beforeyield)
                     listdirtime += (time.time() - t1 - yieldtime)
                     continue
@@ -230,13 +284,13 @@ class PcpArchiveFinder(object):
                 datedirOk = self.subdirok(datedir)
                 if datedirOk == None:
                     if datedir.endswith(".index") and self.filenameok(datedir):
-                        yield os.path.join(hostdir, datedir)
+                        yield os.path.join(hostdir, datedir), False, None
                 elif datedirOk == True:
                     dirpath = os.path.join(hostdir, datedir)
                     filenames = self.listdir(dirpath)
                     for filename in filenames:
                         if filename.endswith(".index") and self.filenameok(filename):
-                            yield os.path.join(dirpath, filename)
+                            yield os.path.join(dirpath, filename), False, None
 
             hostcount += 1
             lasttime = currtime
@@ -320,12 +374,13 @@ def runindexing():
     for resourcename, resource in config.resourceconfigs():
 
         if opts['resource'] in (None, resourcename, str(resource['resource_id'])):
+            fast_index_allowed = bool(resource.get("fast_index", False))
 
             acache = PcpArchiveProcessor(config, resource)
             afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'])
 
-            for archivefile in afind.find(resource['pcp_log_dir']):
-                acache.processarchive(archivefile)
+            for archivefile, fast_index, hostname in afind.find(resource['pcp_log_dir']):
+                acache.processarchive(archivefile, fast_index and fast_index_allowed, hostname)
 
             acache.close()
 
