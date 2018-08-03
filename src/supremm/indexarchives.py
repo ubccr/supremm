@@ -21,14 +21,7 @@ import os
 from datetime import datetime, timedelta
 from getopt import getopt
 import re
-
-def archive_cache_factory(resconf, config):
-    """ Return the implementation of the accounting class for the resource """
-    atype = resconf['batch_system']
-    if atype == "XDMoD":
-        return XDMoDArchiveCache(config)
-    else:
-        return DbArchiveCache(config)
+import itertools
 
 
 def datetime_to_timestamp(dt):
@@ -56,12 +49,10 @@ class TimezoneAdjuster(object):
 class PcpArchiveProcessor(object):
     """ Parses a pcp archive and adds the archive information to the index """
 
-    def __init__(self, config, resconf):
-        self.resource_id = resconf['resource_id']
+    def __init__(self, resconf):
         self.hostname_mode = resconf['hostname_mode']
         if self.hostname_mode == "fqdn":
             self.hostnameext = resconf['host_name_ext']
-        self.dbac = archive_cache_factory(resconf, config)
         self.tz_adjuster = TimezoneAdjuster(resconf.get("timezone"))
 
     @staticmethod
@@ -83,8 +74,6 @@ class PcpArchiveProcessor(object):
         """ Try to open the pcp archive and extract the timestamps of the first and last
             records and hostname. Store this in the DbArchiveCache
         """
-        start = time.time()
-
         start_timestamp = None
         if fast_index:
             start_timestamp = self.get_archive_data_fast(archive)
@@ -119,14 +108,7 @@ class PcpArchiveProcessor(object):
 
         jobid = self.parsejobid(archive)
 
-        fileiotime = time.time() - start
-
-        # print "{},{},{},{}".format(self.resource_id, hostname, start_timestamp, jobid)
-        self.dbac.insert(self.resource_id, hostname, archive[:-6],
-                         start_timestamp, end_timestamp, jobid)
-
-        elapsed = time.time() - start - fileiotime
-        logging.debug("processed archive %s (fileio %s, dbacins %s)", archive, fileiotime, elapsed)
+        return hostname, archive[:-6], start_timestamp, end_timestamp, jobid
 
     def get_archive_data_fast(self, arch_path):
         # return None
@@ -139,10 +121,6 @@ class PcpArchiveProcessor(object):
         date_dict = {k: int(v) for k, v in match.groupdict().iteritems()}
         start_datetime = datetime(**date_dict)
         return self.tz_adjuster.adjust(start_datetime)
-
-    def close(self):
-        """ cleanup and close the connection """
-        self.dbac.postinsert()
 
 
 class PcpArchiveFinder(object):
@@ -300,6 +278,26 @@ class PcpArchiveFinder(object):
                          datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
 
+class ArchiveIndexUpdater(object):
+    def __init__(self, config, resconf):
+        self.config = config
+        self.resource_id = resconf["resource_id"]
+        self.batch_system = resconf['batch_system']
+
+    def __enter__(self):
+        if self.batch_system == "XDMoD":
+            self.dbac = XDMoDArchiveCache(self.config)
+        else:
+            self.dbac = DbArchiveCache(self.config)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.dbac.postinsert()
+
+    def insert(self, hostname, archive_path, start_timestamp, end_timestamp, jobid):
+        self.dbac.insert(self.resource_id, hostname, archive_path, start_timestamp, end_timestamp, jobid)
+
+
 DAY_DELTA = 3
 
 
@@ -376,15 +374,20 @@ def runindexing():
         if opts['resource'] in (None, resourcename, str(resource['resource_id'])):
             fast_index_allowed = bool(resource.get("fast_index", False))
 
-            acache = PcpArchiveProcessor(config, resource)
+            acache = PcpArchiveProcessor(resource)
             afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'])
 
-            for archivefile, fast_index, hostname in afind.find(resource['pcp_log_dir']):
-                acache.processarchive(archivefile, fast_index and fast_index_allowed, hostname)
-
-            acache.close()
+            with ArchiveIndexUpdater(config, resource) as index:
+                for archivefile, fast_index, hostname in itertools.islice(afind.find(resource['pcp_log_dir']), 5000):
+                    start_time = time.time()
+                    data = acache.processarchive(archivefile, fast_index and fast_index_allowed, hostname)
+                    parse_end = time.time()
+                    index.insert(*data)
+                    db_end = time.time()
+                    logging.debug("processed archive %s (fileio %s, dbacins %s)", archivefile, parse_end - start_time, db_end - parse_end)
 
     logging.info("archive indexer complete")
+
 
 if __name__ == "__main__":
     runindexing()
