@@ -1,15 +1,10 @@
 import unittest
 from mock import patch, Mock
-import supremm
 from supremm.proc_common import summarizejob
-from supremm.summarize import Summarize
-from supremm.outputter import MongoOutput
-from supremm.account import DbAcct
 from supremm.config import Config
 from supremm.Job import Job
 from supremm.errors import ProcessingError
 
-import sys
 import logging
 import datetime
 import tempfile
@@ -19,8 +14,6 @@ class TestSummarizeJob(unittest.TestCase):
     def setUp(self):
         confattrs = {'getsection.return_value': {}}
         self.mockconf = Mock(spec=Config, **confattrs)
-        self.mockoutput = Mock(spec=MongoOutput)
-        self.mocklog = Mock(spec=DbAcct)
 
         self.mockresconf = {
             'name': 'resource_name'
@@ -63,17 +56,12 @@ class TestSummarizeJob(unittest.TestCase):
         }
         self.mockjob = Mock(spec=Job, **confjob)
 
-    def verify_errors(self, expectedProcessing, expectedMdata):
+    @staticmethod
+    def verify_errors(expectedProcessing, expectedMdata, actual_error, actual_mdata):
+        assert expectedProcessing == actual_error
 
-        self.mocklog.markasdone.assert_called_once()
-        summarizeerror = self.mocklog.markasdone.call_args[0][3]
-        self.assertEquals(expectedProcessing, summarizeerror)
-
-        self.mockoutput.process.assert_called_once()
-        mdata = self.mockoutput.process.call_args[0][1]
-        self.assertIn(expectedMdata, mdata)
-        self.assertEquals(True, mdata[expectedMdata])
-
+        assert expectedMdata in actual_mdata
+        assert actual_mdata[expectedMdata]
 
     @patch('supremm.proc_common.extract_and_merge_logs')
     @patch('supremm.proc_common.Summarize')
@@ -83,9 +71,9 @@ class TestSummarizeJob(unittest.TestCase):
         self.mockjob.configure_mock(walltime = 128)
         self.options['min_duration'] = 129
 
-        summarizejob(self.mockjob, self.mockconf, {}, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
 
-        self.verify_errors(ProcessingError.TIME_TOO_SHORT, 'skipped_too_short')
+        self.verify_errors(ProcessingError.TIME_TOO_SHORT, 'skipped_too_short', error, mdata)
 
     @patch('supremm.proc_common.extract_and_merge_logs')
     @patch('supremm.proc_common.Summarize')
@@ -95,9 +83,9 @@ class TestSummarizeJob(unittest.TestCase):
         self.mockjob.configure_mock(walltime = 599, nodecount = 10)
         self.options['min_parallel_duration'] = 600
 
-        summarizejob(self.mockjob, self.mockconf, {}, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
 
-        self.verify_errors(ProcessingError.PARALLEL_TOO_SHORT, 'skipped_parallel_too_short')
+        self.verify_errors(ProcessingError.PARALLEL_TOO_SHORT, 'skipped_parallel_too_short', error, mdata)
 
     @patch('supremm.proc_common.extract_and_merge_logs')
     @patch('supremm.proc_common.Summarize')
@@ -106,9 +94,9 @@ class TestSummarizeJob(unittest.TestCase):
 
         self.mockjob.configure_mock(nodecount = 0)
 
-        summarizejob(self.mockjob, self.mockconf, {}, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
 
-        self.verify_errors(ProcessingError.INVALID_NODECOUNT, 'skipped_invalid_nodecount')
+        self.verify_errors(ProcessingError.INVALID_NODECOUNT, 'skipped_invalid_nodecount', error, mdata)
 
     @patch('supremm.proc_common.extract_and_merge_logs')
     @patch('supremm.proc_common.Summarize')
@@ -117,9 +105,9 @@ class TestSummarizeJob(unittest.TestCase):
 
         self.mockjob.configure_mock(walltime = 99999999)
 
-        summarizejob(self.mockjob, self.mockconf, {}, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
 
-        self.verify_errors(ProcessingError.TIME_TOO_LONG, 'skipped_too_long')
+        self.verify_errors(ProcessingError.TIME_TOO_LONG, 'skipped_too_long', error, mdata)
 
     @patch('supremm.proc_common.extract_and_merge_logs')
     @patch('supremm.proc_common.Summarize')
@@ -130,9 +118,9 @@ class TestSummarizeJob(unittest.TestCase):
         self.mockjob.configure_mock(walltime=1000, nodecount=500)
         self.options['max_nodetime'] = 499999
 
-        summarizejob(self.mockjob, self.mockconf, {}, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
 
-        self.verify_errors(ProcessingError.JOB_TOO_MANY_NODEHOURS, 'skipped_job_nodehours')
+        self.verify_errors(ProcessingError.JOB_TOO_MANY_NODEHOURS, 'skipped_job_nodehours', error, mdata)
 
     @patch('supremm.pcparchive.adjust_job_start_end')
     @patch('supremm.pcparchive.pmlogextract')
@@ -140,9 +128,9 @@ class TestSummarizeJob(unittest.TestCase):
         
         pmlogextracnfn.return_value = -10
 
-        summarizejob(self.mockjob, self.mockconf, {}, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
 
-        self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error')
+        self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
     @patch('supremm.pcparchive.adjust_job_start_end')
     @patch('supremm.pcparchive.getextractcmdline')
@@ -158,9 +146,9 @@ class TestSummarizeJob(unittest.TestCase):
         configres = {'getsection.return_value': {'subdir_out_format': '%j', 'archive_out_dir': tempfile.mkdtemp()}}
         self.mockconf.configure_mock(**configres)
 
-        summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.options)
 
-        self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error')
+        self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
     @patch('supremm.pcparchive.adjust_job_start_end')
     @patch('supremm.pcparchive.getextractcmdline')
@@ -176,9 +164,9 @@ class TestSummarizeJob(unittest.TestCase):
         configres = {'getsection.return_value': {'subdir_out_format': '%j', 'archive_out_dir': tempfile.mkdtemp()}}
         self.mockconf.configure_mock(**configres)
 
-        summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.options)
 
-        self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error')
+        self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
     @patch('supremm.pcparchive.adjust_job_start_end')
     @patch('supremm.pcparchive.getextractcmdline')
@@ -194,9 +182,9 @@ class TestSummarizeJob(unittest.TestCase):
         configres = {'getsection.return_value': {'subdir_out_format': '%j', 'archive_out_dir': tempfile.mkdtemp()}}
         self.mockconf.configure_mock(**configres)
 
-        summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.mockoutput, self.mocklog, self.options)
+        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.options)
 
-        self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error')
+        self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
 
 if __name__ == '__main__':

@@ -175,16 +175,14 @@ class DbAcct(Accounting):
     Helper class to get job records from the store
     """
 
-    def __init__(self, resource_id, conf, totalprocs=None, procid=None):
-        super(DbAcct, self).__init__(resource_id, conf, totalprocs, procid)
+    def __init__(self, resource_id, conf):
+        super(DbAcct, self).__init__(resource_id, conf)
 
         self._dblog = DbLogger(conf)
         dbconf = conf.getsection("accountdatabase")
         self.con = mdb.connect(db=dbconf['dbname'], read_default_file=dbconf['defaultsfile'])
         self.hostcon = mdb.connect(db=dbconf['dbname'], read_default_file=dbconf['defaultsfile'])
         self.process_version = PROCESS_VERSION
-        self.totalprocs = totalprocs
-        self.procid = procid
 
         self.hostquery = """SELECT
                            h.hostname, GROUP_CONCAT(a.filename ORDER BY a.start_time_ts ASC SEPARATOR 0x1e)
@@ -279,10 +277,6 @@ class DbAcct(Accounting):
             query += " AND (p.process_version != %s OR p.process_version IS NULL)"
             data = data + (Accounting.PROCESS_VERSION, )
 
-        if self.totalprocs != None and self.procid != None:
-            query += " AND (CRC32(local_job_id) %% %s) = %s"
-            data = data + (self.totalprocs, self.procid)
-
         query += " ORDER BY j.end_time_ts ASC"
 
         cur = self.con.cursor()
@@ -324,9 +318,6 @@ class DbAcct(Accounting):
         if end_time != None:
             query += " AND end_time_ts < %s "
             data = data + (end_time, )
-        if self.totalprocs != None and self.procid != None:
-            query += " AND (CRC32(local_job_id) %% %s) = %s"
-            data = data + (self.totalprocs, self.procid)
         query += " ORDER BY end_time_ts ASC"
 
         cur = self.con.cursor()

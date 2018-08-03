@@ -10,8 +10,8 @@ import logging
 
 class XDMoDAcct(Accounting):
     """ account reader that gets data from xdmod datawarehouse """
-    def __init__(self, resource_id, config, nthreads, threadidx):
-        super(XDMoDAcct, self).__init__(resource_id, config, nthreads, threadidx)
+    def __init__(self, resource_id, config):
+        super(XDMoDAcct, self).__init__(resource_id, config)
 
         self.dbsettings = config.getsection("datawarehouse")
 
@@ -210,10 +210,6 @@ class XDMoDAcct(Accounting):
             job_selector = " AND( " + job_selector + " )"
             query += job_selector
 
-        if self._nthreads != None and self._threadidx != None:
-            query += " AND (CRC32(jf.local_job_id_raw) %% %s) = %s"
-            data = data + (self._nthreads, self._threadidx)
-
         query += " ORDER BY jf.end_time_ts ASC"
 
         for job in  self.executequery(query, data):
@@ -233,9 +229,6 @@ class XDMoDAcct(Accounting):
         if end != None:
             query += " AND jf.end_time_ts < %s "
             data = data + (end, )
-        if self._nthreads != None and self._threadidx != None:
-            query += " AND (CRC32(jf.local_job_id_raw) %% %s) = %s"
-            data = data + (self._nthreads, self._threadidx)
         query += " ORDER BY jf.end_time_ts ASC"
 
         for job in  self.executequery(query, data):
@@ -389,7 +382,7 @@ def test():
     """ simple test function """
 
     config = Config()
-    xdm = XDMoDAcct(13, config, None, None)
+    xdm = XDMoDAcct(13, config)
     for job in xdm.get(1444151688, None):
         print job
 
