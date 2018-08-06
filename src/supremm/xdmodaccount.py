@@ -377,6 +377,93 @@ class XDMoDArchiveCache(ArchiveCache):
         """
         self.con.commit()
 
+    def insert_from_files(self, paths_file, joblevel_file, nodelevel_file):
+        cur = self.con.cursor()
+
+        paths_tmp_table = """
+        CREATE TEMPORARY TABLE `ts_analysis`.`archive_paths_load`
+        (`filename` varchar(255) COLLATE utf8_unicode_ci NOT NULL, UNIQUE KEY `filename` (`filename`)) DEFAULT CHARSET=utf8;
+        """
+        cur.execute(paths_tmp_table)
+
+        paths_load = """
+        LOAD DATA LOCAL INFILE '{}' IGNORE INTO TABLE `ts_analysis`.`archive_paths_load`
+        FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\\''
+        LINES TERMINATED BY '\n'
+        (filename);
+        """.format(paths_file)
+        cur.execute(paths_load)
+
+        paths_query = """
+        INSERT INTO `ts_analysis`.`archive_paths`
+        (filename)
+        SELECT `filename`
+        FROM `ts_analysis`.`archive_paths_load`
+        ON DUPLICATE KEY UPDATE id = id;
+        """
+        cur.execute(paths_query)
+
+        joblevel_tmp_table = """
+        CREATE TEMPORARY TABLE `ts_analysis`.`joblevel_load` (
+        `arch_path` VARCHAR(255) NOT NULL,
+        `host_name` VARCHAR(255) NOT NULL,
+        `local_job_id_raw` int(11) NOT NULL,
+        `start_time_ts` int(11) NOT NULL,
+        `end_time_ts` int(11) NOT NULL) COLLATE=utf8_unicode_ci;
+        """
+        cur.execute(joblevel_tmp_table)
+
+        joblevel_load = """
+        LOAD DATA LOCAL INFILE '{}' REPLACE INTO TABLE `ts_analysis`.`joblevel_load`
+        FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\\''
+        LINES TERMINATED BY '\n'
+        (arch_path, host_name, local_job_id_raw, start_time_ts, end_time_ts)
+        """.format(joblevel_file)
+        cur.execute(joblevel_load)
+
+        joblevel_query = """
+        INSERT INTO `ts_analysis`.`archives_joblevel`
+        (archive_id, host_id, local_job_id_raw, start_time_ts, end_time_ts)
+        SELECT p.id, h.id, jl.local_job_id_raw, jl.start_time_ts, jl.end_time_ts
+        FROM `ts_analysis`.`joblevel_load` jl, `modw`.`hosts` h, `ts_analysis`.`archive_paths` p
+        WHERE h.hostname = jl.host_name AND p.filename = jl.arch_path
+        ON DUPLICATE KEY UPDATE start_time_ts = VALUES(start_time_ts), end_time_ts = VALUES(end_time_ts)
+        """
+        cur.execute(joblevel_query)
+
+        nodelevel_tmp_table = """
+        CREATE TEMPORARY TABLE `ts_analysis`.`nodelevel_load` (
+        `arch_path` VARCHAR(255) NOT NULL,
+        `host_name` VARCHAR(255) NOT NULL,
+        `start_time_ts` int(11) NOT NULL,
+        `end_time_ts` int(11) NOT NULL) COLLATE=utf8_unicode_ci;
+        """
+        cur.execute(nodelevel_tmp_table)
+
+        nodelevel_load = """
+        LOAD DATA LOCAL INFILE '{}' REPLACE INTO TABLE `ts_analysis`.`nodelevel_load`
+        FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\\'' ESCAPED BY '\\\\'
+        LINES TERMINATED BY '\n'
+        (arch_path, host_name, start_time_ts, end_time_ts)
+        """.format(nodelevel_file)
+        cur.execute(nodelevel_load)
+
+        nodelevel_query = """
+        INSERT INTO `ts_analysis`.`archives_nodelevel`
+        (archive_id, host_id, start_time_ts, end_time_ts)
+        SELECT p.id, h.id, nl.start_time_ts, nl.end_time_ts
+        FROM `ts_analysis`.`nodelevel_load` nl, `modw`.`hosts` h, `ts_analysis`.`archive_paths` p
+        WHERE h.hostname = nl.host_name AND p.filename = nl.arch_path
+        ON DUPLICATE KEY UPDATE start_time_ts = VALUES(start_time_ts), end_time_ts = VALUES(end_time_ts)
+        """.format(nodelevel_file)
+        cur.execute(nodelevel_query)
+
+        cur.execute("DROP TEMPORARY TABLE `ts_analysis`.`archive_paths_load`;")
+        cur.execute("DROP TEMPORARY TABLE `ts_analysis`.`joblevel_load`;")
+        cur.execute("DROP TEMPORARY TABLE `ts_analysis`.`nodelevel_load`;")
+
+        self.con.commit()
+
 
 def test():
     """ simple test function """

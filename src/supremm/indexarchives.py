@@ -3,6 +3,7 @@
 """
 
 import logging
+import math
 
 import pytz
 import tzlocal
@@ -21,6 +22,10 @@ import os
 from datetime import datetime, timedelta
 from getopt import getopt
 import re
+from multiprocessing import Pool
+import functools
+import tempfile
+import csv
 import itertools
 
 
@@ -93,7 +98,7 @@ class PcpArchiveProcessor(object):
             except pmapi.pmErr as exc:
                 #pylint: disable=not-callable
                 logging.error("archive %s. %s", archive, exc.message())
-                return
+                return None
 
 
         if self.hostname_mode == "fqdn":
@@ -298,6 +303,46 @@ class ArchiveIndexUpdater(object):
         self.dbac.insert(self.resource_id, hostname, archive_path, start_timestamp, end_timestamp, jobid)
 
 
+class LoadFileIndexUpdater(object):
+    def __init__(self, config, resconf):
+        self.config = config
+        self.resource_id = resconf["resource_id"]
+        self.batch_system = resconf['batch_system']
+
+    def __enter__(self):
+        if self.batch_system == "XDMoD":
+            self.dbac = XDMoDArchiveCache(self.config)
+        else:
+            self.dbac = DbArchiveCache(self.config)
+
+        self.paths_file = tempfile.NamedTemporaryFile('wb', delete=False, suffix=".csv")
+        self.paths_csv = csv.writer(self.paths_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
+        self.joblevel_file = tempfile.NamedTemporaryFile('wb', delete=False, suffix=".csv")
+        self.joblevel_csv = csv.writer(self.joblevel_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
+        self.nodelevel_file = tempfile.NamedTemporaryFile('wb', delete=False, suffix=".csv")
+        self.nodelevel_csv = csv.writer(self.nodelevel_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print self.paths_file.name
+        print self.joblevel_file.name
+        print self.nodelevel_file.name
+        self.paths_file.file.flush()
+        self.joblevel_file.file.flush()
+        self.nodelevel_file.file.flush()
+        self.dbac.insert_from_files(self.paths_file.name, self.joblevel_file.name, self.nodelevel_file.name)
+        self.paths_file.close()
+        self.joblevel_file.close()
+        self.nodelevel_file.close()
+
+    def insert(self, hostname, archive_path, start_timestamp, end_timestamp, jobid):
+        self.paths_csv.writerow((archive_path,))
+        if jobid is not None:
+            self.joblevel_csv.writerow((archive_path, hostname, jobid, int(math.floor(start_timestamp)), int(math.ceil(end_timestamp))))
+        else:
+            self.nodelevel_csv.writerow((archive_path, hostname, int(math.floor(start_timestamp)), int(math.ceil(end_timestamp))))
+
+
 DAY_DELTA = 3
 
 
@@ -363,7 +408,7 @@ def runindexing():
     """ main script entry point """
     opts = getoptions()
 
-    setuplogger(opts['log'], opts['debugfile'], logging.DEBUG)
+    setuplogger(opts['log'], opts['debugfile'], logging.INFO)
 
     config = Config(opts['config'])
 
@@ -372,21 +417,50 @@ def runindexing():
     for resourcename, resource in config.resourceconfigs():
 
         if opts['resource'] in (None, resourcename, str(resource['resource_id'])):
-            fast_index_allowed = bool(resource.get("fast_index", False))
+            if not resource.get('pcp_log_dir'):
+                continue
 
             acache = PcpArchiveProcessor(resource)
             afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'])
-
-            with ArchiveIndexUpdater(config, resource) as index:
-                for archivefile, fast_index, hostname in itertools.islice(afind.find(resource['pcp_log_dir']), 5000):
-                    start_time = time.time()
-                    data = acache.processarchive(archivefile, fast_index and fast_index_allowed, hostname)
-                    parse_end = time.time()
-                    index.insert(*data)
-                    db_end = time.time()
-                    logging.debug("processed archive %s (fileio %s, dbacins %s)", archivefile, parse_end - start_time, db_end - parse_end)
+            if True:
+                index_resource_multiprocessing(config, resource, acache, afind, 15)
+            else:
+                fast_index_allowed = bool(resource.get("fast_index", False))
+                with LoadFileIndexUpdater(config, resource) as index:
+                    for archivefile, fast_index, hostname in itertools.islice(afind.find(resource['pcp_log_dir']), 10000):
+                        start_time = time.time()
+                        data = acache.processarchive(archivefile, fast_index and fast_index_allowed, hostname)
+                        parse_end = time.time()
+                        if data is not None:
+                            index.insert(*data)
+                        db_end = time.time()
+                        logging.debug("processed archive %s (fileio %s, dbacins %s)", archivefile, parse_end - start_time, db_end - parse_end)
 
     logging.info("archive indexer complete")
+
+
+def processarchive_worker(parser, fast_index_allowed, parser_args):
+    archive_file, fast_index, hostname = parser_args
+    parser_start = time.time()
+    data = parser.processarchive(archive_file, fast_index and fast_index_allowed, hostname)
+    return data, time.time() - parser_start, archive_file
+
+
+def index_resource_multiprocessing(config, resconf, acache, afind, numthreads):
+    fast_index_allowed = bool(resconf.get("fast_index", False))
+    pool = Pool(numthreads)
+
+    worker = functools.partial(processarchive_worker, acache, fast_index_allowed)
+    with LoadFileIndexUpdater(config, resconf) as index:
+        for data, parse_time, archive_file in pool.imap_unordered(worker, itertools.islice(afind.find(resconf['pcp_log_dir']), 10000)):
+            index_start = time.time()
+            if data is not None:
+                index.insert(*data)
+            index_time = time.time() - index_start
+            logging.debug("processed archive %s (fileio %s, dbacins %s)", archive_file, parse_time, index_time)
+
+    pool.close()
+    pool.join()
 
 
 if __name__ == "__main__":
