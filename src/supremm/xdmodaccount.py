@@ -455,7 +455,7 @@ class XDMoDArchiveCache(ArchiveCache):
         FROM `modw_supremm`.`nodelevel_load` nl, `modw`.`hosts` h, `modw_supremm`.`archive_paths` p
         WHERE h.hostname = nl.host_name AND p.filename = nl.arch_path
         ON DUPLICATE KEY UPDATE start_time_ts = VALUES(start_time_ts), end_time_ts = VALUES(end_time_ts)
-        """.format(nodelevel_file)
+        """
         cur.execute(nodelevel_query)
 
         cur.execute("DROP TEMPORARY TABLE `modw_supremm`.`archive_paths_load`;")
