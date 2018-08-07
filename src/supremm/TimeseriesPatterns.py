@@ -168,6 +168,9 @@ def _calculate_autoperiod(nodes, metric, resource, jobid):
 
     # Interpolate times and values so sampling interval is constant, and sum nodes
     for nodename, node in iteritems(nodes):
+        if node['data_error']:
+            continue
+
         if times_interp is None:
             times_interp = np.linspace(min(node['all_times']), max(node['all_times']),
                                         len(node['all_times']))
