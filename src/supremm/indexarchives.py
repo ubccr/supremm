@@ -283,26 +283,6 @@ class PcpArchiveFinder(object):
                          datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
 
-class ArchiveIndexUpdater(object):
-    def __init__(self, config, resconf):
-        self.config = config
-        self.resource_id = resconf["resource_id"]
-        self.batch_system = resconf['batch_system']
-
-    def __enter__(self):
-        if self.batch_system == "XDMoD":
-            self.dbac = XDMoDArchiveCache(self.config)
-        else:
-            self.dbac = DbArchiveCache(self.config)
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.dbac.postinsert()
-
-    def insert(self, hostname, archive_path, start_timestamp, end_timestamp, jobid):
-        self.dbac.insert(self.resource_id, hostname, archive_path, start_timestamp, end_timestamp, jobid)
-
-
 class LoadFileIndexUpdater(object):
     def __init__(self, config, resconf):
         self.config = config
