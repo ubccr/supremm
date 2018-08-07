@@ -26,7 +26,6 @@ from multiprocessing import Pool
 import functools
 import tempfile
 import csv
-import itertools
 
 
 def datetime_to_timestamp(dt):
@@ -100,7 +99,6 @@ class PcpArchiveProcessor(object):
                 logging.error("archive %s. %s", archive, exc.message())
                 return None
 
-
         if self.hostname_mode == "fqdn":
             # The fully qualiifed domain name uniqly identifies the host. Ensure to
             # add it if it is missing
@@ -116,8 +114,6 @@ class PcpArchiveProcessor(object):
         return hostname, archive[:-6], start_timestamp, end_timestamp, jobid
 
     def get_archive_data_fast(self, arch_path):
-        # return None
-        # TODO: option
         arch_name = os.path.basename(arch_path)
         match = JOB_ARCHIVE_RE.match(arch_name)
         if not match:
@@ -420,7 +416,7 @@ def runindexing():
             else:
                 fast_index_allowed = bool(resource.get("fast_index", False))
                 with LoadFileIndexUpdater(config, resource) as index:
-                    for archivefile, fast_index, hostname in itertools.islice(afind.find(resource['pcp_log_dir']), 10000):
+                    for archivefile, fast_index, hostname in afind.find(resource['pcp_log_dir']):
                         start_time = time.time()
                         data = acache.processarchive(archivefile, fast_index and fast_index_allowed, hostname)
                         parse_end = time.time()
@@ -447,7 +443,7 @@ def index_resource_multiprocessing(config, resconf, acache, afind, pool):
 
     worker = functools.partial(processarchive_worker, acache, fast_index_allowed)
     with LoadFileIndexUpdater(config, resconf) as index:
-        for data, parse_time, archive_file in pool.imap_unordered(worker, itertools.islice(afind.find(resconf['pcp_log_dir']), 10000)):
+        for data, parse_time, archive_file in pool.imap_unordered(worker, afind.find(resconf['pcp_log_dir'])):
             index_start = time.time()
             if data is not None:
                 index.insert(*data)
