@@ -359,6 +359,7 @@ def usage():
     print "  -D --debugfile       specify the path to a log file. If this option is"
     print "                       present then the process will log a DEBUG level to this"
     print "                       file. This logging is independent of the console log."
+    print "  -t --threads=NUM     Use the specified number of processes for parsing logs."
     print "  -a --all             process all archives regardless of age"
     print "  -d --debug           set log level to debug"
     print "  -q --quiet           only log errors"
@@ -374,10 +375,15 @@ def getoptions():
         "config": None,
         "debugfile": None,
         "mindate": datetime.now() - timedelta(days=DAY_DELTA),
-        "maxdate": datetime.now() - timedelta(minutes=10)
+        "maxdate": datetime.now() - timedelta(minutes=10),
+        "num_threads": 1
     }
 
-    opts, _ = getopt(sys.argv[1:], "r:c:m:M:D:adqh", ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help"])
+    opts, _ = getopt(
+        sys.argv[1:],
+        "r:c:m:M:D:adqht:",
+        ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help", "threads="]
+    )
 
     for opt in opts:
         if opt[0] in ("-r", "--resource"):
@@ -397,6 +403,8 @@ def getoptions():
         elif opt[0] in ("-a", "--all"):
             retdata['mindate'] = None
             retdata['maxdate'] = None
+        elif opt[0] in ("-t", "--threads"):
+            retdata["num_threads"] = int(opt[1])
         elif opt[0] in ("-h", "--help"):
             usage()
             sys.exit(0)
@@ -414,6 +422,11 @@ def runindexing():
 
     logging.info("archive indexer starting")
 
+    pool = None
+    if opts['num_threads'] > 1:
+        logging.debug("Using %s processes", opts['num_threads'])
+        pool = Pool(opts['num_threads'])
+
     for resourcename, resource in config.resourceconfigs():
 
         if opts['resource'] in (None, resourcename, str(resource['resource_id'])):
@@ -422,8 +435,8 @@ def runindexing():
 
             acache = PcpArchiveProcessor(resource)
             afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'])
-            if True:
-                index_resource_multiprocessing(config, resource, acache, afind, 15)
+            if pool is not None:
+                index_resource_multiprocessing(config, resource, acache, afind, pool)
             else:
                 fast_index_allowed = bool(resource.get("fast_index", False))
                 with LoadFileIndexUpdater(config, resource) as index:
@@ -437,6 +450,9 @@ def runindexing():
                         logging.debug("processed archive %s (fileio %s, dbacins %s)", archivefile, parse_end - start_time, db_end - parse_end)
 
     logging.info("archive indexer complete")
+    if pool is not None:
+        pool.close()
+        pool.join()
 
 
 def processarchive_worker(parser, fast_index_allowed, parser_args):
@@ -446,9 +462,8 @@ def processarchive_worker(parser, fast_index_allowed, parser_args):
     return data, time.time() - parser_start, archive_file
 
 
-def index_resource_multiprocessing(config, resconf, acache, afind, numthreads):
+def index_resource_multiprocessing(config, resconf, acache, afind, pool):
     fast_index_allowed = bool(resconf.get("fast_index", False))
-    pool = Pool(numthreads)
 
     worker = functools.partial(processarchive_worker, acache, fast_index_allowed)
     with LoadFileIndexUpdater(config, resconf) as index:
@@ -458,9 +473,6 @@ def index_resource_multiprocessing(config, resconf, acache, afind, numthreads):
                 index.insert(*data)
             index_time = time.time() - index_start
             logging.debug("processed archive %s (fileio %s, dbacins %s)", archive_file, parse_time, index_time)
-
-    pool.close()
-    pool.join()
 
 
 if __name__ == "__main__":
