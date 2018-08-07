@@ -138,8 +138,8 @@ class StdoutOutput(object):
         """
         json print
         """
-        print(self._resid, json.dumps(summary, indent=4))
-        print("MDATA: ", json.dumps(mdata, indent=4))
+        print(self._resid, json.dumps(summary, default=str, indent=4))
+        print("MDATA: ", json.dumps(mdata, default=str, indent=4))
 
     def __exit__(self, exception_type, exception_val, trace):
         pass
