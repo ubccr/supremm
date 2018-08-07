@@ -240,19 +240,19 @@ class PcpArchiveFinder(object):
             listdirtime = 0.0
             yieldtime = 0.0
             t1 = time.time()
-            datdirs = self.listdir(hostdir)
+            datedirs = self.listdir(hostdir)
             listdirtime += (time.time() - t1)
 
-            for datedir in datdirs:
+            for datedir in datedirs:
                 t1 = time.time()
 
                 yeardirOk = self.ymdok(datedir)
 
-                if yeardirOk == True:
+                if yeardirOk is True:
                     for monthdir in self.listdir(os.path.join(hostdir, datedir)):
-                        if self.ymdok(datedir, monthdir) == True:
+                        if self.ymdok(datedir, monthdir) is True:
                             for daydir in self.listdir(os.path.join(hostdir, datedir, monthdir)):
-                                if self.ymdok(datedir, monthdir, daydir) == True:
+                                if self.ymdok(datedir, monthdir, daydir) is True:
                                     for filename in self.listdir(os.path.join(hostdir, datedir, monthdir, daydir)):
                                         if filename.endswith(".index") and self.filenameok(filename):
                                             beforeyield = time.time()
@@ -260,20 +260,20 @@ class PcpArchiveFinder(object):
                                             yieldtime += (time.time() - beforeyield)
                     listdirtime += (time.time() - t1 - yieldtime)
                     continue
-                elif yeardirOk == False:
+                elif yeardirOk is False:
                     continue
                 # else fall through to check other formats
-
-                datedirOk = self.subdirok(datedir)
-                if datedirOk == None:
-                    if datedir.endswith(".index") and self.filenameok(datedir):
-                        yield os.path.join(hostdir, datedir), False, None
-                elif datedirOk == True:
-                    dirpath = os.path.join(hostdir, datedir)
-                    filenames = self.listdir(dirpath)
-                    for filename in filenames:
-                        if filename.endswith(".index") and self.filenameok(filename):
-                            yield os.path.join(dirpath, filename), False, None
+                elif yeardirOk is None:
+                    datedirOk = self.subdirok(datedir)
+                    if datedirOk is None:
+                        if datedir.endswith(".index") and self.filenameok(datedir):
+                            yield os.path.join(hostdir, datedir), False, None
+                    elif datedirOk is True:
+                        dirpath = os.path.join(hostdir, datedir)
+                        filenames = self.listdir(dirpath)
+                        for filename in filenames:
+                            if filename.endswith(".index") and self.filenameok(filename):
+                                yield os.path.join(dirpath, filename), False, None
 
             hostcount += 1
             lasttime = currtime
