@@ -280,10 +280,11 @@ class PcpArchiveFinder(object):
 
 
 class LoadFileIndexUpdater(object):
-    def __init__(self, config, resconf):
+    def __init__(self, config, resconf, keep_csv=False):
         self.config = config
         self.resource_id = resconf["resource_id"]
         self.batch_system = resconf['batch_system']
+        self.keep_csv = keep_csv
 
     def __enter__(self):
         if self.batch_system == "XDMoD":
@@ -291,18 +292,19 @@ class LoadFileIndexUpdater(object):
         else:
             self.dbac = DbArchiveCache(self.config)
 
-        self.paths_file = tempfile.NamedTemporaryFile('wb', delete=False, suffix=".csv")
+        self.paths_file = tempfile.NamedTemporaryFile('wb', delete=not self.keep_csv, suffix=".csv", prefix="archive_paths")
         self.paths_csv = csv.writer(self.paths_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
-        self.joblevel_file = tempfile.NamedTemporaryFile('wb', delete=False, suffix=".csv")
+        self.joblevel_file = tempfile.NamedTemporaryFile('wb', delete=not self.keep_csv, suffix=".csv", prefix="archives_joblevel")
         self.joblevel_csv = csv.writer(self.joblevel_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
-        self.nodelevel_file = tempfile.NamedTemporaryFile('wb', delete=False, suffix=".csv")
+        self.nodelevel_file = tempfile.NamedTemporaryFile('wb', delete=not self.keep_csv, suffix=".csv", prefix="archives_nodelevel")
         self.nodelevel_csv = csv.writer(self.nodelevel_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print self.paths_file.name
-        print self.joblevel_file.name
-        print self.nodelevel_file.name
+        if self.keep_csv:
+            logging.info(self.paths_file.name)
+            logging.info(self.joblevel_file.name)
+            logging.info(self.nodelevel_file.name)
         self.paths_file.file.flush()
         self.joblevel_file.file.flush()
         self.nodelevel_file.file.flush()
@@ -336,6 +338,7 @@ def usage():
     print "                       present then the process will log a DEBUG level to this"
     print "                       file. This logging is independent of the console log."
     print "  -t --threads=NUM     Use the specified number of processes for parsing logs."
+    print "  -k --keep-csv        Don't delete temporary csv files when indexing is done, and log filenames at INFO level. Used for debugging purposes"
     print "  -a --all             process all archives regardless of age"
     print "  -d --debug           set log level to debug"
     print "  -q --quiet           only log errors"
@@ -352,13 +355,14 @@ def getoptions():
         "debugfile": None,
         "mindate": datetime.now() - timedelta(days=DAY_DELTA),
         "maxdate": datetime.now() - timedelta(minutes=10),
+        "keep_csv": False,
         "num_threads": 1
     }
 
     opts, _ = getopt(
         sys.argv[1:],
-        "r:c:m:M:D:adqht:",
-        ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help", "threads="]
+        "r:c:m:M:D:adqht:k",
+        ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help", "threads=", "keep-csv"]
     )
 
     for opt in opts:
@@ -381,6 +385,8 @@ def getoptions():
             retdata['maxdate'] = None
         elif opt[0] in ("-t", "--threads"):
             retdata["num_threads"] = int(opt[1])
+        elif opt[0] in ("-k", "--keep-csv"):
+            retdata["keep_csv"] = True
         elif opt[0] in ("-h", "--help"):
             usage()
             sys.exit(0)
@@ -391,6 +397,7 @@ def getoptions():
 def runindexing():
     """ main script entry point """
     opts = getoptions()
+    keep_csv = opts["keep_csv"]
 
     setuplogger(opts['log'], opts['debugfile'], logging.INFO)
 
@@ -412,10 +419,10 @@ def runindexing():
             acache = PcpArchiveProcessor(resource)
             afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'])
             if pool is not None:
-                index_resource_multiprocessing(config, resource, acache, afind, pool)
+                index_resource_multiprocessing(config, resource, acache, afind, pool, keep_csv)
             else:
                 fast_index_allowed = bool(resource.get("fast_index", False))
-                with LoadFileIndexUpdater(config, resource) as index:
+                with LoadFileIndexUpdater(config, resource, keep_csv) as index:
                     for archivefile, fast_index, hostname in afind.find(resource['pcp_log_dir']):
                         start_time = time.time()
                         data = acache.processarchive(archivefile, fast_index and fast_index_allowed, hostname)
@@ -438,11 +445,11 @@ def processarchive_worker(parser, fast_index_allowed, parser_args):
     return data, time.time() - parser_start, archive_file
 
 
-def index_resource_multiprocessing(config, resconf, acache, afind, pool):
+def index_resource_multiprocessing(config, resconf, acache, afind, pool, keep_csv):
     fast_index_allowed = bool(resconf.get("fast_index", False))
 
     worker = functools.partial(processarchive_worker, acache, fast_index_allowed)
-    with LoadFileIndexUpdater(config, resconf) as index:
+    with LoadFileIndexUpdater(config, resconf, keep_csv) as index:
         for data, parse_time, archive_file in pool.imap_unordered(worker, afind.find(resconf['pcp_log_dir'])):
             index_start = time.time()
             if data is not None:
