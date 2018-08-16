@@ -1,4 +1,4 @@
-"""puffypcp is a direct interface to pcp c library"""
+""" pcpcinterface is a direct interface to pcp c library"""
 
 from pcp import pmapi
 from libc.stdlib cimport free, malloc
@@ -8,7 +8,7 @@ import cpmapi as c_pmapi
 import numpy
 from ctypes import c_uint
 
-from supremm.puffypcp cimport c_pcp
+from supremm.pcpcinterface cimport c_pcp
 cimport numpy
 
 # Memory pool

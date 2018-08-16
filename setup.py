@@ -36,7 +36,7 @@ setup(
     packages=find_packages(where='src'),
     package_data={
         'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
-        'supremm.puffypcp': ['*.pxd', '*.pyx'],
+        'supremm.pcpcinterface': ['*.pxd', '*.pyx'],
         'supremm.pypmlogextract': ['*.pxd', '*.pyx']
     },
     data_files=[
@@ -72,7 +72,7 @@ setup(
         'pymongo'
     ],
     ext_modules=cythonize([
-        Extension("supremm.puffypcp.puffypcp", ["src/supremm/puffypcp/puffypcp.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
+        Extension("supremm.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
         Extension("supremm.pypmlogextract.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
     ])
 )
