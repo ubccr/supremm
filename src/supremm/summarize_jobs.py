@@ -121,7 +121,13 @@ def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, p
         jobs = get_jobs(opts, dbif)
 
         it = iter_jobs(jobs, config, resconf, plugins, preprocs, opts)
-        for job, result, summarize_time in pool.imap_unordered(do_summarize, it):
+        pool_iter = pool.imap_unordered(do_summarize, it)
+        while True:
+            try:
+                job, result, summarize_time = pool_iter.next(timeout=600)
+            except StopIteration:
+                break
+
             if result is not None:
                 process_summary(m, dbif, opts, job, summarize_time, result)
                 clean_jobdir(opts, job)
