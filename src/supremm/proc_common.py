@@ -56,6 +56,7 @@ def usage(has_mpi):
     print "                        This directory will be emptied before used and no"
     print "                        subdirectories will be created. This option is ignored "
     print "                        if multiple jobs are to be processed."
+    print "     --fail-fast        Don't suppress and log unknown exceptions during processing. Mainly used for testing."
     print "  -n --dry-run          process jobs but do not write to database."
     print "  -h --help             display this help message and exit."
 
@@ -92,7 +93,8 @@ def getoptions(has_mpi):
         "dump_proclist": False,
         "force_timeout": 2 * 24 * 3600,
         "resource": None,
-        "dry_run": False
+        "dry_run": False,
+        "fail_fast": False
     }
 
     opts, _ = getopt(sys.argv[1:], "ABONCbP:M:j:r:t:dqs:e:LT:t:D:Eo:hn",
@@ -123,7 +125,8 @@ def getoptions(has_mpi):
                       "use-lib-extract",
                       "output=",
                       "help",
-                      "dry-run"])
+                      "dry-run",
+                      "fail-fast"])
 
     for opt in opts:
         if opt[0] in ("-j", "--localjobid"):
@@ -180,6 +183,8 @@ def getoptions(has_mpi):
             joboutdir = opt[1]
         if opt[0] in ("-n", "--dry-run"):
             retdata["dry_run"] = True
+        if opt[0] == "--fail-fast":
+            retdata["fail_fast"] = True
         if opt[0] in ("-h", "--help"):
             usage(has_mpi)
             sys.exit(0)
@@ -303,7 +308,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
 
     preprocessors = [x(job) for x in preprocs]
     analytics = [x(job) for x in plugins]
-    s = Summarize(preprocessors, analytics, job, conf)
+    s = Summarize(preprocessors, analytics, job, conf, opts["fail_fast"])
 
     enough_nodes = False
 

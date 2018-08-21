@@ -51,6 +51,8 @@ def process_summary(m, dbif, opts, job, summarize_time, result):
             dbif.markasdone(job, success, process_time, summarize_error)
     except Exception as e:
         logging.error("Failure processing summary for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+        if opts["fail_fast"]:
+            raise
 
 
 def processjobs(config, opts, process_pool=None):
@@ -96,12 +98,16 @@ def process_resource(resconf, preprocs, plugins, config, opts):
                     continue  # Extract-only mode
                 s, mdata, success, s_err = res
                 summarize_time = time.time() - summarize_start
+                summary_dict = s.get()
             except Exception as e:
                 logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
                 clean_jobdir(opts, job)
-                continue
+                if opts["fail_fast"]:
+                    raise
+                else:
+                    continue
 
-            process_summary(m, dbif, opts, job, summarize_time, (s.get(), mdata, success, s_err))
+            process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))
             clean_jobdir(opts, job)
 
 
@@ -115,7 +121,13 @@ def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, p
         jobs = get_jobs(opts, dbif)
 
         it = iter_jobs(jobs, config, resconf, plugins, preprocs, opts)
-        for job, result, summarize_time in pool.imap_unordered(do_summarize, it):
+        pool_iter = pool.imap_unordered(do_summarize, it)
+        while True:
+            try:
+                job, result, summarize_time = pool_iter.next(timeout=600)
+            except StopIteration:
+                break
+
             if result is not None:
                 process_summary(m, dbif, opts, job, summarize_time, result)
                 clean_jobdir(opts, job)
@@ -143,12 +155,15 @@ def do_summarize(args):
             return job, None, None  # Extract-only mode
         s, mdata, success, s_err = res
         summarize_time = time.time() - summarize_start
+        # Ensure Summarize.get() is called on worker process since it is cpu-intensive
+        summary_dict = s.get()
     except Exception as e:
         logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+        if opts["fail_fast"]:
+            raise
         return job, None, None
 
-    # Ensure Summarize.get() is called on worker process since it is cpu-intensive
-    return job, (s.get(), mdata, success, s_err), summarize_time
+    return job, (summary_dict, mdata, success, s_err), summarize_time
 
 
 def main():

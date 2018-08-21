@@ -1,4 +1,4 @@
-"""puffypcp is a direct interface to pcp c library"""
+""" pcpcinterface is a direct interface to pcp c library"""
 
 from pcp import pmapi
 from libc.stdlib cimport free, malloc
@@ -8,7 +8,7 @@ import cpmapi as c_pmapi
 import numpy
 from ctypes import c_uint
 
-from supremm.puffypcp cimport c_pcp
+from supremm.pcpcinterface cimport c_pcp
 cimport numpy
 
 # Memory pool
@@ -346,7 +346,8 @@ def extractpreprocValues(context, result, py_metric_id_array, mtypes):
     # Initialize description
     for i in xrange(mid_len):
         c_pcp.pmLookupDesc(metric_id_array[i], &metric_desc)
-        if 4294967295 == metric_desc.indom: # Missing indom - skip
+        if  metric_desc.indom == c_pcp.PM_INDOM_NULL: # Missing indom - skip
+            description.append({})
             continue
         status = c_pcp.pmGetInDom(metric_desc.indom, &ivals, &inames)
         if status <= 0:

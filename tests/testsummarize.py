@@ -20,6 +20,7 @@ class TestSummarizeJob(unittest.TestCase):
         }
 
         self.options = {
+                'fail_fast': False,
                 'dry_run': False,
                 'dodelete': True,
                 'extractonly': False,
