@@ -126,6 +126,9 @@ class DbArchiveCache(ArchiveCache):
             self.con.commit()
             self.buffered = 0
 
+    def insert_from_files(self, paths_file, joblevel_file, nodelevel_file):
+        raise NotImplementedError
+
     def postinsert(self):
         """
         Must be called after insert.

@@ -47,6 +47,10 @@ class ArchiveCache(object):
         pass
 
     @abstractmethod
+    def insert_from_files(self, paths_file, joblevel_file, nodelevel_file):
+        pass
+
+    @abstractmethod
     def postinsert(self):
         """ Must be called after insert.  """
         pass

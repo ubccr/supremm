@@ -69,7 +69,9 @@ setup(
         'pcp',
         'Cython',
         'scipy',
-        'pymongo'
+        'pymongo',
+        'pytz',
+        'tzlocal'
     ],
     ext_modules=cythonize([
         Extension("supremm.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),

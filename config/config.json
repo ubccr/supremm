@@ -39,7 +39,18 @@
             "batch_system": "XDMoD",
             "hostname_mode": "hostname",
             "pcp_log_dir": "/data/pcp-logs/my_cluster_name",
-            "script_dir": "/data/jobscripts/my_cluster_name"
+            "script_dir": "/data/jobscripts/my_cluster_name",
+
+            // fast_index uses an alternative method of indexing job-level pcp archives which can significantly speed
+            // up the indexarchives.py script. The tradeoff is that the indexed archive end time is not found and the
+            // start time is slightly less accurate. For normal summarization usage this doesn't matter, but set this
+            // to false if you need that data for other purposes.
+            "fast_index": true
+
+            // When using fast_index mode, if the timezone of the resource where the pcp logs were collected is
+            // different than the timezone of the computer running the indexing, the timezone of the resource
+            // must be specified here.
+            //,"timezone": "America/New_York"
         }
     }
 }
