@@ -10,6 +10,7 @@ my $fullhost = hostname();
 
 # PCP End of job logging
 
-system("env PMLOGGER_EPILOG=yes pmlogger -c /etc/pcp/pmlogger/pmlogger-supremm.config -s 1 -l /tmp/job-$jobid-end-$jobdatelong.log /var/log/pcp/pmlogger/$fullhost/job-$jobid-end-$jobdatelong &> /dev/null");
+my $logdir = "/path-to-pcp-logs/$fullhost/$logyear/$logmonth/$logday";
+system("env PMLOGGER_EPILOG=yes pmlogger -U pcp -c /etc/pcp/pmlogger/pmlogger-supremm.config -s 1 -l /tmp/job-$jobid-end-$jobdatelong.log $logdir/job-$jobid-end-$jobdatelong &> /dev/null");
 
 exit(0);
