@@ -124,7 +124,7 @@ def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, p
         pool_iter = pool.imap_unordered(do_summarize, it)
         while True:
             try:
-                job, result, summarize_time = pool_iter.next(timeout=600)
+                job, result, summarize_time = pool_iter.next(timeout=600000)
             except StopIteration:
                 break
 

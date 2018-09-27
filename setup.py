@@ -23,7 +23,7 @@ else:
 
 setup(
     name='supremm',
-    version='1.0.4',
+    version='1.1.0',
     description='SUPReMM Job Summarization Utilities',
     long_description='Utilities for generating job-level summary data from host level PCP archives.\nAlso includes template configuration files for running PCP on an HPC system.',
     license='LGPLv3',
@@ -35,17 +35,14 @@ setup(
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     package_data={
-        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
+        'supremm': ['migrations/1.0-1.1/modw_supremm.sql', 'assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
         'supremm.pcpcinterface': ['*.pxd', '*.pyx'],
         'supremm.pypmlogextract': ['*.pxd', '*.pyx']
     },
     data_files=[
         (confpath,                         ['config/config.json']),
         ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
-        ('share/supremm/templates/pmlogger',    ['config/templates/pmlogger/control',    'config/templates/pmlogger/pmlogger-supremm.config']),
-        ('share/supremm/templates/pmie',        ['config/templates/pmie/control',        'config/templates/pmie/pmie-supremm.config',
-                                                 'config/templates/pmie/pcp-restart.sh', 'config/templates/pmie/procpmda_check.sh']),
-        ('share/supremm/templates/pmda-logger', ['config/templates/pmda-logger/logger.conf']),
+        ('share/supremm/templates/pmlogger',    ['config/templates/pmlogger/control',    'config/templates/pmlogger/pmlogger-supremm.config'])
     ],
     scripts=[
              'src/supremm/supremm_update'
@@ -59,6 +56,7 @@ setup(
             'account.py = supremm.account:runingest',
             'supremmconf.py = supremm.supremmconf:main',
             'supremm-setup = supremm.supremm_setup:main',
+            'supremm-upgrade = supremm.supremm_upgrade:main',
             'ingest_jobscripts.py = supremm.ingest_jobscripts:main'
 
         ]
