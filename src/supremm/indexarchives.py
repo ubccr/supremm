@@ -17,15 +17,14 @@ from supremm.scripthelpers import parsetime, setuplogger
 from supremm.account import DbArchiveCache
 from supremm.xdmodaccount import XDMoDArchiveCache
 
-import sys
 import os
 from datetime import datetime, timedelta
-from getopt import getopt
 import re
 from multiprocessing import Pool
 import functools
 import tempfile
 import csv
+import argparse
 
 
 def datetime_to_timestamp(dt):
@@ -129,9 +128,9 @@ class PcpArchiveFinder(object):
         mindate is the minimum datestamp of files that should be processed
     """
 
-    def __init__(self, mindate, maxdate):
-        self.mindate = mindate
-        self.maxdate = maxdate
+    def __init__(self, mindate, maxdate, all=False):
+        self.mindate = mindate if not all else None
+        self.maxdate = maxdate if not all else None
         if self.mindate != None:
             self.minmonth = datetime(year=mindate.year, month=mindate.month, day=1) - timedelta(days=1)
         else:
@@ -347,51 +346,49 @@ def usage():
 
 def getoptions():
     """ process comandline options """
+    parser = argparse.ArgumentParser()
 
-    retdata = {
-        "log": logging.INFO,
-        "resource": None,
-        "config": None,
-        "debugfile": None,
-        "mindate": datetime.now() - timedelta(days=DAY_DELTA),
-        "maxdate": datetime.now() - timedelta(minutes=10),
-        "keep_csv": False,
-        "num_threads": 1
-    }
-
-    opts, _ = getopt(
-        sys.argv[1:],
-        "r:c:m:M:D:adqht:k",
-        ["resource=", "config=", "mindate=", "maxdate=", "debugfile", "all", "debug", "quiet", "help", "threads=", "keep-csv"]
+    parser.add_argument(
+        "-r", "--resource", metavar="RES",
+        help="Process only archive files for the specified resource, if absent then all resources are processed"
     )
 
-    for opt in opts:
-        if opt[0] in ("-r", "--resource"):
-            retdata['resource'] = opt[1]
-        elif opt[0] in ("-d", "--debug"):
-            retdata['log'] = logging.DEBUG
-        elif opt[0] in ("-q", "--quiet"):
-            retdata['log'] = logging.ERROR
-        elif opt[0] in ("-c", "--config"):
-            retdata['config'] = opt[1]
-        elif opt[0] in ("-m", "--mindate"):
-            retdata['mindate'] = parsetime(opt[1])
-        elif opt[0] in ("-M", "--maxdate"):
-            retdata['maxdate'] = parsetime(opt[1])
-        elif opt[0] in ("-D", "--debugfile"):
-            retdata["debugfile"] = opt[1]
-        elif opt[0] in ("-a", "--all"):
-            retdata['mindate'] = None
-            retdata['maxdate'] = None
-        elif opt[0] in ("-t", "--threads"):
-            retdata["num_threads"] = int(opt[1])
-        elif opt[0] in ("-k", "--keep-csv"):
-            retdata["keep_csv"] = True
-        elif opt[0] in ("-h", "--help"):
-            usage()
-            sys.exit(0)
+    parser.add_argument("-c", "--config", help="Specify the path to the configuration directory")
 
-    return retdata
+    parser.add_argument(
+        "-m", "--mindate", metavar="DATE", type=parsetime, default=datetime.now() - timedelta(days=DAY_DELTA),
+        help="Specify the minimum datestamp of archives to process (default {} days ago)".format(DAY_DELTA)
+    )
+
+    parser.add_argument(
+        "-M", "--maxdate", metavar="DATE", type=parsetime, default=datetime.now() - timedelta(minutes=10),
+        help="Specify the maximum datestamp of archives to process (default now())"
+    )
+
+    parser.add_argument("-a", "--all", action="store_true", help="Process all archives regardless of age")
+
+    parser.add_argument("-t", "--threads", dest="num_threads", metavar="NUM", type=int, default=1,
+                        help="Use the specified number of processes for parsing logs")
+
+    parser.add_argument("-k", "--keep-csv", dest="keep_csv", action="store_true",
+                        help="Don't delete temporary csv files when indexing is done, and log filenames at INFO level. Used for debugging purposes")
+
+    grp = parser.add_mutually_exclusive_group()
+    grp.add_argument("-d", "--debug", dest="log", action="store_const", const=logging.DEBUG, default=logging.INFO,
+                     help="Set log level to debug")
+    grp.add_argument("-q", "--quiet", dest="log", action="store_const", const=logging.ERROR,
+                     help="Only log errors")
+
+    parser.add_argument(
+        "-D", "--debugfile",
+        help="""
+        Specify the path to a log file. If this option is present the process will log a DEBUG level to this file.
+        This logging is independent of the console log.
+        """
+    )
+
+    args = parser.parse_args()
+    return vars(args)
 
 
 def runindexing():
@@ -399,7 +396,7 @@ def runindexing():
     opts = getoptions()
     keep_csv = opts["keep_csv"]
 
-    setuplogger(opts['log'], opts['debugfile'], logging.INFO)
+    setuplogger(opts['log'], opts['debugfile'], filelevel=logging.INFO)
 
     config = Config(opts['config'])
 
@@ -417,7 +414,7 @@ def runindexing():
                 continue
 
             acache = PcpArchiveProcessor(resource)
-            afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'])
+            afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
             if pool is not None:
                 index_resource_multiprocessing(config, resource, acache, afind, pool, keep_csv)
             else:
