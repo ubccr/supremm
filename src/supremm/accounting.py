@@ -9,11 +9,9 @@ class Accounting(object):
 
     PROCESS_VERSION = 1
 
-    def __init__(self, resource_id, config, nthreads, threadidx):
+    def __init__(self, resource_id, config):
         self._resource_id = resource_id
         self._config = config
-        self._nthreads = nthreads
-        self._threadidx = threadidx
 
     @abstractmethod
     def getbylocaljobid(self, localjobid):
@@ -46,6 +44,10 @@ class ArchiveCache(object):
     @abstractmethod
     def insert(self, resource_id, hostname, filename, start, end, jobid):
         """ insert a record into the cache """
+        pass
+
+    @abstractmethod
+    def insert_from_files(self, paths_file, joblevel_file, nodelevel_file):
         pass
 
     @abstractmethod

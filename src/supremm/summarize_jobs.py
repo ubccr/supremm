@@ -4,7 +4,11 @@
 """
 
 import logging
-from multiprocessing import Process
+import os
+import shutil
+import time
+import traceback
+import multiprocessing as mp
 from supremm.config import Config
 from supremm.account import DbAcct
 from supremm.xdmodaccount import XDMoDAcct
@@ -14,7 +18,44 @@ from supremm.proc_common import getoptions, summarizejob, override_defaults, fil
 from supremm.scripthelpers import setuplogger
 
 
-def processjobs(config, opts, procid):
+def get_jobs(opts, account):
+    """
+    Returns an iterable of Jobs from the appropriate method of Accounting,
+    as specified by the options
+    """
+    if opts['mode'] == "single":
+        return account.getbylocaljobid(opts['local_job_id'])
+    elif opts['mode'] == "timerange":
+        return account.getbytimerange(opts['start'], opts['end'], opts)
+    else:
+        return account.get(None, None)
+
+
+def clean_jobdir(opts, job):
+    if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
+        # Clean up
+        shutil.rmtree(job.jobdir)
+
+
+def process_summary(m, dbif, opts, job, summarize_time, result):
+    summary, mdata, success, summarize_error = result
+    try:
+        # TODO: change behavior so markasdone only happens if this is successful
+        outputter_start = time.time()
+        m.process(summary, mdata)
+        outputter_time = time.time() - outputter_start
+
+        if not opts['dry_run']:
+            # TODO: this attempts to emulate the old timing behavior. Keep it?
+            process_time = summarize_time + outputter_time
+            dbif.markasdone(job, success, process_time, summarize_error)
+    except Exception as e:
+        logging.error("Failure processing summary for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+        if opts["fail_fast"]:
+            raise
+
+
+def processjobs(config, opts, process_pool=None):
     """ main function that does the work. One run of this function per process """
 
     allpreprocs = loadpreprocessors()
@@ -35,23 +76,94 @@ def processjobs(config, opts, procid):
 
         logging.debug("Using %s preprocessors", len(preprocs))
         logging.debug("Using %s plugins", len(plugins))
+        if process_pool is not None:
+            process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, process_pool)
+        else:
+            process_resource(resconf, preprocs, plugins, config, opts)
 
-        with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
 
-            if resconf['batch_system'] == "XDMoD":
-                dbif = XDMoDAcct(resconf['resource_id'], config, opts['threads'], procid)
+def process_resource(resconf, preprocs, plugins, config, opts):
+    with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
+
+        if resconf['batch_system'] == "XDMoD":
+            dbif = XDMoDAcct(resconf['resource_id'], config)
+        else:
+            dbif = DbAcct(resconf['resource_id'], config)
+
+        for job in get_jobs(opts, dbif):
+            try:
+                summarize_start = time.time()
+                res = summarizejob(job, config, resconf, plugins, preprocs, opts)
+                if res is None:
+                    continue  # Extract-only mode
+                s, mdata, success, s_err = res
+                summarize_time = time.time() - summarize_start
+                summary_dict = s.get()
+            except Exception as e:
+                logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+                clean_jobdir(opts, job)
+                if opts["fail_fast"]:
+                    raise
+                else:
+                    continue
+
+            process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))
+            clean_jobdir(opts, job)
+
+
+def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, pool):
+    with outputter.factory(config, resconf, dry_run=opts['dry_run']) as m:
+        if resconf['batch_system'] == "XDMoD":
+            dbif = XDMoDAcct(resconf['resource_id'], config)
+        else:
+            dbif = DbAcct(resconf['resource_id'], config)
+
+        jobs = get_jobs(opts, dbif)
+
+        it = iter_jobs(jobs, config, resconf, plugins, preprocs, opts)
+        pool_iter = pool.imap_unordered(do_summarize, it)
+        while True:
+            try:
+                job, result, summarize_time = pool_iter.next(timeout=600000)
+            except StopIteration:
+                break
+
+            if result is not None:
+                process_summary(m, dbif, opts, job, summarize_time, result)
+                clean_jobdir(opts, job)
             else:
-                dbif = DbAcct(resconf['resource_id'], config, opts['threads'], procid)
+                clean_jobdir(opts, job)
 
-            if opts['mode'] == "single":
-                for job in dbif.getbylocaljobid(opts['local_job_id']):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
-            elif opts['mode'] == "timerange":
-                for job in dbif.getbytimerange(opts['start'], opts['end'], opts):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
-            else:
-                for job in dbif.get(None, None):
-                    summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+
+def iter_jobs(jobs, config, resconf, plugins, preprocs, opts):
+    """
+    Combines the db cursor job iterator with the other information needed to pass to summarizejob.
+    """
+    for job in jobs:
+        yield job, config, resconf, plugins, preprocs, opts
+
+
+def do_summarize(args):
+    """
+    used in a separate process
+    """
+    job, config, resconf, plugins, preprocs, opts = args
+    try:
+        summarize_start = time.time()
+        res = summarizejob(job, config, resconf, plugins, preprocs, opts)
+        if res is None:
+            return job, None, None  # Extract-only mode
+        s, mdata, success, s_err = res
+        summarize_time = time.time() - summarize_start
+        # Ensure Summarize.get() is called on worker process since it is cpu-intensive
+        summary_dict = s.get()
+    except Exception as e:
+        logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+        if opts["fail_fast"]:
+            raise
+        return job, None, None
+
+    return job, (summary_dict, mdata, success, s_err), summarize_time
 
 
 def main():
@@ -66,18 +178,13 @@ def main():
 
     threads = opts['threads']
 
-    if threads <= 1:
-        processjobs(config, opts, None)
-        return
-    else:
-        proclist = []
-        for procid in xrange(threads):
-            p = Process(target=processjobs, args=(config, opts, procid))
-            p.start()
-            proclist.append(p)
+    process_pool = mp.Pool(threads) if threads > 1 else None
+    processjobs(config, opts, process_pool)
 
-        for proc in proclist:
-            proc.join()
+    if process_pool is not None:
+        # wait for all processes to finish
+        process_pool.close()
+        process_pool.join()
 
 
 if __name__ == "__main__":

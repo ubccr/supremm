@@ -68,6 +68,8 @@ cdef extern from "pcp/pmapi.h":
         float f
         double d
 
+    pmInDom PM_INDOM_NULL
+
     int pmLookupName(int, char **, pmID *)
     int pmLookupDesc(pmID, pmDesc *)
     int pmLookupInDom(pmInDom, const char *)

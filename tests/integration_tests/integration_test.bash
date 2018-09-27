@@ -3,7 +3,7 @@
 set -euxo pipefail
 
 indexarchives.py -da
-summarize_jobs.py -d -r 2 -j 972366
+summarize_jobs.py -d -r 2 -j 972366 --fail-fast
 aggregate_supremm.sh
 
 count=$(mysql -ss -u root <<EOF
@@ -13,3 +13,5 @@ EOF
 )
 
 [[ $count -eq 1 ]]
+
+pytest tests/integration_tests/integration_plugin_api.py

@@ -11,7 +11,7 @@ import logging
 import traceback
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
-from supremm.puffypcp import puffypcp
+from supremm.pcpcinterface import pcpcinterface
 
 import numpy
 import copy
@@ -37,7 +37,7 @@ class Summarize(object):
     and managing the calls to the various analytics to process the data
     """
 
-    def __init__(self, preprocessors, analytics, job, config):
+    def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
 
         self.preprocs = preprocessors
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
@@ -46,6 +46,7 @@ class Summarize(object):
         self.job = job
         self.start = time.time()
         self.archives_processed = 0
+        self.fail_fast = fail_fast
 
         self.rangechange = RangeChange(config)
 
@@ -75,6 +76,8 @@ class Summarize(object):
             except Exception as exc:
                 success -= 1
                 self.adderror("archive", "{0}: Exception: {1}. {2}".format(archive, str(exc), traceback.format_exc()))
+                if self.fail_fast:
+                    raise
 
         return success == 0
 
@@ -148,7 +151,7 @@ class Summarize(object):
 
         def logerr(err):
             self.logerror(mdata.nodename, analytic.name, err)
-        data, description = puffypcp.extractValues(ctx, result, metric_id_array, mtypes, logerr)
+        data, description = pcpcinterface.extractValues(ctx, result, metric_id_array, mtypes, logerr)
 
         if data is None and description is None:
             return False
@@ -169,7 +172,7 @@ class Summarize(object):
     def runpreproccall(self, preproc, result, mtypes, ctx, mdata, metric_id_array):
         """ Call the pre-processor data processing function """
 
-        data, description = puffypcp.extractpreprocValues(ctx, result, metric_id_array, mtypes)
+        data, description = pcpcinterface.extractpreprocValues(ctx, result, metric_id_array, mtypes)
 
         if data is None and description is None:
             return False
@@ -182,7 +185,7 @@ class Summarize(object):
 
         preproc.hoststart(mdata.nodename)
 
-        metric_id_array, metricnames = puffypcp.getmetricstofetch(ctx, preproc)
+        metric_id_array, metricnames = pcpcinterface.getmetricstofetch(ctx, preproc)
 
         # Range correction is not performed for the pre-processors. They always
         # see the original data
@@ -193,7 +196,7 @@ class Summarize(object):
             preproc.hostend()
             return
 
-        mtypes = puffypcp.getmetrictypes(ctx, metric_id_array)
+        mtypes = pcpcinterface.getmetrictypes(ctx, metric_id_array)
 
         done = False
 
@@ -221,7 +224,7 @@ class Summarize(object):
         """ fetch the data from the archive, reformat as a python data structure
         and call the analytic process function """
 
-        metric_id_array, metricnames = puffypcp.getmetricstofetch(ctx, analytic)
+        metric_id_array, metricnames = pcpcinterface.getmetricstofetch(ctx, analytic)
 
         if len(metric_id_array) == 0:
             logging.debug("Skipping %s (%s)" % (type(analytic).__name__, analytic.name))
@@ -229,7 +232,7 @@ class Summarize(object):
 
         self.rangechange.set_fetched_metrics(metricnames)
 
-        mtypes = puffypcp.getmetrictypes(ctx, metric_id_array)
+        mtypes = pcpcinterface.getmetrictypes(ctx, metric_id_array)
 
         done = False
 
@@ -268,14 +271,14 @@ class Summarize(object):
         """ fetch the data from the archive, reformat as a python data structure
         and call the analytic process function """
 
-        metric_id_array, metricnames = puffypcp.getmetricstofetch(ctx, analytic)
+        metric_id_array, metricnames = pcpcinterface.getmetricstofetch(ctx, analytic)
 
         if len(metric_id_array) == 0:
             return
 
         self.rangechange.set_fetched_metrics(metricnames)
 
-        mtypes = puffypcp.getmetrictypes(ctx, metric_id_array)
+        mtypes = pcpcinterface.getmetrictypes(ctx, metric_id_array)
 
         try:
             result = ctx.pmFetch(metric_id_array)

@@ -3,6 +3,9 @@
     Main script for converting host-based pcp archives to job-level summaries.
 """
 # pylint: disable=import-error
+import os
+import shutil
+import traceback
 
 from mpi4py import MPI
 
@@ -45,7 +48,7 @@ def processjobs(config, opts, procid, comm):
         with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
 
             if resconf['batch_system'] == "XDMoD":
-                dbif = XDMoDAcct(resconf['resource_id'], config, None, None)
+                dbif = XDMoDAcct(resconf['resource_id'], config)
             else:
                 dbif = DbAcct(resconf['resource_id'], config)
 
@@ -138,7 +141,7 @@ def processjobs(config, opts, procid, comm):
                         logging.warning("MPI send/recv took %s/%s", mpisendtime, mpirecvtime)
                     if job != None:
                         logging.debug("Rank: %s, Starting: %s", procid, job.job_id)
-                        summarizejob(job, config, resconf, plugins, preprocs, m, dbif, opts)
+                        process_job(config, dbif, job, m, opts, plugins, preprocs, resconf)
                         logging.debug("Rank: %s, Finished: %s", procid, job.job_id)
                         sendtime = time.time()
                         comm.send(procid, dest=0, tag=1)
@@ -162,6 +165,28 @@ def processjobs(config, opts, procid, comm):
                     else:
                         # Got shutdown message
                         break
+
+
+def process_job(config, dbif, job, m, opts, plugins, preprocs, resconf):
+    try:
+        summarize_start = time.time()
+        summary, mdata, success, summarize_error = summarizejob(job, config, resconf, plugins, preprocs, opts)
+        summarize_time = time.time() - summarize_start
+
+        # TODO: change behavior so markasdone only happens if this is successful
+        m.process(summary, mdata)
+
+        if not opts['dry_run']:
+            dbif.markasdone(job, success, summarize_time, summarize_error)
+
+    except Exception as e:
+        logging.error("Failure for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+
+    finally:
+        if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
+            # Clean up
+            shutil.rmtree(job.jobdir)
+
 
 def main():
     """

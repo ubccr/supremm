@@ -27,8 +27,10 @@ open( STDERR, ">&STDOUT"   ); # Detach STDERR from shell
 chdir '/tmp';                 # Change working directory
 umask(0);                     # Reset umask
 
-# The prolog config runs every 10 seconds, starting at t==0, we exit after 4 samples
-my $cmd ="env PMLOGGER_PROLOG=yes pmlogger -c /etc/pcp/pmlogger/pmlogger-supremm.config -s 4 -l /tmp/job-$jobid-postbegin-$jobdatelong.log /var/log/pcp/pmlogger/$fullhost/job-$jobid-postbegin-$jobdatelong";
+my $logdir = "/path-to-pcp-logs/$fullhost/$logyear/$logmonth/$logday";
+
+# The prolog config runs every 10 seconds, we exit after 4 samples
+system("env PMLOGGER_PROLOG=yes pmlogger -U pcp -c /etc/pcp/pmlogger/pmlogger-supremm.config -s 4 -l /tmp/job-$jobid-begin-$jobdatelong.log $logdir/job-$jobid-begin-$jobdatelong &> /dev/null");
 
 exec( $cmd );
 
