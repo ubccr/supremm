@@ -123,10 +123,15 @@ class SlurmProc(PreProcessor):
 
         if self.cpusallowed is None:
             allcores = set()
-            for idx in cgroupedprocs:
-                allcores |= parsecpusallowed(data[0][idx][0])
-            if len(allcores) > 0:
-                self.cpusallowed = allcores
+            try:
+                for idx in cgroupedprocs:
+                    allcores |= parsecpusallowed(data[0][idx][0])
+                if len(allcores) > 0:
+                    self.cpusallowed = allcores
+            except ValueError:
+                # Empty cpuset info seen in the wild - should get populated at
+                # next timestep
+                pass
 
         for procname in containedprocs.itervalues():
             self.output['procDump']['constrained'][procname] += 1
