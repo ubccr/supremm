@@ -19,7 +19,7 @@ cp tests/integration_tests/pcp_logs_extracted/* /data/mortorq/pcp-logs/hostname/
 # Create files containing 'job scripts'
 jspath=/data/phillips/jobscripts/20170101
 mkdir $jspath
-for jobid in 197155 197182 197186 197199
+for jobid in 197155 197182 197186 197199 1234234[21] 123424[]
 do
     echo "Job script for job $jobid" > $jspath/$jobid.savescript
 done
