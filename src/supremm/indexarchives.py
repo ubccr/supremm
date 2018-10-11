@@ -35,6 +35,7 @@ JOB_ARCHIVE_RE = re.compile(
     "job-(\d+)-(?:begin|end)-(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})\.(?P<hour>\d{2})\.(?P<minute>\d{2})\.(?P<second>\d{2})"
 )
 
+JOB_ID_REGEX = re.compile(r"^(?:(\d+)(?:[_\[](\d+)?\]?)?).*$")
 
 class TimezoneAdjuster(object):
     def __init__(self, timezone_name, guess_early=True):
@@ -66,10 +67,13 @@ class PcpArchiveProcessor(object):
         jobid = None
         fname = os.path.basename(archivename)
         if fname.startswith("job-"):
-            try:
-                jobid = fname.split("-")[1]
-            except KeyError:
-                jobid = None
+            jobtokens = JOB_ID_REGEX.match(fname.split("-")[1])
+
+            if jobtokens:
+                if jobtokens.group(2):
+                    jobid = (int(jobtokens.group(1)), int(jobtokens.group(2)), -1)
+                else:
+                    jobid = (-1, -1, int(jobtokens.group(1)))
 
         return jobid
 
@@ -315,7 +319,7 @@ class LoadFileIndexUpdater(object):
     def insert(self, hostname, archive_path, start_timestamp, end_timestamp, jobid):
         self.paths_csv.writerow((archive_path,))
         if jobid is not None:
-            self.joblevel_csv.writerow((archive_path, hostname, jobid, int(math.floor(start_timestamp)), int(math.ceil(end_timestamp))))
+            self.joblevel_csv.writerow((archive_path, hostname, jobid[0], jobid[1], jobid[2], int(math.floor(start_timestamp)), int(math.ceil(end_timestamp))))
         else:
             self.nodelevel_csv.writerow((archive_path, hostname, int(math.floor(start_timestamp)), int(math.ceil(end_timestamp))))
 

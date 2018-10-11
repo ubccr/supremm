@@ -343,7 +343,7 @@ class XDMoDArchiveCache(ArchiveCache):
 
         if jobid != None:
             query = """INSERT INTO `modw_supremm`.`archives_joblevel`
-                            (archive_id, host_id, local_job_id_raw, start_time_ts, end_time_ts) 
+                            (archive_id, host_id, local_jobid, local_job_array_index, local_job_id_raw, start_time_ts, end_time_ts)
                        VALUES (
                             {0},
                             (SELECT id FROM modw.hosts WHERE hostname = %s),
@@ -354,7 +354,7 @@ class XDMoDArchiveCache(ArchiveCache):
                        ON DUPLICATE KEY UPDATE start_time_ts = VALUES(start_time_ts), end_time_ts = VALUES(end_time_ts)
                     """.format(filenamequery)
 
-            cur.execute(query, [filenameparam, hostname, jobid, start, end])
+            cur.execute(query, [filenameparam, hostname, jobid[0], jobid[1], jobid[2], start, end])
         else:
             query = """INSERT INTO `modw_supremm`.`archives_nodelevel`
                             (archive_id, host_id, start_time_ts, end_time_ts)
@@ -407,6 +407,8 @@ class XDMoDArchiveCache(ArchiveCache):
         CREATE TEMPORARY TABLE `modw_supremm`.`joblevel_load` (
         `arch_path` VARCHAR(255) NOT NULL,
         `host_name` VARCHAR(255) NOT NULL,
+        `local_jobid` int(11) NOT NULL,
+        `local_job_array_index` int(11) NOT NULL,
         `local_job_id_raw` int(11) NOT NULL,
         `start_time_ts` int(11) NOT NULL,
         `end_time_ts` int(11) NOT NULL) COLLATE=utf8_unicode_ci;
@@ -417,14 +419,14 @@ class XDMoDArchiveCache(ArchiveCache):
         LOAD DATA LOCAL INFILE '{}' REPLACE INTO TABLE `modw_supremm`.`joblevel_load`
         FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\\''
         LINES TERMINATED BY '\n'
-        (arch_path, host_name, local_job_id_raw, start_time_ts, end_time_ts)
+        (arch_path, host_name, local_jobid, local_job_array_index, local_job_id_raw, start_time_ts, end_time_ts)
         """.format(joblevel_file)
         cur.execute(joblevel_load)
 
         joblevel_query = """
         INSERT INTO `modw_supremm`.`archives_joblevel`
-        (archive_id, host_id, local_job_id_raw, start_time_ts, end_time_ts)
-        SELECT p.id, h.id, jl.local_job_id_raw, jl.start_time_ts, jl.end_time_ts
+        (archive_id, host_id, local_jobid, local_job_array_index, local_job_id_raw, start_time_ts, end_time_ts)
+        SELECT p.id, h.id, jl.local_jobid, jl.local_job_array_index, jl.local_job_id_raw, jl.start_time_ts, jl.end_time_ts
         FROM `modw_supremm`.`joblevel_load` jl, `modw`.`hosts` h, `modw_supremm`.`archive_paths` p
         WHERE h.hostname = jl.host_name AND p.filename = jl.arch_path
         ON DUPLICATE KEY UPDATE start_time_ts = VALUES(start_time_ts), end_time_ts = VALUES(end_time_ts)
