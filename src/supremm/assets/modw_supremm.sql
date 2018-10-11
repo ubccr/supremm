@@ -48,6 +48,8 @@ DROP TABLE IF EXISTS `archives_joblevel`;
 CREATE TABLE `archives_joblevel` (
       `archive_id` int(11) NOT NULL,
       `host_id` int(11) NOT NULL,
+      `local_jobid` int(11) NOT NULL DEFAULT '-1',
+      `local_job_array_index` int(11) NOT NULL DEFAULT '-1',
       `local_job_id_raw` int(11) NOT NULL,
       `start_time_ts` int(11) NOT NULL,
       `end_time_ts` int(11) NOT NULL,
