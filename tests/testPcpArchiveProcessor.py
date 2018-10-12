@@ -9,6 +9,27 @@ class TestPcpArchiveProcessor(unittest.TestCase):
         """ setUp """
         self.inst = PcpArchiveProcessor({'hostname_mode': 'hostname'})
 
+    def test_archivestringmatching(self):
+        """ test timestamp parsing """
+
+        testCases = {
+            'jo.log.ex.e-end-20180614.09.48.29.index': None,
+            'job-2671016.index': None,
+            'job-2679009[431].index': None,
+            'job-123423-end-20181004.04.05.41.index': 1538625941.0,
+            'job-123423-begin-20181004.04.05.41.index': 1538625941.0,
+            'job-123423-postbegin-20181004.04.05.41.index': 1538625941.0,
+            'job-123423[234]-end-20181004.04.05.41.index': 1538625941.0,
+            'job-123423[]-end-20181004.04.05.41.index': 1538625941.0,
+            'job-123423[234].server.net-end-20181004.04.05.41.index': 1538625941.0,
+            'job-123423[234].server.net-postbegin-20181004.04.05.41.index': 1538625941.0,
+            'job-123423[234].server.net-begin-20181004.04.05.41.index': 1538625941.0,
+            'job-123423.server.net-end-20181004.04.05.41.index': 1538625941.0
+        }
+
+        for archiveName, expected in testCases.iteritems():
+            assert self.inst.get_archive_data_fast('/some/path/to/data/' + archiveName) == expected
+
     def test_jobidparser(self):
         """ test jobid parsing """
 

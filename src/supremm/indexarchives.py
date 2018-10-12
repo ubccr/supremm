@@ -32,7 +32,7 @@ def datetime_to_timestamp(dt):
 
 
 JOB_ARCHIVE_RE = re.compile(
-    "job-(\d+)-(?:begin|end)-(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})\.(?P<hour>\d{2})\.(?P<minute>\d{2})\.(?P<second>\d{2})"
+    r"job-([^-]+)-(?:[a-z]+)-(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2})\.(?P<hour>\d{2})\.(?P<minute>\d{2})\.(?P<second>\d{2})"
 )
 
 JOB_ID_REGEX = re.compile(r"^(?:(\d+)(?:[_\[](\d+)?\]?)?).*$")
