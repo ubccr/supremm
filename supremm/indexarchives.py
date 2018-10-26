@@ -19,6 +19,8 @@ from datetime import datetime, timedelta
 from getopt import getopt
 import re
 
+JOB_ID_REGEX = re.compile(r"^((\d+)(?:[_\[](\d+)?\]?)?).*")
+
 def archive_cache_factory(resconf, config):
     """ Return the implementation of the accounting class for the resource """
     atype = resconf['batch_system']
@@ -48,6 +50,9 @@ class PcpArchiveProcessor(object):
         if fname.startswith("job-"):
             try:
                 jobid = fname.split("-")[1]
+                matches = JOB_ID_REGEX.match(jobid)
+                if matches:
+                    return matches.group(1)
             except KeyError:
                 jobid = None
 
