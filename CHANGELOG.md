@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.5] - 2018-10-26
+
+### Fixed
+- Fix issue with the indexarchives script parsing PBS/Torque style job identifiers in PCP log filenames.
+  
 ## [1.0.4] - 2017-11-22
 
 ### Fixed
