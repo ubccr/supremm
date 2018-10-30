@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.1.0] - 2018-10-31
+
+### Added
+- Added support for XDMoD version 8.0.
+- Added `--dry-run` option to `summarize_jobs.py` script (used for testing purposes).
+- Added extra options to `summarize_jobs.py` to support more fine-grained selection of jobs to process
+- Added `supremm-upgrade` script to facilitate database migrations needed for a 1.0.5 to 1.1.0 upgrade.
+- Added multiprocessing support to `indexarchives.py`.
+- Added option to `indexarchives.py` to estimate the archive timestamp of job level archives from the filename. This dramatically improves
+ the performance on parallel filesystems that have large number of files per directory.
+- Added plugin that detects periodic patterns in timeseries data.
+- Added GPU usage timeseries plugin.
+- Added AMD Interlagos support to the plugins that use hardware performance counters.
+- Added effective CPU usage metrics to the CPU usage plugin. This generates CPU usage statistics for 
+  the subset of CPUs that had any usage during a job.
+- Added `summarize_mpi.py` script that uses MPI for process management. This can be used on an HPC cluster to summarize jobs in parallel across multiple compute nodes.
+- Added ability to preprocess counter metrics that have < 64 bit range to 64 bit range counters.
+- Added ability to call the dynamic library version of `pmlogextract`. This
+  mode of operation is intended to be used when running the summarization
+  software as an MPI job on a compute resource that does not allow python-based
+  MPI software to execute the `fork()` system call.
+
+### Changed
+- Updated PCP configuration templates.
+- Rewrote the main kernel of the summarization software in Cython. This improves the performance of the software.
+- Changed structure of the database tables that store PCP archive metadata. This improves the query performance.
+- Changed load balancing algorithm in multiprocessing mode to more evenly distribute work among processes.
+- Job summary documents now record the time when they were created.
+- Improved performance of the `SlurmProc` preprocessor.
+- Changed the process detection algorithm in `SlurmProc` to output processes in frequency order.
+
+### Fixed
+- Improved error handling for invalid data in PCP archives in several plugins (#172, #164, #135)
+- `indexarchives.py` script no longer exits if an unreadable file or directory is seen.
+- Job script parser now handles parsing PBS/Torque job array elements.
+- Improved error handling in `summarize_jobs.py` if the connection to the mysql server closes during processing.
+
+### Misc
+- Centos 6 and python 2.6 are no longer supported.
+
 ## [1.0.5] - 2018-10-26
 
 ### Fixed
