@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.0] (2) - 2018-12-07
+
+### Fixed
+- Fix dependency list for the RPM build.
+
 ## [1.1.0] - 2018-10-31
 
 ### Added
