@@ -174,7 +174,7 @@ def process_job(config, dbif, job, m, opts, plugins, preprocs, resconf):
         summarize_time = time.time() - summarize_start
 
         # TODO: change behavior so markasdone only happens if this is successful
-        m.process(summary, mdata)
+        m.process(summary.get(), mdata)
 
         if not opts['dry_run']:
             dbif.markasdone(job, success, summarize_time, summarize_error)
