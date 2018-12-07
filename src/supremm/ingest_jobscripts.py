@@ -46,8 +46,7 @@ class DbHelper(object):
                             `modw`.`job_tasks`
                         WHERE
                             resource_id = %s 
-                            AND local_job_id_raw = %s
-                            AND DATE(FROM_UNIXTIME(start_time_ts)) = %s"""
+                            AND local_job_id_raw = %s"""
 
         self.buffered = 0
 
@@ -56,7 +55,7 @@ class DbHelper(object):
         cur = self.con.cursor()
 
         if self.xdmod_schema_version == 8:
-            qdata = [data['script'], data['resource_id'], data['local_job_id_raw'], data['start_date']]
+            qdata = [data['script'], data['resource_id'], data['local_job_id_raw']]
         else:
             qdata = [data['resource_id'], data['local_job_id_raw'], data['script']]
 
