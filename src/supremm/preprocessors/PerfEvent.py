@@ -28,7 +28,7 @@ class PerfEvent(PreProcessor):
         if self.perfactive == False:
             return False
 
-        if len(data) == 1 and data[0][:, 0].size > 0:
+        if len(data) == 1 and data[0].shape == (1, 1) and data[0][:, 0].size > 0:
             self.perfactive = data[0][0, 0] != 0
             return self.perfactive
 

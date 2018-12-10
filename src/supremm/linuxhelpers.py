@@ -17,10 +17,10 @@ def parsecpusallowed(cpusallowed):
             try:
                 cpurange = [int(x) for x in item.split("-")]
                 if len(cpurange) != 2:
-                    raise Exception("Unable to parse cpusallowed \"" + cpusallowed + "\"")
+                    raise ValueError("Unable to parse cpusallowed \"" + cpusallowed + "\"")
                 cpulist |= set(range(cpurange[0], cpurange[1] + 1))
             except ValueError as e:
-                raise Exception("Unable to parse cpusallowed \"" + cpusallowed + "\"")
+                raise ValueError("Unable to parse cpusallowed \"" + cpusallowed + "\"")
 
     return cpulist
 
