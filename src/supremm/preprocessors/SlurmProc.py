@@ -102,7 +102,7 @@ class SlurmProc(PreProcessor):
                 self.logerror("missing process name for pid {0}".format(pid))
                 continue
 
-            s = description[1][pid]
+            s = unicode(description[1][pid], errors='replace')
             command = s[s.find(" ") + 1:]
 
             if self.expectedcgroup in data[2][idx][0]:
