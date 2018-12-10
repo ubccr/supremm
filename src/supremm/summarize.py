@@ -215,7 +215,14 @@ class Summarize(object):
                 if exp.args[0] == c_pmapi.PM_ERR_EOL:
                     done = True
                 else:
+                    preproc.status = "failure"
+                    preproc.hostend()
                     raise exp
+            except Exception as exp:
+                preproc.status = "failure"
+                preproc.hostend()
+                raise exp
+
 
         preproc.status = "complete"
         preproc.hostend()
