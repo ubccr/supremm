@@ -34,9 +34,9 @@ class DbHelper(object):
             pass
 
         if self.xdmod_schema_version == 7:
-            self.query = "INSERT IGNORE INTO " + self.tablename + " (resource_id,local_job_id,script) VALUES(%s,%s,%s)"
+            self.query = "INSERT INTO " + self.tablename + " (resource_id,local_job_id,script) VALUES(%s,%s,%s) ON DUPLICATE KEY UPDATE script = VALUES(script)"
         else:
-            self.query = "INSERT IGNORE INTO " + self.tablename + """ (tg_job_id, resource_id, start_date, script)
+            self.query = "INSERT INTO " + self.tablename + """ (tg_job_id, resource_id, start_date, script)
                         SELECT 
                             job_id AS tg_job_id,
                             resource_id,
@@ -46,7 +46,8 @@ class DbHelper(object):
                             `modw`.`job_tasks`
                         WHERE
                             resource_id = %s 
-                            AND local_job_id_raw = %s"""
+                            AND local_job_id_raw = %s
+                        ON DUPLICATE KEY UPDATE script = script"""
 
         self.buffered = 0
 
