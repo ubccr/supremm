@@ -5,12 +5,7 @@ from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
 from supremm.errors import ProcessingError
 import numpy
-
-from sys import version as python_version
-if python_version.startswith("2.6"):
-    from backport_collections import Counter
-else:
-    from collections import Counter
+from collections import Counter
 
 SNB_METRICS = ["perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_RD.value",
                "perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_WR.value",
