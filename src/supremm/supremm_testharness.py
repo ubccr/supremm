@@ -1,12 +1,9 @@
 #!/usr/bin/env python
+""" Summarization software test harness
 
-from supremm.summarize import Summarize
-from supremm.plugin import loadplugins, loadpreprocessors
-from supremm.config import Config
-from supremm.proc_common import filter_plugins
-
-from pcp import pmapi
-import cpmapi as c_pmapi
+    This test harness provides a convienient way to test individual plugins and
+    preprocessors.
+"""
 
 import json
 from getopt import getopt
@@ -16,6 +13,14 @@ import logging
 import datetime
 import math
 
+from pcp import pmapi
+import cpmapi as c_pmapi
+
+from supremm.summarize import Summarize
+from supremm.plugin import loadplugins, loadpreprocessors
+from supremm.config import Config
+from supremm.proc_common import filter_plugins
+
 def usage():
     """ print usage """
     print "usage: {0} /full/path/to/pcp/archive"
@@ -23,20 +28,21 @@ def usage():
 def getoptions():
     """ process comandline options """
 
-    opts, args = getopt(sys.argv[1:], "dqhi:e:c:",
-                     ["debug",
-                      "quiet",
-                      "help",
-                      "plugin-include",
-                      "plugin-exclude",
-                      "config"])
+    opts, args = getopt(sys.argv[1:], "dqhi:e:c:", [
+        "debug",
+        "quiet",
+        "help",
+        "plugin-include",
+        "plugin-exclude",
+        "config"
+    ])
 
     retdata = {
-            "log": logging.INFO,
-            "plugin_whitelist": [],
-            "plugin_blacklist": [],
-            "config": None
-            }
+        "log": logging.INFO,
+        "plugin_whitelist": [],
+        "plugin_blacklist": [],
+        "config": None
+    }
 
     for opt, arg in opts:
         if opt in ("-d", "--debug"):
@@ -56,6 +62,7 @@ def getoptions():
     return (retdata, args)
 
 class MockJob(object):
+    """ Object that has the same external API as the Job object """
     def __init__(self, archivelist):
         self.node_archives = archivelist
         self.jobdir = os.path.dirname(archivelist[0])
@@ -63,9 +70,10 @@ class MockJob(object):
         self.end_str = "end"
         self.walltime = 9751
         self.nodecount = len(archivelist)
-        self.acct = {"end_time": 12312, "id": 1, "uid": "sdf", "user": "werqw"}
+        self.acct = {"end_time": 12312, "id": 1, "uid": "sdf", "user": "werqw", "partition": "test", "local_job_id": "1234"}
         self.nodes = ["node" + str(i) for i in xrange(len(archivelist))]
         self._data = {}
+        self._errors = []
 
         archive_starts = []
         archive_ends = []
@@ -80,7 +88,8 @@ class MockJob(object):
 
 
     def get_errors(self):
-        return []
+        """ return job errors """
+        return self._errors
 
     def data(self):
         """ return all job metadata """
@@ -97,7 +106,7 @@ class MockJob(object):
         return None
 
     def nodearchives(self):
-
+        """ generator for node archive information """
         i = 0
         for filename in self.node_archives:
             yield ("node" + str(i), i, filename)
@@ -115,15 +124,14 @@ def main():
     opts, args = getoptions()
 
     logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%dT%H:%M:%S', level=opts['log'])
-    if sys.version.startswith("2.7"):
-        logging.captureWarnings(True)
+    logging.captureWarnings(True)
 
     preprocs = loadpreprocessors()
     plugins = loadplugins()
 
-    if len(opts['plugin_whitelist']) > 0:
+    if opts['plugin_whitelist']:
         preprocs, plugins = filter_plugins({"plugin_whitelist": opts['plugin_whitelist']}, preprocs, plugins)
-    elif len(opts['plugin_blacklist']) > 0:
+    elif opts['plugin_blacklist']:
         preprocs, plugins = filter_plugins({"plugin_blacklist": opts['plugin_blacklist']}, preprocs, plugins)
 
     logging.debug("Loaded %s preprocessors", len(preprocs))
@@ -140,7 +148,7 @@ def main():
     s = Summarize(preprocessors, analytics, job, config)
     s.process()
     result = s.get()
-    print json.dumps(result, indent=4)
+    print json.dumps(result, indent=4, default=str)
 
 
 if __name__ == "__main__":
