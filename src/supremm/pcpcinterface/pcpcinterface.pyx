@@ -232,7 +232,11 @@ def extractValues(context, result, py_metric_id_array, mtypes, logerr):
 
     for i in xrange(numpmid):
         ninstances = res.vset[i].numval
-        if ninstances < 0:
+        if ninstances == c_pcp.PM_ERR_VALUE:
+            # Data missing at this timestep
+            PyBuffer_Release(&buf)
+            return True, True
+        elif ninstances < 0:
             logerr("pmError ({})".format(<bytes>c_pcp.pmErrStr(ninstances)))
             PyBuffer_Release(&buf)
             return None, None
