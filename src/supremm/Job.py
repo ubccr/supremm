@@ -1,13 +1,6 @@
 """ Container class for an HPC job """
-#pylint: disable=import-error
 import datetime
-
-from sys import version as python_version
-if python_version.startswith("2.6"):
-    from backport_collections import OrderedDict
-else:
-    from collections import OrderedDict
-
+from collections import OrderedDict
 
 def safe_strptime(time_string, fmt):
     """

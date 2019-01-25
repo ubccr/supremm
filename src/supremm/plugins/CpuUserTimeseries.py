@@ -5,12 +5,7 @@ from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
 from supremm.errors import ProcessingError
 import numpy
-
-from sys import version as python_version
-if python_version.startswith("2.6"):
-    from backport_collections import Counter
-else:
-    from collections import Counter
+from collections import Counter
 
 class CpuUserTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """
