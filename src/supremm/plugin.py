@@ -8,13 +8,7 @@ from supremm.errors import ProcessingError
 import os
 import numpy
 import pkgutil
-
-from sys import version as python_version
-if python_version.startswith("2.6"):
-    from backport_collections import Counter
-else:
-    from collections import Counter
-
+from collections import Counter
 
 def loadplugins(plugindir=None, namespace="plugins"):
     """ Load all of the modules from the plugins directory and instantiate the
