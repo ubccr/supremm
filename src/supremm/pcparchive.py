@@ -33,7 +33,12 @@ def get_datetime_from_timeval(tv):
 
 def adjust_job_start_end(job):
     """ Set the job node start and end times based on the presence of the special
-     job-X-begin and job-X-end archives. Do nothing if these archives are absent
+     job-X-begin and job-X-end archives. Do nothing if these archives are absent.
+     Note that the job start and end archives are keyed on the local_job_id, which
+     may not be globally unique. For example if a job gets requeued on the same
+     compute node with the same local_job_id. To exclude the job start/end archives
+     from other runs of the job, the adjustment is only performed if the 
+     start/end archives are within 30 seconds of the accounting times.
     """
 
     startarchive = "job-{0}-begin".format(job.job_id)
@@ -47,11 +52,17 @@ def adjust_job_start_end(job):
             if filename.startswith(startarchive):
                 context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
                 mdata = context.pmGetArchiveLabel()
-                begin = datetime.datetime.utcfromtimestamp(math.floor(mdata.start))
+                archive_begin = datetime.datetime.utcfromtimestamp(math.floor(mdata.start))
+                start_delta = archive_begin - job.start_datetime
+                if abs(start_delta.total_seconds()) <= 30:
+                    begin = archive_begin
 
             if filename.startswith(endarchive):
                 context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
-                end = datetime.datetime.utcfromtimestamp(math.ceil(context.pmGetArchiveEnd()))
+                archive_end = datetime.datetime.utcfromtimestamp(math.ceil(context.pmGetArchiveEnd()))
+                end_delta = archive_end - job.end_datetime
+                if abs(end_delta.total_seconds()) <= 30:
+                    end = archive_end
 
         job.setnodebeginend(nodename, begin, end)
 
