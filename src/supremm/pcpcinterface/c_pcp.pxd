@@ -15,6 +15,7 @@ cdef extern from "pcp/pmapi.h":
     int PM_ERR_INST_LOG  =  "PM_ERR_INST_LOG"
     int PM_ERR_NAME      =  "PM_ERR_NAME"
     int PM_ERR_SIGN      =  "PM_ERR_SIGN"
+    enum: PM_ERR_VALUE
 
     # pmDesc.type -- data type of metric values 
     int PM_TYPE_NOSUPPORT        = "PM_TYPE_NOSUPPORT"
