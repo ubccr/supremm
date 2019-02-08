@@ -48,21 +48,26 @@ def adjust_job_start_end(job):
         begin = None
         end = None
         for fname in filepaths:
-            filename = os.path.basename(fname)
-            if filename.startswith(startarchive):
-                context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
-                mdata = context.pmGetArchiveLabel()
-                archive_begin = datetime.datetime.utcfromtimestamp(math.floor(mdata.start))
-                start_delta = archive_begin - job.start_datetime
-                if abs(start_delta.total_seconds()) <= 30:
-                    begin = archive_begin
+            try:
+                filename = os.path.basename(fname)
+                if filename.startswith(startarchive):
+                    context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
+                    mdata = context.pmGetArchiveLabel()
+                    archive_begin = datetime.datetime.utcfromtimestamp(math.floor(mdata.start))
+                    start_delta = archive_begin - job.start_datetime
+                    if abs(start_delta.total_seconds()) <= 30:
+                        begin = archive_begin
 
-            if filename.startswith(endarchive):
-                context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
-                archive_end = datetime.datetime.utcfromtimestamp(math.ceil(context.pmGetArchiveEnd()))
-                end_delta = archive_end - job.end_datetime
-                if abs(end_delta.total_seconds()) <= 30:
-                    end = archive_end
+                if filename.startswith(endarchive):
+                    context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, fname)
+                    archive_end = datetime.datetime.utcfromtimestamp(math.ceil(context.pmGetArchiveEnd()))
+                    end_delta = archive_end - job.end_datetime
+                    if abs(end_delta.total_seconds()) <= 30:
+                        end = archive_end
+
+            except pmapi.pmErr as exp:
+                logging.warning('PCP archive %s', exp)
+                job.mark_bad_rawarchive(nodename, fname, str(exp))
 
         job.setnodebeginend(nodename, begin, end)
 

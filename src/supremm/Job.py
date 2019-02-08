@@ -43,6 +43,10 @@ class JobNode(object):
         """ accessor """
         return self._rawarchives
 
+    def remove(self, archive):
+        """ Remove an archive from the list """
+        self._rawarchives.remove(archive)
+
     def set_combinedarchive(self, archive):
         """ The combined archive is the one that contains all data for the job on this node """
         self._archive = archive
@@ -112,6 +116,13 @@ class Job(object):
         """
         for nodename, archivelist in node_ar_map.iteritems():
             self._nodes[nodename].set_rawarchives(archivelist)
+
+    def mark_bad_rawarchive(self, nodename, archive_path, reason):
+        """
+            Mark an archive as bad and remove it from the list of archives to process
+        """
+        self.record_error(reason)
+        self._nodes[nodename].remove(archive_path)
 
     def rawarchives(self):
         """ iterator for the raw archives for the nodes in the job """
