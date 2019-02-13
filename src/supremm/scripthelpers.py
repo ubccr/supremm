@@ -48,6 +48,8 @@ def getdbconnection(configsection, as_dict=False, defaultargs={}):
         if as_dict:
             dbargs['cursorclass'] = MySQLdb.cursors.DictCursor
 
+        dbargs['local_infile'] = 1
+
         return MySQLdb.connect(**dbargs)
     else:
         raise Exception("Unsupported database engine %s" % (dbengine))
