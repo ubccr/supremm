@@ -142,6 +142,8 @@ class PcpArchiveFinder(object):
         self.fregex = re.compile(
             r".*(\d{4})(\d{2})(\d{2})(?:\.(\d{2}).(\d{2})(?:[\.-](\d{2}))?)?\.index$")
         self.sregex = re.compile(r"^(\d{4})(\d{2})$")
+        self.yearregex = re.compile(r"^\d{4}$")
+        self.dateregex = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
     def subdirok(self, subdir):
         """ check the name of a subdirectory and return whether to
@@ -224,11 +226,62 @@ class PcpArchiveFinder(object):
         return dirents
 
     def find(self, topdir):
-        """  find all archive files in topdir """
+        """ main entry for the archive file finder. There are multiple different
+            directory structures supported. The particular directory stucture
+            is automatically detected based on the directory names. """
+
         if topdir == "":
             return
 
-        hosts = self.listdir(topdir)
+        dirs = self.listdir(topdir)
+
+        yeardirs = []
+        hostdirs = []
+        for dirpath in dirs:
+            if self.yearregex.match(dirpath):
+                yeardirs.append(dirpath)
+            else:
+                hostdirs.append(dirpath)
+
+        for archivefile, fast_index, hostname in self.parse_by_date(topdir, yeardirs):
+            yield archivefile, fast_index, hostname
+
+        for archivefile, fast_index, hostname in self.parse_by_host(topdir, hostdirs):
+            yield archivefile, fast_index, hostname
+
+    def parse_by_date(self, top_dir, year_dirs):
+        """ find all archives that are organised in a directory
+            structure like:
+                [top_dir]/[YYYY]/[MM]/[HOSTNAME]/[YYYY-MM-DD]
+        """
+
+        for year_dir in year_dirs:
+            year_dir_ok = self.ymdok(year_dir)
+            if year_dir_ok is True:
+                for month_dir in self.listdir(os.path.join(top_dir, year_dir)):
+                    if self.ymdok(year_dir, month_dir) is True:
+                        for host_dir in self.listdir(os.path.join(top_dir, year_dir, month_dir)):
+                            for date_dir in self.listdir(os.path.join(top_dir, year_dir, month_dir, host_dir)):
+                                date_match = self.dateregex.match(date_dir)
+                                if date_match and self.ymdok(date_match.group(1), date_match.group(2), date_match.group(3)):
+                                    dirpath = os.path.join(top_dir, year_dir, month_dir, host_dir, date_dir)
+                                    filenames = self.listdir(dirpath)
+                                    for filename in filenames:
+                                        if filename.endswith(".index") and self.filenameok(filename):
+                                            yield os.path.join(dirpath, filename), True, host_dir
+
+
+    def parse_by_host(self, topdir, hosts):
+        """ find all archive files that are organised in a directory
+            structure like:
+               [topdir]/[HOSTNAME]/[YYYY]/[MM]/[DD]/{archive files}
+
+            also support:
+               [topdir]/[HOSTNAME]/[YYYYMM]/{archive files}
+
+            and:
+               [topdir]/[HOSTNAME]/{archive files}
+        """
 
         starttime = time.time()
         hostcount = 0
@@ -283,11 +336,12 @@ class PcpArchiveFinder(object):
 
 
 class LoadFileIndexUpdater(object):
-    def __init__(self, config, resconf, keep_csv=False):
+    def __init__(self, config, resconf, keep_csv=False, dry_run=False):
         self.config = config
         self.resource_id = resconf["resource_id"]
         self.batch_system = resconf['batch_system']
         self.keep_csv = keep_csv
+        self.dry_run = dry_run
 
     def __enter__(self):
         if self.batch_system == "XDMoD":
@@ -311,7 +365,8 @@ class LoadFileIndexUpdater(object):
         self.paths_file.file.flush()
         self.joblevel_file.file.flush()
         self.nodelevel_file.file.flush()
-        self.dbac.insert_from_files(self.paths_file.name, self.joblevel_file.name, self.nodelevel_file.name)
+        if not self.dry_run:
+            self.dbac.insert_from_files(self.paths_file.name, self.joblevel_file.name, self.nodelevel_file.name)
         self.paths_file.close()
         self.joblevel_file.close()
         self.nodelevel_file.close()
@@ -325,28 +380,6 @@ class LoadFileIndexUpdater(object):
 
 
 DAY_DELTA = 3
-
-
-def usage():
-    """ print usage """
-    print "usage: {0} [OPTS]".format(os.path.basename(__file__))
-    print "  -r --resource=RES    process only archive files for the specified resource,"
-    print "                       if absent then all resources are processed"
-    print "  -c --config=PATH     specify the path to the configuration directory"
-    print "  -m --mindate=DATE    specify the minimum datestamp of archives to process"
-    print "                       (default", DAY_DELTA, "days ago)"
-    print "  -M --maxdate=DATE    specify the maximum datestamp of archives to process"
-    print "                       (default now())"
-    print "  -D --debugfile       specify the path to a log file. If this option is"
-    print "                       present then the process will log a DEBUG level to this"
-    print "                       file. This logging is independent of the console log."
-    print "  -t --threads=NUM     Use the specified number of processes for parsing logs."
-    print "  -k --keep-csv        Don't delete temporary csv files when indexing is done, and log filenames at INFO level. Used for debugging purposes"
-    print "  -a --all             process all archives regardless of age"
-    print "  -d --debug           set log level to debug"
-    print "  -q --quiet           only log errors"
-    print "  -h --help            print this help message"
-
 
 def getoptions():
     """ process comandline options """
@@ -391,6 +424,8 @@ def getoptions():
         """
     )
 
+    parser.add_argument("--dry-run", dest="dry_run", action="store_true", help="Process archives as normal but do not write results to the database.")
+
     args = parser.parse_args()
     return vars(args)
 
@@ -399,6 +434,7 @@ def runindexing():
     """ main script entry point """
     opts = getoptions()
     keep_csv = opts["keep_csv"]
+    dry_run = opts["dry_run"]
 
     setuplogger(opts['log'], opts['debugfile'], filelevel=logging.INFO)
 
@@ -420,10 +456,10 @@ def runindexing():
             acache = PcpArchiveProcessor(resource)
             afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
             if pool is not None:
-                index_resource_multiprocessing(config, resource, acache, afind, pool, keep_csv)
+                index_resource_multiprocessing(config, resource, acache, afind, pool, keep_csv, dry_run)
             else:
                 fast_index_allowed = bool(resource.get("fast_index", False))
-                with LoadFileIndexUpdater(config, resource, keep_csv) as index:
+                with LoadFileIndexUpdater(config, resource, keep_csv, dry_run) as index:
                     for archivefile, fast_index, hostname in afind.find(resource['pcp_log_dir']):
                         start_time = time.time()
                         data = acache.processarchive(archivefile, fast_index and fast_index_allowed, hostname)
@@ -446,11 +482,11 @@ def processarchive_worker(parser, fast_index_allowed, parser_args):
     return data, time.time() - parser_start, archive_file
 
 
-def index_resource_multiprocessing(config, resconf, acache, afind, pool, keep_csv):
+def index_resource_multiprocessing(config, resconf, acache, afind, pool, keep_csv, dry_run):
     fast_index_allowed = bool(resconf.get("fast_index", False))
 
     worker = functools.partial(processarchive_worker, acache, fast_index_allowed)
-    with LoadFileIndexUpdater(config, resconf, keep_csv) as index:
+    with LoadFileIndexUpdater(config, resconf, keep_csv, dry_run) as index:
         for data, parse_time, archive_file in pool.imap_unordered(worker, afind.find(resconf['pcp_log_dir'])):
             index_start = time.time()
             if data is not None:
