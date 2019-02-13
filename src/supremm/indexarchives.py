@@ -142,6 +142,8 @@ class PcpArchiveFinder(object):
         self.fregex = re.compile(
             r".*(\d{4})(\d{2})(\d{2})(?:\.(\d{2}).(\d{2})(?:[\.-](\d{2}))?)?\.index$")
         self.sregex = re.compile(r"^(\d{4})(\d{2})$")
+        self.yearregex = re.compile(r"^\d{4}$")
+        self.dateregex = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 
     def subdirok(self, subdir):
         """ check the name of a subdirectory and return whether to
@@ -224,11 +226,62 @@ class PcpArchiveFinder(object):
         return dirents
 
     def find(self, topdir):
-        """  find all archive files in topdir """
+        """ main entry for the archive file finder. There are multiple different
+            directory structures supported. The particular directory stucture
+            is automatically detected based on the directory names. """
+
         if topdir == "":
             return
 
-        hosts = self.listdir(topdir)
+        dirs = self.listdir(topdir)
+
+        yeardirs = []
+        hostdirs = []
+        for dirpath in dirs:
+            if self.yearregex.match(dirpath):
+                yeardirs.append(dirpath)
+            else:
+                hostdirs.append(dirpath)
+
+        for archivefile, fast_index, hostname in self.parse_by_date(topdir, yeardirs):
+            yield archivefile, fast_index, hostname
+
+        for archivefile, fast_index, hostname in self.parse_by_host(topdir, hostdirs):
+            yield archivefile, fast_index, hostname
+
+    def parse_by_date(self, top_dir, year_dirs):
+        """ find all archives that are organised in a directory
+            structure like:
+                [top_dir]/[YYYY]/[MM]/[HOSTNAME]/[YYYY-MM-DD]
+        """
+
+        for year_dir in year_dirs:
+            year_dir_ok = self.ymdok(year_dir)
+            if year_dir_ok is True:
+                for month_dir in self.listdir(os.path.join(top_dir, year_dir)):
+                    if self.ymdok(year_dir, month_dir) is True:
+                        for host_dir in self.listdir(os.path.join(top_dir, year_dir, month_dir)):
+                            for date_dir in self.listdir(os.path.join(top_dir, year_dir, month_dir, host_dir)):
+                                date_match = self.dateregex.match(date_dir)
+                                if date_match and self.ymdok(date_match.group(1), date_match.group(2), date_match.group(3)):
+                                    dirpath = os.path.join(top_dir, year_dir, month_dir, host_dir, date_dir)
+                                    filenames = self.listdir(dirpath)
+                                    for filename in filenames:
+                                        if filename.endswith(".index") and self.filenameok(filename):
+                                            yield os.path.join(dirpath, filename), True, host_dir
+
+
+    def parse_by_host(self, topdir, hosts):
+        """ find all archive files that are organised in a directory
+            structure like:
+               [topdir]/[HOSTNAME]/[YYYY]/[MM]/[DD]/{archive files}
+
+            also support:
+               [topdir]/[HOSTNAME]/[YYYYMM]/{archive files}
+
+            and:
+               [topdir]/[HOSTNAME]/{archive files}
+        """
 
         starttime = time.time()
         hostcount = 0
