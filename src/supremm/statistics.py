@@ -1,7 +1,33 @@
-import scipy.stats
+""" Various utilities for calculating statistics """
 import math
 import numpy
+import scipy.stats
 
+
+class Integrator(object):
+    """ Helper class to itegrate data """
+    def __init__(self, x):
+        self._x0 = x
+        self._total = numpy.zeros_like(x)
+        self._elapsed = 0.0
+
+    def add(self, x, y):
+        """ Add data to the accumulator """
+        delta_x = x - self._x0
+        self._x0 = x
+
+        self._total = y * delta_x + self._total
+        self._elapsed += delta_x
+
+    @property
+    def total(self):
+        """ get the total value """
+        return self._total
+
+    @property
+    def elapsed(self):
+        """ Sum of segments """
+        return self._elapsed
 
 def calculate_stats(v):
     res = {}
