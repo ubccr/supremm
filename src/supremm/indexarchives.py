@@ -238,6 +238,9 @@ class PcpArchiveFinder(object):
         yeardirs = []
         hostdirs = []
         for dirpath in dirs:
+            if dirpath == 'README':
+                continue
+
             if self.yearregex.match(dirpath):
                 yeardirs.append(dirpath)
             else:
