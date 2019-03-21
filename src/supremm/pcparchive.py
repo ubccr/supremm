@@ -169,13 +169,14 @@ def pmlogextract(job, conf, resconf, opts):
 
     # Create the directory the job logs will be stored in. If an error
     # occurs, log an error and stop.
-    try:
-        os.makedirs(jobdir)
-    except EnvironmentError as e:
-        logging.error("Job directory %s could not be created. Error: %s %s", jobdir, str(e), traceback.format_exc())
-        return 1
-    except OSError:
-        pass
+    if not os.path.exists(jobdir):
+        try:
+            os.makedirs(jobdir)
+        except EnvironmentError as e:
+            logging.error("Job directory %s could not be created. Error: %s %s", jobdir, str(e), traceback.format_exc())
+            return 1
+        except OSError:
+            pass
 
     job.setjobdir(jobdir)
 
