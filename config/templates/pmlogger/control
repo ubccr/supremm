@@ -36,7 +36,7 @@ $PMCD_REQUEST_TIMEOUT=120
 # (LOCALHOSTNAME is expanded to local: in the first column,
 # and to `hostname` in the fourth (directory) column.)
 #
-LOCALHOSTNAME	y   n	"PCP_LOG_DIR/pmlogger/LOCALHOSTNAME/$(date +%Y)/$(date +%m)/$(date +%d)"	-r -c /etc/pcp/pmlogger/pmlogger-supremm.config
+LOCALHOSTNAME	y   n	"PCP_LOG_DIR/pmlogger/$(date +%Y)/$(date +%m)/LOCALHOSTNAME/$(date +%Y)-$(date +%m)-$(date +%d)"	-r -c /etc/pcp/pmlogger/pmlogger-supremm.config
 
 # Note:	if multiple pmloggers for the same host (e.g. both primary and
 #	non-primary loggers are active), then they MUST use different

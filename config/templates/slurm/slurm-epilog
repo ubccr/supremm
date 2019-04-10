@@ -2,15 +2,22 @@
 
 use strict;
 use Sys::Hostname;
+use Date::Simple;
 use POSIX qw(strftime);
 
 my $jobid = $ENV{SLURM_JOB_ID};
+my $today = Date::Simple->new;
+
+my $logyear = $today->format("%Y");
+my $logmonth = $today->format("%m");
+my $logday = $today->format("%d");
+
 my $jobdatelong = strftime "%Y%m%d.%H.%M.%S", localtime;
 my $fullhost = hostname();
 
 # PCP End of job logging
 
-my $logdir = "/<GLOBAL_SHARED_SPACE>/supremm/pmlogger/$fullhost/$logyear/$logmonth/$logday";
+my $logdir = "/<GLOBAL_SHARED_SPACE>/supremm/pmlogger/$logyear/$logmonth/$fullhost/$logyear-$logmonth-$logday";
 system("env PMLOGGER_EPILOG=yes pmlogger -U pcp -c /etc/pcp/pmlogger/pmlogger-supremm.config -s 1 -l /tmp/job-$jobid-end-$jobdatelong.log $logdir/job-$jobid-end-$jobdatelong &> /dev/null");
 
 exit(0);

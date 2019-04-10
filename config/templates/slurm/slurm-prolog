@@ -2,7 +2,14 @@
 
 use strict;
 use Sys::Hostname;
+use Date::Simple;
 use POSIX qw(strftime setsid);
+
+my $today = Date::Simple->new;
+
+my $logyear = $today->format("%Y");
+my $logmonth = $today->format("%m");
+my $logday = $today->format("%d");
 
 my $jobdatelong = strftime "%Y%m%d.%H.%M.%S", localtime;
 my $host = ( split('\.', hostname()) )[0];
@@ -27,11 +34,9 @@ open( STDERR, ">&STDOUT"   ); # Detach STDERR from shell
 chdir '/tmp';                 # Change working directory
 umask(0);                     # Reset umask
 
-my $logdir = "/<GLOBAL_SHARED_SPACE>/supremm/pmlogger/$fullhost/$logyear/$logmonth/$logday";
+my $logdir = "/<GLOBAL_SHARED_SPACE>/supremm/pmlogger/$logyear/$logmonth/$fullhost/$logyear-$logmonth-$logday";
 
 # The prolog config runs every 10 seconds, we exit after 4 samples
 system("env PMLOGGER_PROLOG=yes pmlogger -U pcp -c /etc/pcp/pmlogger/pmlogger-supremm.config -s 4 -l /tmp/job-$jobid-begin-$jobdatelong.log $logdir/job-$jobid-begin-$jobdatelong &> /dev/null");
-
-exec( $cmd );
 
 exit(0)
