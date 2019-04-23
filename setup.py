@@ -23,7 +23,7 @@ else:
 
 setup(
     name='supremm',
-    version='1.1.0',
+    version='1.2.0',
     description='SUPReMM Job Summarization Utilities',
     long_description='Utilities for generating job-level summary data from host level PCP archives.\nAlso includes template configuration files for running PCP on an HPC system.',
     license='LGPLv3',
@@ -35,7 +35,7 @@ setup(
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     package_data={
-        'supremm': ['migrations/1.0-1.1/modw_supremm.sql', 'assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
+        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
         'supremm.pcpcinterface': ['*.pxd', '*.pyx'],
         'supremm.pypmlogextract': ['*.pxd', '*.pyx']
     },
