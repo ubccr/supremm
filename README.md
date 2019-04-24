@@ -25,8 +25,12 @@ For more information, questions, feedback or bug reports send email to
 Want to be notified about SUPReMM package releases and news? Subscribe to the
 [XDMoD mailing list][listserv].
 
-Software Build Requirements 
+Software Build Requirements
 ---------------------------
+
+This section provides instructions on how to create an RPM or source packages for
+software development or debugging. The instructions for installing the released
+packages are available on the [main website](https://supremm.xdmod.org/supremm-processing-install.html).
 
 ### Centos 7
 
@@ -37,7 +41,21 @@ page][pcpbintray]. Install the EPEL repository configuration:
 
 Install the build dependencies:
 
-    yum install rpm-build pcp-libs-devel gcc python-devel
+    yum install rpm-build \
+                gcc \
+                numpy \
+                scipy \
+                python-devel \
+                python2-pip \
+                python2-mock \
+                python-ctypes \
+                python-pymongo \
+                MySQL-python \
+                Cython \
+                python-pcp-3.12.2 \
+                pcp-libs-devel-3.12.2
+
+    pip install setuptools==36.4.0
 
 Installation
 ------------

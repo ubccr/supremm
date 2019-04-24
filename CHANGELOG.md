@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.2.0] - 2019-04-24
+
+### Added
+- Added GPU power plugin that summarizes the power usage for nvidia GPUs.
+- Added IPMI power plugin that summarizes the power usage from impi.
+- Added support for scanning the YYYY/MM/HOSTNAME/YYYY-MM-DD directory format for PCP archives.
+- Added `--dry-run` option to `indexarchives.py` script (used for testing purposes).
+
+### Changed
+- Removed deprecated code that supported python 2.6.
+- Updated templates to use the new recommended directory format.
+- Updated test harness to work with current plugins.
+- Database access code now sets the `local_infile` flag (needed for MySQL driver version 2.0.0 or later).
+
+### Fixed
+- Summarization script now only includes job start and end archives that are
+  within 30 seconds of the job start and end. This mitigates a bug caused if the
+  resource manager reuses the same job id for two different jobs.
+- The summarization software now skips corrupt PCP archives and will try to
+  continue processing the valid archives. Previously processing would stop.
+- If a PCP archive has data missing at a timestep the framework will skip the timestep and
+  continue processing the archive. Previously processing would stop.
+- The Slurm Proc preprocessor now filters non-unicode characters from command names.
+- Improvements to error handing in preprocessors and in the `perfevent` plugin.
+
+
 ## [1.1.0] (2) - 2018-12-07
 
 ### Fixed
