@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """ Script that reads hardware info from the archives 
-and outputs the data into a json file
+    and outputs the data into a json file
 """
 
 import argparse
@@ -8,7 +8,14 @@ from datetime import datetime, timedelta
 import logging
 import os
 import re
+from re import sub, search
 import time
+
+import json
+from collections import defaultdict
+
+from pcp import pmapi
+import cpmapi as c_pmapi
 
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
@@ -18,8 +25,32 @@ from supremm.xdmodaccount import XDMoDArchiveCache
 
 DAY_DELTA = 3
 
-# No changes (except deleting tz_adjuster)
-class PcpArchiveProcessor(object):
+STAGING_COLUMNS = [
+    'hostname',
+    'manufacturer',
+    'codename',
+    'model_name',
+    'clock_speed',
+    'core_count',
+    'board_manufacturer',
+    'board_name',
+    'board_version',
+    'system_manufacturer',
+    'system_name',
+    'system_version',
+    'physmem',
+    'disk_count',
+    'ib_device_count',
+    'ib_device',
+    'ib_ca_type',
+    'ib_ports',
+    'gpu_device_count',
+    'gpu_device_manufacturer',
+    'gpu_device_name',
+    'record_time'
+]
+
+class PcpArchiveHardwareProcessor(object):
     """ Parses a pcp archive and adds the archive information to the index """
 
     def __init__(self, resconf):
@@ -29,22 +60,79 @@ class PcpArchiveProcessor(object):
         # self.tz_adjuster = TimezoneAdjuster(resconf.get("timezone"))
 
     @staticmethod
-    def parsejobid(archivename):
-        """ Archives that are created at job start and end have the jobid encoded
-            in the filename.
+    def getDataFromArchive(archive, host_from_path=None):
+        """ Open the pcp archive and get hardware data
+            @return a dictionary containing the data,
+            or None if the processor encounters an error
         """
-        jobid = None
-        fname = os.path.basename(archivename)
-        if fname.startswith("job-"):
-            jobtokens = JOB_ID_REGEX.match(fname.split("-")[1])
+        try:
+            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+            mdata = context.pmGetArchiveLabel()
+            hostname = mdata.hostname.split('.')[0]
+            record_time_ts = float(mdata.start)
 
-            if jobtokens:
-                if jobtokens.group(2):
-                    jobid = (int(jobtokens.group(1)), int(jobtokens.group(2)), -1)
-                else:
-                    jobid = (-1, -1, int(jobtokens.group(1)))
+            pmfg = pmapi.fetchgroup(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+            ncpu = pmfg.extend_item("hinv.ncpu")
+            ndisk = pmfg.extend_item("hinv.ndisk")
+            physmem = pmfg.extend_item("hinv.physmem")
+            #manufacturer = pmfg.extend_item("hinv.cpu.vendor")
 
-        return jobid
+            ina = None
+            inb = None
+            inc = None
+            try:
+                ina = pmfg.extend_indom("infiniband.hca.type")
+                inb = pmfg.extend_indom("infiniband.hca.ca_type")
+                inc = pmfg.extend_indom("infiniband.hca.numports")
+            except pmapi.pmErr as exc:
+                pass
+
+            nvidia = None
+            try:
+                nvidia = pmfg.extend_indom("nvidia.cardname")
+            except pmapi.pmErr as exc:
+                pass
+
+            pmfg.fetch()
+
+            infini = defaultdict(list)
+            if ina:
+                for _, iname, value in ina():
+                    infini[iname].append(value())
+            if inb:
+                for _, iname, value in inb():
+                    infini[iname].append(value())
+            if inc:
+                for _, iname, value in inc():
+                    infini[iname].append(value())
+
+            data = {
+                'record_time_ts': record_time_ts,
+                'hostname': hostname,
+                'core_count': ncpu(),
+                'disk_count': ndisk(),
+                'physmem': physmem(),
+            }
+            if infini:
+                data['infiniband'] = dict(infini)
+            if nvidia:
+                data['gpu'] = {}
+                for _, iname, value in nvidia():
+                    data['gpu'][iname] = value()
+            
+            return data
+
+        except pmapi.pmErr as exc:
+            #pylint: disable=not-callable
+            err = {"archive": archive, "error": exc.message()}
+            print json.dumps(err) + ","
+            return None
+        
+
+    @staticmethod
+    def isJobArchive(archive):
+        fname = os.path.basename(archive)
+        return fname.startswith("job-")
 
 # No changes
 class PcpArchiveFinder(object):
@@ -257,12 +345,133 @@ class PcpArchiveFinder(object):
                          hostcount, len(hosts), currtime-lasttime, listdirtime, yieldtime, currtime - starttime,
                          datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
+class HardwareStagingTransformer(object):
+    """ Transforms the raw data from the archive into a list
+        representing rows in the hardware staging table
+    """
+
+    def __init__(self, archiveData, replacementFile='replacement_rules.json', outputFilename='hardware_staging.json'):
+        """ Run the transformation
+
+        Parameters:
+        list archiveData: the raw data from the archive
+        replacement: the path to the replacement dictionary
+        outputFilename: the name/path of the json output file
+        """
+        
+        self.result = [ STAGING_COLUMNS ]
+
+        try:
+            with open(replacementFile, 'r') as inFile:
+                self.replacementRules = json.load(inFile)
+        except IOError as e:
+            self.replacementRules = None
+
+        for hw_info in archiveData:
+
+            if 'infiniband' in hw_info:
+                for device in hw_info['infiniband']:
+                    hw_info['ib_device'] = device
+                    hw_info['ib_ca_type'] = hw_info['infiniband'][device][1]
+                    hw_info['ib_ports'] = hw_info['infiniband'][device][2]
+
+            if ('gpu' in hw_info) and ('gpu0' in hw_info['gpu']):
+                devices = list(hw_info['gpu'])
+                hw_info['gpu_device_count'] = len(devices)
+                hw_info['gpu_device_manufacturer'] = 'NA'
+                hw_info['gpu_device_name'] = hw_info['gpu']['gpu0']
+            elif 'gpu_device_count' not in hw_info:
+                hw_info['gpu_device_count'] = 0
+
+            self.result.append([
+                hw_info['hostname'],
+                HardwareStagingTransformer.get(hw_info.get('manufacturer')),
+                HardwareStagingTransformer.get(hw_info.get('codename')),
+                'NA', # processor_info (node_mapping)
+                'NA', # clock_speed
+                HardwareStagingTransformer.get(hw_info.get('core_count'), 'int'),
+                'NA',
+                'NA',
+                'NA',
+                HardwareStagingTransformer.get(hw_info.get('system_manufacturer')),
+                HardwareStagingTransformer.get(hw_info.get('system_name')),
+                'NA',
+                HardwareStagingTransformer.get(hw_info.get('physmem'), 'int'),
+                HardwareStagingTransformer.get(hw_info.get('disk_count'), 'int'),
+                1 if ('ib_device' in hw_info) else 0,
+                HardwareStagingTransformer.get(hw_info.get('ib_device')),
+                HardwareStagingTransformer.get(hw_info.get('ib_ca_type')),
+                HardwareStagingTransformer.get(hw_info.get('ib_ports'), 'int'),
+                hw_info['gpu_device_count'],
+                HardwareStagingTransformer.get(hw_info.get('gpu_device_manufacturer')),
+                HardwareStagingTransformer.get(hw_info.get('gpu_device_name')),
+                HardwareStagingTransformer.get(hw_info.get('record_time_ts'))
+            ])
+
+        if self.replacementRules != None:
+            self.doReplacement()
+
+        with open(outputFilename, "w") as outFile:
+            outFile.write(json.dumps(self.result, indent=4, separators=(',', ': ')))
+    
+    @classmethod
+    def get(self, value, typehint='str'):
+        if (value != None) and (value != ""):
+            return value
+        if typehint == 'str':
+            return 'NA'
+        else:
+            return -1
+    
+    def doReplacement(self):
+        print('doing replacement')
+
+        # Build a dictionary mapping column names to index
+        columnToIndex = {}
+        for i in range(len(self.result[0])):
+            columnToIndex[self.result[0][i]] = i
+
+        for row in self.result[1:]:
+            for rule in self.replacementRules:
+                # Check if conditions are true
+                conditionsMet = True
+                if 'conditions' in rule:
+                    for condition in rule['conditions']:
+                        assert 'column' in condition, 'Conditions must contain a "column" entry'
+                        value = row[columnToIndex[condition['column']]]
+                        reverse = ('reverse' in condition) and (condition['reverse']) # If 'reverse' is true, then the condition must be FALSE to replace
+                        # Case one: equality condition
+                        if 'equals' in condition:
+                            if (condition['equals'] != value) != reverse:
+                                conditionsMet = False
+                                break
+                        # Case two: contains condition
+                        else:
+                            assert 'contains' in condition, 'Conditions must contain either an "equals" or a "contains" property'
+                            if (search(condition['contains'], value) == None) != reverse:
+                                conditionsMet = False
+                                break
+                # Process replacements
+                if conditionsMet:
+                    assert 'replacements' in rule, "Rules must contain a 'replacements' entry"
+                    for replacement in rule['replacements']:
+                        assert 'column' in replacement, "Replacements must contain a 'column' entry"
+                        assert 'repl' in replacement, "Replacements must contain a 'repl' entry"
+                        index = columnToIndex[replacement['column']]
+                        # Case one: regex pattern replacement
+                        if 'pattern' in replacement:
+                            row[index] = sub(replacement['pattern'], replacement['repl'], row[index])
+                        # Case two: replace whole value
+                        else:
+                            row[index] = replacement['repl']
 
 def getoptions():
     """ process comandline options """
     parser = argparse.ArgumentParser()
 
     parser.add_argument("-c", "--config", help="Specify the path to the configuration directory")
+
+    parser.add_argument("-o", "--output", default="hardware_info.json", help="Specify the name and path of the output json file")
 
     parser.add_argument(
         "-m", "--mindate", metavar="DATE", type=parsetime, default=datetime.now() - timedelta(days=DAY_DELTA),
@@ -296,15 +505,44 @@ def getoptions():
 def getHardwareInfo():
     """Main entry point"""
     opts = getoptions()
-    print('MY_CONFIG = ' + os.path.abspath(opts['config']))
     config = Config(opts['config'])
+    outputFilename = opts['output']
+
+    ##########
+    if opts['config'] != None:
+        print('MY_CONFIG = ' + os.path.abspath(opts['config']))
+    ##########
+
+    data = []
 
     for resourcename, resource in config.resourceconfigs():
+
+        ##########
         print('LOG_DIR = ' + resource['pcp_log_dir'])
-        acache = PcpArchiveProcessor(resource)
+        print('MIN_DATE = ' + str(opts['mindate']))
+        ##########
+        count = 0
+
+        acache = PcpArchiveHardwareProcessor(resource)
         afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
-        for archivefile, fast_index, hostname in afind.find(resource['pcp_log_dir']):
-            print(archivefile)
+        for archive, fast_index, hostname in afind.find(resource['pcp_log_dir']):
+            if not PcpArchiveHardwareProcessor.isJobArchive(archive):
+                hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
+                if hw_info != None:
+                    data.append(hw_info)
+                ##########
+                if len(data) > 100:
+                    break
+                count += 1
+                if count % 1000 == 0:
+                    print('count = ' + str(count))
+                ##########
+
+    HardwareStagingTransformer(data)
+
+    with open(outputFilename, "w") as outFile:
+        outFile.write(json.dumps(data, indent=4, separators=(',', ': ')))
 
 if __name__ == "__main__":
     getHardwareInfo()
+    
