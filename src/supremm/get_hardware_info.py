@@ -110,6 +110,10 @@ class PcpArchiveHardwareProcessor(object):
                     "type": "indom",
                     "alias": "inc",
                 },
+                "network.interface.in.bytes": {
+                    "type": "indom",
+                    "alias": "ethernet",
+                },
                 "nvidia.cardname": {
                     "type": "indom",
                     "alias": "nvidia",
@@ -118,85 +122,72 @@ class PcpArchiveHardwareProcessor(object):
 
             # Extend objects maps metric aliases to PCP extend objects
             # Metrics map to None if the metric does not appear in the archive
-            extendObjects = {}
+            extObj = {}
             for metric in metrics:
                 try:
                     metricType = metrics[metric]["type"]
                     alias = metrics[metric]["alias"]
                     if metricType == "item":
-                        extendObjects[alias] = pmfg.extend_item(metric)
+                        extObj[alias] = pmfg.extend_item(metric)
                     elif metricType == "indom":
-                        extendObjects[alias] = pmfg.extend_indom(metric)
+                        extObj[alias] = pmfg.extend_indom(metric)
                 except pmapi.pmErr as exc:
-                    extendObjects[alias] = None
+                    # If the metric doesn't appear in the archive
+                    extObj[alias] = None
+                    fetchedData[alias] = None
                     ##########
                     if alias != "nvidia":
                         print("alias = %s, exc = %s" % (alias, str(exc)))
                     ##########
 
-            # While all of the metrics have been NOT been fetched yet
-            # while not ((metrics[metric["alias"]] in fetchedData) for all metric in metrics):
-                
-
-            """
-            ncpu = pmfg.extend_item("hinv.ncpu")
-            ndisk = pmfg.extend_item("hinv.ndisk")
-            physmem = pmfg.extend_item("hinv.physmem")
-            manufacturer = pmfg.extend_indom("hinv.cpu.vendor")
-            numa_mapping = pmfg.extend_indom("hinv.map.cpu_node")
-            #ethernet_devices = pmfg.extend_indom("network.interface.in.bytes")
-            """
-
-            # While all of the metrics have been NOT been fetched yet
-            while !((metrics[metric]["alias"] in fetchedData) for all metric in metrics):
+            # fetch data until all metrics have been retrieved
+            while not (all(metrics[metric]["alias"] in fetchedData for metric in metrics)):
                 try:
                     pmfg.fetch()
                 except pmapi.pmErr as exc:
                     if exc.message() == "End of PCP archive log":
                         # End of archive - fill in missing data with 'None'
-                currentData = {
-                    
-                }
-                    
+                        for metric in metrics:
+                            if metric not in fetchedData:
+                                fetchedData[metric] = None
+                        break
 
-
-            ethernet_count = 0
-            
-            """
-            for device in ethernet_devices():
-                dname = device[1]
-                print("DNAME = " + str(dname))
-                if dname != "lo":
-                    ethernet_count += 1
-                    print("including: " + dname)
-            """
+                for metric in metrics:
+                    metricType = metrics[metric]["type"]
+                    alias = metrics[metric]["alias"]
+                    if (metricType == "item") and (alias not in fetchedData):
+                        fetchedData[alias] = extObj[alias]()
+                    elif (metricType == "indom") and (alias not in fetchedData) and (len(extObj[alias]()) > 0):
+                        fetchedData[alias] = extObj[alias]()
 
             infini = defaultdict(list)
-            if extendObjects["ina"]:
-                for _, iname, value in extendObjects["ina"]():
+            if fetchedData["ina"]:
+                for _, iname, value in fetchedData["ina"]:
                     infini[iname].append(value())
-            if extendObjects["inb"]:
-                for _, iname, value in extendObjects["inb"]():
+            if fetchedData["inb"]:
+                for _, iname, value in fetchedData["inb"]:
                     infini[iname].append(value())
-            if extendObjects["inc"]:
-                for _, iname, value in extendObjects["inc"]():
+            if fetchedData["inc"]:
+                for _, iname, value in fetchedData["inc"]:
                     infini[iname].append(value())
 
             # Map the extend objects to the data to be collected
             data = {
                 'record_time_ts': record_time_ts,
                 'hostname': hostname,
-                'manufacturer': extendObjects["manufacturer"]()[0][2](),
-                'core_count': extendObjects["ncpu"](),
-                'disk_count': extendObjects["ndisk"](),
-                'physmem': extendObjects["physmem"](),
-                'numa_node_count': max([n[2]() for n in extendObjects["numa_mapping"]()]) + 1,
+                'core_count': fetchedData["ncpu"],
+                'disk_count': fetchedData["ndisk"],
+                'physmem': fetchedData["physmem"],
+                'manufacturer': fetchedData["manufacturer"][0][2](),
+                'numa_node_count': max([n[2]() for n in fetchedData["numa_mapping"]]) + 1,
+                'ethernet_count': len([device[1] for device in fetchedData["ethernet"] if device[1] != "lo"]) if fetchedData["ethernet"] else 0
             }
+            
             if infini:
                 data['infiniband'] = dict(infini)
-            if extendObjects["nvidia"]:
+            if fetchedData["nvidia"]:
                 data['gpu'] = {}
-                for _, iname, value in extendObjects["nvidia"]():
+                for _, iname, value in fetchedData["nvidia"]:
                     data['gpu'][iname] = value()
             
             return data
