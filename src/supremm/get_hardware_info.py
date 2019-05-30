@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """ Script that reads hardware info from the archives 
     and outputs the data into a json file
+
+    @author Max Dudek <maxdudek@gmail.com>
 """
 
 import argparse
@@ -19,9 +21,13 @@ import cpmapi as c_pmapi
 
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
-
+from supremm.indexarchives import PcpArchiveFinder
 from supremm.account import DbArchiveCache
 from supremm.xdmodaccount import XDMoDArchiveCache
+
+# Testing only
+import sys
+import traceback
 
 DAY_DELTA = 3
 
@@ -67,353 +73,158 @@ class PcpArchiveHardwareProcessor(object):
             @return a dictionary containing the data,
             or None if the processor encounters an error
         """
-        try:
-            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-            mdata = context.pmGetArchiveLabel()
-            hostname = mdata.hostname.split('.')[0]
-            record_time_ts = float(mdata.start)
+        context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+        mdata = context.pmGetArchiveLabel()
+        hostname = mdata.hostname.split('.')[0]
+        record_time_ts = float(mdata.start)
 
-            pmfg = pmapi.fetchgroup(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+        pmfg = pmapi.fetchgroup(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
 
-            fetchedData = {}
+        metrics = {
+            "hinv.ncpu": {
+                "type": "item",
+                "alias": "ncpu",
+            },
+            "hinv.ndisk": {
+                "type": "item",
+                "alias": "ndisk",
+            },
+            "hinv.physmem": {
+                "type": "item",
+                "alias": "physmem",
+            },
+            "hinv.cpu.vendor": {
+                "type": "indom",
+                "alias": "manufacturer",
+            },
+            "hinv.cpu.model_name": {
+                "type": "indom",
+                "alias": "model_name",
+            },
+            "hinv.map.cpu_node": {
+                "type": "indom",
+                "alias": "numa_mapping",
+            },
+            "infiniband.hca.type": {
+                "type": "indom",
+                "alias": "ina",
+            },
+            "infiniband.hca.ca_type": {
+                "type": "indom",
+                "alias": "inb",
+            },
+            "infiniband.hca.numports": {
+                "type": "indom",
+                "alias": "inc",
+            },
+            "network.interface.in.bytes": {
+                "type": "indom",
+                "alias": "ethernet",
+            },
+            "nvidia.cardname": {
+                "type": "indom",
+                "alias": "nvidia",
+            },
+        }
 
-            metrics = {
-                "hinv.ncpu": {
-                    "type": "item",
-                    "alias": "ncpu",
-                },
-                "hinv.ndisk": {
-                    "type": "item",
-                    "alias": "ndisk",
-                },
-                "hinv.physmem": {
-                    "type": "item",
-                    "alias": "physmem",
-                },
-                "hinv.cpu.vendor": {
-                    "type": "indom",
-                    "alias": "manufacturer",
-                },
-                "hinv.map.cpu_node": {
-                    "type": "indom",
-                    "alias": "numa_mapping",
-                },
-                "infiniband.hca.type": {
-                    "type": "indom",
-                    "alias": "ina",
-                },
-                "infiniband.hca.ca_type": {
-                    "type": "indom",
-                    "alias": "inb",
-                },
-                "infiniband.hca.numports": {
-                    "type": "indom",
-                    "alias": "inc",
-                },
-                "network.interface.in.bytes": {
-                    "type": "indom",
-                    "alias": "ethernet",
-                },
-                "nvidia.cardname": {
-                    "type": "indom",
-                    "alias": "nvidia",
-                },
-            }
-
-            # Extend objects maps metric aliases to PCP extend objects
-            # Metrics map to None if the metric does not appear in the archive
-            extObj = {}
-            for metric in metrics:
-                try:
-                    metricType = metrics[metric]["type"]
-                    alias = metrics[metric]["alias"]
-                    if metricType == "item":
-                        extObj[alias] = pmfg.extend_item(metric)
-                    elif metricType == "indom":
-                        extObj[alias] = pmfg.extend_indom(metric)
-                except pmapi.pmErr as exc:
-                    # If the metric doesn't appear in the archive
+        # Extend objects maps metric aliases to PCP extend objects
+        # Metrics map to None if the metric does not appear in the archive
+        extObj = {}
+        fetchedData = {}
+        for metric in metrics:
+            try:
+                metricType = metrics[metric]["type"]
+                alias = metrics[metric]["alias"]
+                if metricType == "item":
+                    extObj[alias] = pmfg.extend_item(metric)
+                elif metricType == "indom":
+                    extObj[alias] = pmfg.extend_indom(metric)
+            except pmapi.pmErr as exc:
+                # If the metric doesn't appear in the archive
+                if exc.message().startswith("Unknown metric name"):
                     extObj[alias] = None
                     fetchedData[alias] = None
                     ##########
-                    if alias != "nvidia":
-                        print("alias = %s, exc = %s" % (alias, str(exc)))
+                    if alias != "nvidia" and alias != "model_name":
+                        print("A metric could not be found for alias '%s', returning None..." % (alias))
                     ##########
+                else:
+                    err = {"archive": archive, "metric": metric, "error": exc.message()}
+                    print(json.dumps(err) + ",")
+                    print("ERROR: pmfg.extend_item or pmfd.extend_indom threw an unexpected exception")
+                    sys.exit(1)
 
-            # fetch data until all metrics have been retrieved
-            while not (all(metrics[metric]["alias"] in fetchedData for metric in metrics)):
-                try:
-                    pmfg.fetch()
-                except pmapi.pmErr as exc:
-                    if exc.message() == "End of PCP archive log":
-                        # End of archive - fill in missing data with 'None'
-                        for metric in metrics:
-                            if metric not in fetchedData:
-                                fetchedData[metric] = None
-                        break
+        # fetch data until all metrics have been retrieved, or the end of the archive is reached
+        while not (all(metrics[metric]["alias"] in fetchedData for metric in metrics)):
+            try:
+                pmfg.fetch()
+            except pmapi.pmErr as exc:
+                if exc.message().startswith("End of PCP archive log"):
+                    # End of archive - fill in missing data with 'None'
+                    for metric in metrics:
+                        if metric not in fetchedData:
+                            fetchedData[metric] = None
+                    break
+                else:
+                    err = {"archive": archive, "error": exc.message()}
+                    print(json.dumps(err) + ",")
+                    print("ERROR: pmfg.fetch() threw an unexpected exception")
+                    sys.exit(1)
 
-                for metric in metrics:
-                    metricType = metrics[metric]["type"]
-                    alias = metrics[metric]["alias"]
-                    if (metricType == "item") and (alias not in fetchedData):
-                        fetchedData[alias] = extObj[alias]()
-                    elif (metricType == "indom") and (alias not in fetchedData) and (len(extObj[alias]()) > 0):
-                        fetchedData[alias] = extObj[alias]()
+            for metric in metrics:
+                metricType = metrics[metric]["type"]
+                alias = metrics[metric]["alias"]
+                if (metricType == "item") and (alias not in fetchedData):
+                    fetchedData[alias] = extObj[alias]()
+                elif (metricType == "indom") and (alias not in fetchedData) and (len(extObj[alias]()) > 0):
+                    fetchedData[alias] = extObj[alias]()
 
-            infini = defaultdict(list)
-            if fetchedData["ina"]:
-                for _, iname, value in fetchedData["ina"]:
-                    infini[iname].append(value())
-            if fetchedData["inb"]:
-                for _, iname, value in fetchedData["inb"]:
-                    infini[iname].append(value())
-            if fetchedData["inc"]:
-                for _, iname, value in fetchedData["inc"]:
-                    infini[iname].append(value())
+        
 
-            # Map the extend objects to the data to be collected
-            data = {
-                'record_time_ts': record_time_ts,
-                'hostname': hostname,
-                'core_count': fetchedData["ncpu"],
-                'disk_count': fetchedData["ndisk"],
-                'physmem': fetchedData["physmem"],
-                'manufacturer': fetchedData["manufacturer"][0][2](),
-                'numa_node_count': max([n[2]() for n in fetchedData["numa_mapping"]]) + 1,
-                'ethernet_count': len([device[1] for device in fetchedData["ethernet"] if device[1] != "lo"]) if fetchedData["ethernet"] else 0
-            }
-            
-            if infini:
-                data['infiniband'] = dict(infini)
+        # Map the fetched data to the data that needs to be collected
+        data = {
+            'record_time_ts': record_time_ts,
+            'hostname': hostname,
+            'core_count': fetchedData["ncpu"],
+            'disk_count': fetchedData["ndisk"],
+            'physmem': fetchedData["physmem"],
+            'manufacturer': fetchedData["manufacturer"][0][2]() if fetchedData["manufacturer"] else None,
+            'model_name': fetchedData["model_name"][0][2]() if fetchedData["model_name"] else None,
+            'numa_node_count': max([n[2]() for n in fetchedData["numa_mapping"]]) + 1,
+            'ethernet_count': len([device[1] for device in fetchedData["ethernet"] if device[1] != "lo"]) if fetchedData["ethernet"] else 0
+        }
+
+        # Transform the infiniband data
+        infini = defaultdict(list)
+        if fetchedData["ina"]:
+            for _, iname, value in fetchedData["ina"]:
+                infini[iname].append(value())
+        if fetchedData["inb"]:
+            for _, iname, value in fetchedData["inb"]:
+                infini[iname].append(value())
+        if fetchedData["inc"]:
+            for _, iname, value in fetchedData["inc"]:
+                infini[iname].append(value())
+        if infini:
+            data['infiniband'] = dict(infini)
+        
+        # Transform gpu data
+        try:
             if fetchedData["nvidia"]:
                 data['gpu'] = {}
                 for _, iname, value in fetchedData["nvidia"]:
                     data['gpu'][iname] = value()
-            
-            return data
-
         except pmapi.pmErr as exc:
-            #pylint: disable=not-callable
-            err = {"archive": archive, "error": exc.message()}
-            print json.dumps(err) + ","
-            return None
+            print("ERROR: unexpected exception raised while entering gpu data")
+            traceback.print_exc()
+
         
+        return data
 
     @staticmethod
     def isJobArchive(archive):
         fname = os.path.basename(archive)
         return fname.startswith("job-")
-
-# No changes
-class PcpArchiveFinder(object):
-    """ Helper class that finds all pcp archive files in a directory
-        mindate is the minimum datestamp of files that should be processed
-    """
-
-    def __init__(self, mindate, maxdate, all=False):
-        self.mindate = mindate if not all else None
-        self.maxdate = maxdate if not all else None
-        if self.mindate != None:
-            self.minmonth = datetime(year=mindate.year, month=mindate.month, day=1) - timedelta(days=1)
-        else:
-            self.minmonth = None
-        self.fregex = re.compile(
-            r".*(\d{4})(\d{2})(\d{2})(?:\.(\d{2}).(\d{2})(?:[\.-](\d{2}))?)?\.index$")
-        self.sregex = re.compile(r"^(\d{4})(\d{2})$")
-        self.yearregex = re.compile(r"^\d{4}$")
-        self.dateregex = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
-
-    def subdirok(self, subdir):
-        """ check the name of a subdirectory and return whether to
-            descend into it based on the name.
-            @returns None if the name is not a datestamp
-                     true if the name is a date that is >= the reference date
-                     false if the name is a date that is < the reference
-        """
-        mtch = self.sregex.match(subdir)
-        if mtch == None:
-            return None
-
-        if self.minmonth == None:
-            return True
-
-        subdirdate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=1)
-
-        return subdirdate > self.minmonth
-
-    def filenameok(self, filename):
-        """ parse filename to get the datestamp and compare with the reference datestamp
-        """
-        if self.mindate == None:
-            return True
-
-        mtch = self.fregex.match(filename)
-        if mtch == None:
-            logging.error(
-                "Unparsable filename %s processing anyway.", filename)
-            return True
-
-        if mtch.group(4) != None and mtch.group(5) != None:
-            filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)), hour=int(mtch.group(4)), minute=int(mtch.group(5)))
-        else:
-            filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)))
-
-        if self.maxdate == None:
-            return filedate > self.mindate
-        else:
-            return filedate > self.mindate and filedate < self.maxdate
-
-    def ymdok(self, year, month=12, day=None):
-        """ Check candidate dates for YYYY/MM/DD directory structure """
-        if len(year) != 4:
-            return None
-
-        try:
-            yyyy = int(year)
-            mm = int(month)
-
-            if day == None:
-                # Some datetime arithmetic to get the last day of the month
-                tmpdate = datetime(year=yyyy, month=mm, day=28, hour=23, minute=59, second=59) + timedelta(days=4)
-                dirdate = tmpdate - timedelta(days=tmpdate.day)
-            else:
-                dirdate = datetime(year=yyyy, month=mm, day=int(day), hour=23, minute=59, second=59)
-
-        except ValueError:
-            return None
-
-        if self.mindate == None:
-            return True
-
-        return dirdate > self.mindate
-
-    @staticmethod
-    def listdir(pathname):
-        """ Return sorted list of paths under the supplied path. I/O errors
-            such as permission denied are logged at error level and an empty
-            list is returned """
-
-        dirents = []
-        try:
-            dirents = os.listdir(pathname)
-        except OSError as err:
-            logging.error(str(err))
-
-        dirents.sort()
-
-        return dirents
-
-    def find(self, topdir):
-        """ main entry for the archive file finder. There are multiple different
-            directory structures supported. The particular directory stucture
-            is automatically detected based on the directory names. """
-
-        if topdir == "":
-            return
-
-        dirs = self.listdir(topdir)
-
-        yeardirs = []
-        hostdirs = []
-        for dirpath in dirs:
-            if dirpath == 'README':
-                continue
-
-            if self.yearregex.match(dirpath):
-                yeardirs.append(dirpath)
-            else:
-                hostdirs.append(dirpath)
-
-        for archivefile, fast_index, hostname in self.parse_by_date(topdir, yeardirs):
-            yield archivefile, fast_index, hostname
-
-        for archivefile, fast_index, hostname in self.parse_by_host(topdir, hostdirs):
-            yield archivefile, fast_index, hostname
-
-    def parse_by_date(self, top_dir, year_dirs):
-        """ find all archives that are organised in a directory
-            structure like:
-                [top_dir]/[YYYY]/[MM]/[HOSTNAME]/[YYYY-MM-DD]
-        """
-
-        for year_dir in year_dirs:
-            year_dir_ok = self.ymdok(year_dir)
-            if year_dir_ok is True:
-                for month_dir in self.listdir(os.path.join(top_dir, year_dir)):
-                    if self.ymdok(year_dir, month_dir) is True:
-                        for host_dir in self.listdir(os.path.join(top_dir, year_dir, month_dir)):
-                            for date_dir in self.listdir(os.path.join(top_dir, year_dir, month_dir, host_dir)):
-                                date_match = self.dateregex.match(date_dir)
-                                if date_match and self.ymdok(date_match.group(1), date_match.group(2), date_match.group(3)):
-                                    dirpath = os.path.join(top_dir, year_dir, month_dir, host_dir, date_dir)
-                                    filenames = self.listdir(dirpath)
-                                    for filename in filenames:
-                                        if filename.endswith(".index") and self.filenameok(filename):
-                                            yield os.path.join(dirpath, filename), True, host_dir
-
-
-    def parse_by_host(self, topdir, hosts):
-        """ find all archive files that are organised in a directory
-            structure like:
-               [topdir]/[HOSTNAME]/[YYYY]/[MM]/[DD]/{archive files}
-
-            also support:
-               [topdir]/[HOSTNAME]/[YYYYMM]/{archive files}
-
-            and:
-               [topdir]/[HOSTNAME]/{archive files}
-        """
-
-        starttime = time.time()
-        hostcount = 0
-        currtime = starttime
-
-        for hostname in hosts:
-            hostdir = os.path.join(topdir, hostname)
-            listdirtime = 0.0
-            yieldtime = 0.0
-            t1 = time.time()
-            datedirs = self.listdir(hostdir)
-            listdirtime += (time.time() - t1)
-
-            for datedir in datedirs:
-                t1 = time.time()
-
-                yeardirOk = self.ymdok(datedir)
-
-                if yeardirOk is True:
-                    for monthdir in self.listdir(os.path.join(hostdir, datedir)):
-                        if self.ymdok(datedir, monthdir) is True:
-                            for daydir in self.listdir(os.path.join(hostdir, datedir, monthdir)):
-                                if self.ymdok(datedir, monthdir, daydir) is True:
-                                    for filename in self.listdir(os.path.join(hostdir, datedir, monthdir, daydir)):
-                                        if filename.endswith(".index") and self.filenameok(filename):
-                                            beforeyield = time.time()
-                                            yield os.path.join(hostdir, datedir, monthdir, daydir, filename), True, hostname
-                                            yieldtime += (time.time() - beforeyield)
-                    listdirtime += (time.time() - t1 - yieldtime)
-                    continue
-                elif yeardirOk is False:
-                    continue
-                # else fall through to check other formats
-                elif yeardirOk is None:
-                    datedirOk = self.subdirok(datedir)
-                    if datedirOk is None:
-                        if datedir.endswith(".index") and self.filenameok(datedir):
-                            yield os.path.join(hostdir, datedir), False, None
-                    elif datedirOk is True:
-                        dirpath = os.path.join(hostdir, datedir)
-                        filenames = self.listdir(dirpath)
-                        for filename in filenames:
-                            if filename.endswith(".index") and self.filenameok(filename):
-                                yield os.path.join(dirpath, filename), False, None
-
-            hostcount += 1
-            lasttime = currtime
-            currtime = time.time()
-            logging.info("Processed %s of %s (hosttime %s, listdirtime %s, yieldtime %s) total %s estimated completion %s",
-                         hostcount, len(hosts), currtime-lasttime, listdirtime, yieldtime, currtime - starttime,
-                         datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
 class HardwareStagingTransformer(object):
     """ Transforms the raw data from the archive into a list
@@ -560,7 +371,7 @@ class HardwareStagingTransformer(object):
                         else:
                             row[index] = replacement['repl']
 
-def getoptions():
+def getOptions():
     """ process comandline options """
     parser = argparse.ArgumentParser()
 
@@ -601,7 +412,7 @@ def getoptions():
 
 def getHardwareInfo():
     """Main entry point"""
-    opts = getoptions()
+    opts = getOptions()
     config = Config(opts['config'])
     outputFilename = opts['output']
 
@@ -612,6 +423,7 @@ def getHardwareInfo():
 
     data = []
 
+    # TODO: Multiple resources?
     for resourcename, resource in config.resourceconfigs():
 
         ##########
@@ -628,10 +440,8 @@ def getHardwareInfo():
                 if hw_info != None:
                     data.append(hw_info)
                 ##########
-                if len(data) > 100:
-                    break
                 count += 1
-                if count % 1000 == 0:
+                if count % 100 == 0:
                     print('count = ' + str(count))
                 ##########
 
