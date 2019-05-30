@@ -39,7 +39,9 @@ STAGING_COLUMNS = [
     'system_name',
     'system_version',
     'physmem',
+    'numa_node_count',
     'disk_count',
+    'ethernet_count',
     'ib_device_count',
     'ib_device',
     'ib_ca_type',
@@ -47,7 +49,7 @@ STAGING_COLUMNS = [
     'gpu_device_count',
     'gpu_device_manufacturer',
     'gpu_device_name',
-    'record_time'
+    'record_time_ts'
 ]
 
 class PcpArchiveHardwareProcessor(object):
@@ -72,52 +74,129 @@ class PcpArchiveHardwareProcessor(object):
             record_time_ts = float(mdata.start)
 
             pmfg = pmapi.fetchgroup(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+
+            fetchedData = {}
+
+            metrics = {
+                "hinv.ncpu": {
+                    "type": "item",
+                    "alias": "ncpu",
+                },
+                "hinv.ndisk": {
+                    "type": "item",
+                    "alias": "ndisk",
+                },
+                "hinv.physmem": {
+                    "type": "item",
+                    "alias": "physmem",
+                },
+                "hinv.cpu.vendor": {
+                    "type": "indom",
+                    "alias": "manufacturer",
+                },
+                "hinv.map.cpu_node": {
+                    "type": "indom",
+                    "alias": "numa_mapping",
+                },
+                "infiniband.hca.type": {
+                    "type": "indom",
+                    "alias": "ina",
+                },
+                "infiniband.hca.ca_type": {
+                    "type": "indom",
+                    "alias": "inb",
+                },
+                "infiniband.hca.numports": {
+                    "type": "indom",
+                    "alias": "inc",
+                },
+                "nvidia.cardname": {
+                    "type": "indom",
+                    "alias": "nvidia",
+                },
+            }
+
+            # Extend objects maps metric aliases to PCP extend objects
+            # Metrics map to None if the metric does not appear in the archive
+            extendObjects = {}
+            for metric in metrics:
+                try:
+                    metricType = metrics[metric]["type"]
+                    alias = metrics[metric]["alias"]
+                    if metricType == "item":
+                        extendObjects[alias] = pmfg.extend_item(metric)
+                    elif metricType == "indom":
+                        extendObjects[alias] = pmfg.extend_indom(metric)
+                except pmapi.pmErr as exc:
+                    extendObjects[alias] = None
+                    ##########
+                    if alias != "nvidia":
+                        print("alias = %s, exc = %s" % (alias, str(exc)))
+                    ##########
+
+            # While all of the metrics have been NOT been fetched yet
+            # while not ((metrics[metric["alias"]] in fetchedData) for all metric in metrics):
+                
+
+            """
             ncpu = pmfg.extend_item("hinv.ncpu")
             ndisk = pmfg.extend_item("hinv.ndisk")
             physmem = pmfg.extend_item("hinv.physmem")
-            #manufacturer = pmfg.extend_item("hinv.cpu.vendor")
+            manufacturer = pmfg.extend_indom("hinv.cpu.vendor")
+            numa_mapping = pmfg.extend_indom("hinv.map.cpu_node")
+            #ethernet_devices = pmfg.extend_indom("network.interface.in.bytes")
+            """
 
-            ina = None
-            inb = None
-            inc = None
-            try:
-                ina = pmfg.extend_indom("infiniband.hca.type")
-                inb = pmfg.extend_indom("infiniband.hca.ca_type")
-                inc = pmfg.extend_indom("infiniband.hca.numports")
-            except pmapi.pmErr as exc:
-                pass
+            # While all of the metrics have been NOT been fetched yet
+            while !((metrics[metric]["alias"] in fetchedData) for all metric in metrics):
+                try:
+                    pmfg.fetch()
+                except pmapi.pmErr as exc:
+                    if exc.message() == "End of PCP archive log":
+                        # End of archive - fill in missing data with 'None'
+                currentData = {
+                    
+                }
+                    
 
-            nvidia = None
-            try:
-                nvidia = pmfg.extend_indom("nvidia.cardname")
-            except pmapi.pmErr as exc:
-                pass
 
-            pmfg.fetch()
+            ethernet_count = 0
+            
+            """
+            for device in ethernet_devices():
+                dname = device[1]
+                print("DNAME = " + str(dname))
+                if dname != "lo":
+                    ethernet_count += 1
+                    print("including: " + dname)
+            """
 
             infini = defaultdict(list)
-            if ina:
-                for _, iname, value in ina():
+            if extendObjects["ina"]:
+                for _, iname, value in extendObjects["ina"]():
                     infini[iname].append(value())
-            if inb:
-                for _, iname, value in inb():
+            if extendObjects["inb"]:
+                for _, iname, value in extendObjects["inb"]():
                     infini[iname].append(value())
-            if inc:
-                for _, iname, value in inc():
+            if extendObjects["inc"]:
+                for _, iname, value in extendObjects["inc"]():
                     infini[iname].append(value())
 
+            # Map the extend objects to the data to be collected
             data = {
                 'record_time_ts': record_time_ts,
                 'hostname': hostname,
-                'core_count': ncpu(),
-                'disk_count': ndisk(),
-                'physmem': physmem(),
+                'manufacturer': extendObjects["manufacturer"]()[0][2](),
+                'core_count': extendObjects["ncpu"](),
+                'disk_count': extendObjects["ndisk"](),
+                'physmem': extendObjects["physmem"](),
+                'numa_node_count': max([n[2]() for n in extendObjects["numa_mapping"]()]) + 1,
             }
             if infini:
                 data['infiniband'] = dict(infini)
-            if nvidia:
+            if extendObjects["nvidia"]:
                 data['gpu'] = {}
-                for _, iname, value in nvidia():
+                for _, iname, value in extendObjects["nvidia"]():
                     data['gpu'][iname] = value()
             
             return data
@@ -350,7 +429,7 @@ class HardwareStagingTransformer(object):
         representing rows in the hardware staging table
     """
 
-    def __init__(self, archiveData, replacementFile='replacement_rules.json', outputFilename='hardware_staging.json'):
+    def __init__(self, archiveData, replacementPath=None, outputFilename='hardware_staging.json'):
         """ Run the transformation
 
         Parameters:
@@ -361,12 +440,21 @@ class HardwareStagingTransformer(object):
         
         self.result = [ STAGING_COLUMNS ]
 
-        try:
-            with open(replacementFile, 'r') as inFile:
-                self.replacementRules = json.load(inFile)
-        except IOError as e:
-            self.replacementRules = None
+        # Generate replacement rules from file
+        if replacementPath == None:
+            replacementPath = self.autoDetectReplacementPath()
 
+        if replacementPath is None or os.path.isdir(replacementPath) == False:
+            print("No replacement_rules.json file found. Replacement will not be performed")
+        else:
+            replacementFile = os.path.join(replacementPath, "replacement_rules.json")
+            try:
+                with open(replacementFile, 'r') as inFile:
+                    self.replacementRules = json.load(inFile)
+            except IOError as e:
+                self.replacementRules = None
+
+        # Transform the archive data
         for hw_info in archiveData:
 
             if 'infiniband' in hw_info:
@@ -385,27 +473,29 @@ class HardwareStagingTransformer(object):
 
             self.result.append([
                 hw_info['hostname'],
-                HardwareStagingTransformer.get(hw_info.get('manufacturer')),
-                HardwareStagingTransformer.get(hw_info.get('codename')),
-                'NA', # processor_info (node_mapping)
+                self.get(hw_info.get('manufacturer')),
+                self.get(hw_info.get('codename')),
+                self.get(hw_info.get('model_name')), # model_name (node_mapping)
                 'NA', # clock_speed
-                HardwareStagingTransformer.get(hw_info.get('core_count'), 'int'),
+                self.get(hw_info.get('core_count'), 'int'),
                 'NA',
                 'NA',
                 'NA',
-                HardwareStagingTransformer.get(hw_info.get('system_manufacturer')),
-                HardwareStagingTransformer.get(hw_info.get('system_name')),
+                self.get(hw_info.get('system_manufacturer')),
+                self.get(hw_info.get('system_name')),
                 'NA',
-                HardwareStagingTransformer.get(hw_info.get('physmem'), 'int'),
-                HardwareStagingTransformer.get(hw_info.get('disk_count'), 'int'),
+                self.get(hw_info.get('physmem'), 'int'),
+                self.get(hw_info.get('numa_node_count'), 'int'),
+                self.get(hw_info.get('disk_count'), 'int'),
+                self.get(hw_info.get('ethernet_count'), 'int'),
                 1 if ('ib_device' in hw_info) else 0,
-                HardwareStagingTransformer.get(hw_info.get('ib_device')),
-                HardwareStagingTransformer.get(hw_info.get('ib_ca_type')),
-                HardwareStagingTransformer.get(hw_info.get('ib_ports'), 'int'),
+                self.get(hw_info.get('ib_device')),
+                self.get(hw_info.get('ib_ca_type')),
+                self.get(hw_info.get('ib_ports'), 'int'),
                 hw_info['gpu_device_count'],
-                HardwareStagingTransformer.get(hw_info.get('gpu_device_manufacturer')),
-                HardwareStagingTransformer.get(hw_info.get('gpu_device_name')),
-                HardwareStagingTransformer.get(hw_info.get('record_time_ts'))
+                self.get(hw_info.get('gpu_device_manufacturer')),
+                self.get(hw_info.get('gpu_device_name')),
+                self.get(hw_info.get('record_time_ts'))
             ])
 
         if self.replacementRules != None:
@@ -414,8 +504,22 @@ class HardwareStagingTransformer(object):
         with open(outputFilename, "w") as outFile:
             outFile.write(json.dumps(self.result, indent=4, separators=(',', ': ')))
     
-    @classmethod
-    def get(self, value, typehint='str'):
+    @staticmethod
+    def autoDetectReplacementPath():
+        searchpaths = [
+            os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm",
+            "/etc/supremm",
+            pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
+        ]
+
+        for path in searchpaths:
+            if os.path.exists(os.path.join(path, "replacement_rules.json")):
+                return os.path.abspath(path)
+
+        return None
+
+    @staticmethod
+    def get(value, typehint='str'):
         if (value != None) and (value != ""):
             return value
         if typehint == 'str':
@@ -471,7 +575,9 @@ def getoptions():
 
     parser.add_argument("-c", "--config", help="Specify the path to the configuration directory")
 
-    parser.add_argument("-o", "--output", default="hardware_info.json", help="Specify the name and path of the output json file")
+    parser.add_argument("-r", "--replace", help="Specify the path to the replacement_rules directory (if none, check config dir)")
+
+    parser.add_argument("-o", "--output", default="hardware_staging.json", help="Specify the name and path of the output json file")
 
     parser.add_argument(
         "-m", "--mindate", metavar="DATE", type=parsetime, default=datetime.now() - timedelta(days=DAY_DELTA),
@@ -510,7 +616,7 @@ def getHardwareInfo():
 
     ##########
     if opts['config'] != None:
-        print('MY_CONFIG = ' + os.path.abspath(opts['config']))
+        print('CONFIG_DIR = ' + os.path.abspath(opts['config']))
     ##########
 
     data = []
@@ -538,10 +644,10 @@ def getHardwareInfo():
                     print('count = ' + str(count))
                 ##########
 
-    HardwareStagingTransformer(data)
+    HardwareStagingTransformer(data, replacementPath=opts['replace'], outputFilename=outputFilename)
 
-    with open(outputFilename, "w") as outFile:
-        outFile.write(json.dumps(data, indent=4, separators=(',', ': ')))
+    # with open(outputFilename, "w") as outFile:
+    #     outFile.write(json.dumps(data, indent=4, separators=(',', ': ')))
 
 if __name__ == "__main__":
     getHardwareInfo()
