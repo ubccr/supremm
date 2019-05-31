@@ -12,6 +12,7 @@ import os
 import re
 from re import sub, search
 import time
+from copy import deepcopy
 
 import json
 from collections import defaultdict
@@ -131,6 +132,7 @@ class PcpArchiveHardwareProcessor(object):
         # Metrics map to None if the metric does not appear in the archive
         extObj = {}
         fetchedData = {}
+        gpuData = {}
         for metric in metrics:
             try:
                 metricType = metrics[metric]["type"]
@@ -145,7 +147,14 @@ class PcpArchiveHardwareProcessor(object):
                     extObj[alias] = None
                     fetchedData[alias] = None
                     ##########
-                    if alias != "nvidia" and alias != "model_name":
+                    expected = [
+                        "nvidia",
+                        "model_name",
+                        "ina",
+                        "inb",
+                        "inc",
+                    ]
+                    if alias not in expected:
                         print("A metric could not be found for alias '%s', returning None..." % (alias))
                     ##########
                 else:
@@ -174,10 +183,14 @@ class PcpArchiveHardwareProcessor(object):
             for metric in metrics:
                 metricType = metrics[metric]["type"]
                 alias = metrics[metric]["alias"]
-                if (metricType == "item") and (alias not in fetchedData):
+                if ((metricType == "item" and alias not in fetchedData) or                                     # item case
+                        (metricType == "indom" and alias not in fetchedData and len(extObj[alias]()) > 0)):    # indom case
                     fetchedData[alias] = extObj[alias]()
-                elif (metricType == "indom") and (alias not in fetchedData) and (len(extObj[alias]()) > 0):
-                    fetchedData[alias] = extObj[alias]()
+                    if alias == "nvidia":
+                        for _, iname, value in fetchedData["nvidia"]:
+                            gpuData[iname] = value()
+                            print("GPU value = " + str(value()))
+                        
 
         
 
@@ -191,18 +204,21 @@ class PcpArchiveHardwareProcessor(object):
             'manufacturer': fetchedData["manufacturer"][0][2]() if fetchedData["manufacturer"] else None,
             'model_name': fetchedData["model_name"][0][2]() if fetchedData["model_name"] else None,
             'numa_node_count': max([n[2]() for n in fetchedData["numa_mapping"]]) + 1,
-            'ethernet_count': len([device[1] for device in fetchedData["ethernet"] if device[1] != "lo"]) if fetchedData["ethernet"] else 0
+            'ethernet_count': len([device[1] for device in fetchedData["ethernet"] if device[1] != "lo"]) if fetchedData["ethernet"] else 0,
         }
+
+        if gpuData != {}:
+            data["gpu"] = gpuData
 
         # Transform the infiniband data
         infini = defaultdict(list)
-        if fetchedData["ina"]:
+        if fetchedData.get("ina"):
             for _, iname, value in fetchedData["ina"]:
                 infini[iname].append(value())
-        if fetchedData["inb"]:
+        if fetchedData.get("inb"):
             for _, iname, value in fetchedData["inb"]:
                 infini[iname].append(value())
-        if fetchedData["inc"]:
+        if fetchedData.get("inc"):
             for _, iname, value in fetchedData["inc"]:
                 infini[iname].append(value())
         if infini:
@@ -210,12 +226,16 @@ class PcpArchiveHardwareProcessor(object):
         
         # Transform gpu data
         try:
-            if fetchedData["nvidia"]:
+            if fetchedData.get("nvidia"):
+                """
                 data['gpu'] = {}
                 for _, iname, value in fetchedData["nvidia"]:
                     data['gpu'][iname] = value()
+                """
         except pmapi.pmErr as exc:
             print("ERROR: unexpected exception raised while entering gpu data")
+            tmp = [value for _, iname, value in fetchedData["nvidia"]]
+            print("Fetched data for nvidia = " + str(tmp))
             traceback.print_exc()
 
         
