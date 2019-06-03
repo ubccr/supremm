@@ -75,80 +75,99 @@ class PcpArchiveHardwareProcessor(object):
 
         pmfg = pmapi.fetchgroup(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
 
+        """
+            'alias': {
+                'name': 'the name of the metric in the pcp archive',
+                'type': 'item' for single items, 'indom' for instance domains
+                'extractor': a function which returns the desired data from the fetched object (optional)
+                'default': the value returned if the metric is not found in the archive (optional - None by default)
+            }
+        """
         metrics = {
-            'hinv.ncpu': {
+            'core_count': {
+                'name': 'hinv.ncpu',
                 'type': 'item',
-                'alias': 'ncpu',
             },
-            'hinv.ndisk': {
+            'disk_count': {
+                'name': 'hinv.ndisk',
                 'type': 'item',
-                'alias': 'ndisk',
+                'default': 0,
             },
-            'hinv.physmem': {
+            'physmem': {
+                'name': 'hinv.physmem',
                 'type': 'item',
-                'alias': 'physmem',
             },
-            'hinv.cpu.vendor': {
+            'manufacturer': {
+                'name': 'hinv.cpu.vendor',
                 'type': 'indom',
-                'alias': 'manufacturer',
+                'extractor': PcpArchiveHardwareProcessor.extractFirstValue,
             },
-            'hinv.cpu.model_name': {
+            'model_name': {
+                'name': 'hinv.cpu.model_name',
                 'type': 'indom',
-                'alias': 'model_name',
+                'extractor': PcpArchiveHardwareProcessor.extractFirstValue,
             },
-            'hinv.map.cpu_node': {
+            'numa_node_count': {
+                'name': 'hinv.map.cpu_node',
                 'type': 'indom',
-                'alias': 'numa_mapping',
+                'extractor': ( lambda x: max([n[2]() for n in x]) + 1 ),
             },
-            'infiniband.hca.type': {
+            'ib_type': {
+                'name': 'infiniband.hca.type',
                 'type': 'indom',
-                'alias': 'ina',
+                'extractor': PcpArchiveHardwareProcessor.extractNamedData,
             },
-            'infiniband.hca.ca_type': {
+            'ib_ca_type': {
+                'name': 'infiniband.hca.ca_type',
                 'type': 'indom',
-                'alias': 'inb',
+                'extractor': PcpArchiveHardwareProcessor.extractFirstValue,
             },
-            'infiniband.hca.numports': {
+            'ib_ports': {
+                'name': 'infiniband.hca.numports',
                 'type': 'indom',
-                'alias': 'inc',
+                'extractor': PcpArchiveHardwareProcessor.extractFirstValue,
             },
-            'network.interface.in.bytes': {
+            'ethernet_count': {
+                'name': 'network.interface.in.bytes',
                 'type': 'indom',
-                'alias': 'ethernet',
+                'extractor': ( lambda x: len([device[1] for device in x if device[1] != 'lo']) ),
+                'default': 0,
             },
-            'nvidia.cardname': {
+            'gpu': {
+                'name': 'nvidia.cardname',
                 'type': 'indom',
-                'alias': 'nvidia',
+                'extractor': PcpArchiveHardwareProcessor.extractNamedData,
             },
         }
 
-        # ExtObjs maps metric aliases to PCP extend objects
+        # ExtObjs maps metrics to PCP extend objects
         # Metrics map to None if the metric does not appear in the archive
         extObj = {}
-        fetchedData = {}
+        data = {}
+        data['infiniband'] = defaultdict(list)  # TODO change this
         for metric in metrics:
             try:
                 metricType = metrics[metric]['type']
-                alias = metrics[metric]['alias']
+                metricName = metrics[metric]['name']
                 if metricType == 'item':
-                    extObj[alias] = pmfg.extend_item(metric)
+                    extObj[metric] = pmfg.extend_item(metricName)
                 elif metricType == 'indom':
-                    extObj[alias] = pmfg.extend_indom(metric)
+                    extObj[metric] = pmfg.extend_indom(metricName)
             except pmapi.pmErr as exc:
                 # If the metric doesn't appear in the archive
                 if exc.message().startswith('Unknown metric name'):
-                    extObj[alias] = None
-                    fetchedData[alias] = None
+                    extObj[metric] = None
+                    data[metric] = None
                     ##########
                     expected = [
-                        'nvidia',
+                        'gpu',
                         'model_name',
-                        'ina',
-                        'inb',
-                        'inc',
+                        'ib_type',
+                        'ib_ca_type',
+                        'ib_ports',
                     ]
-                    if alias not in expected:
-                        print('A metric could not be found for alias "%s", returning None...' % (alias))
+                    if metric not in expected:
+                        print("Metric '%s' with name '%s' not found in archive '%s'" % (metric, metricName, archive))
                     ##########
                 else:
                     traceback.print_exception(exc)
@@ -156,15 +175,17 @@ class PcpArchiveHardwareProcessor(object):
                     sys.exit(1)
 
         # fetch data until all metrics have been retrieved, or the end of the archive is reached
-        while not (all(metrics[metric]['alias'] in fetchedData for metric in metrics)):
+        while not (all(metric in data for metric in metrics)):
             try:
                 pmfg.fetch()
             except pmapi.pmErr as exc:
                 if exc.message().startswith('End of PCP archive log'):
-                    # End of archive - fill in missing data with 'None'
-                    for metric in metrics:
-                        if metric not in fetchedData:
-                            fetchedData[metric] = None
+                    # End of archive - fill in missing data with default value
+                    for metric in [m for m in metrics if m not in data]:
+                        if 'default' in metrics[metric]:
+                            data[metric] = metrics[metric]['default']
+                        else:
+                            data[metric] = None
                     break
                 else:
                     traceback.print_exception(exc)
@@ -173,43 +194,23 @@ class PcpArchiveHardwareProcessor(object):
 
             for metric in metrics:
                 metricType = metrics[metric]['type']
-                alias = metrics[metric]['alias']
-                if ((metricType == 'item' and alias not in fetchedData) or                                     # item case
-                        (metricType == 'indom' and alias not in fetchedData and len(extObj[alias]()) > 0)):    # indom case (list)
-                    fetchedData[alias] = extObj[alias]()
-                    # Load gpu data
-                    if alias == 'nvidia':
-                        fetchedData['nvidia'] = {}
-                        for _, iname, value in extObj[alias]():
-                            fetchedData['nvidia'][iname] = value()
+                if ((metricType == 'item' and metric not in data) or                                     # item case
+                        (metricType == 'indom' and metric not in data and len(extObj[metric]()) > 0)):    # indom case (list)
 
-        # Map the fetched data to the data that needs to be collected
-        data = {
-            'record_time_ts': record_time_ts,
-            'hostname': hostname,
-            'core_count': fetchedData['ncpu'],
-            'disk_count': fetchedData['ndisk'],
-            'physmem': fetchedData['physmem'],
-            'manufacturer': fetchedData['manufacturer'][0][2]() if fetchedData['manufacturer'] else None,
-            'model_name': fetchedData['model_name'][0][2]() if fetchedData['model_name'] else None,
-            'numa_node_count': max([n[2]() for n in fetchedData['numa_mapping']]) + 1,
-            'ethernet_count': len([device[1] for device in fetchedData['ethernet'] if device[1] != 'lo']) if fetchedData['ethernet'] else 0,
-            'gpu': fetchedData.get('nvidia')
-        }
+                    # Extract the data needed
+                    fetchedData = extObj[metric]()
+                    if 'extractor' in metrics[metric]:
+                        data[metric] = metrics[metric]['extractor'](fetchedData)
+                    else:
+                        data[metric] = fetchedData
+                    
+                    # Transform the infiniband data
+                    # if metric == 'ina' or metric == 'inb' or metric == 'inc':
+                    #     for _, iname, value in fetchedData:
+                    #         data['infiniband'][iname].append(value())
 
-        # Transform the infiniband data
-        infini = defaultdict(list)
-        if fetchedData.get('ina'):
-            for _, iname, value in fetchedData['ina']:
-                infini[iname].append(value())
-        if fetchedData.get('inb'):
-            for _, iname, value in fetchedData['inb']:
-                infini[iname].append(value())
-        if fetchedData.get('inc'):
-            for _, iname, value in fetchedData['inc']:
-                infini[iname].append(value())
-        if infini:
-            data['infiniband'] = dict(infini)
+        data['record_time_ts'] = record_time_ts
+        data['hostname'] = hostname
         
         return data
 
@@ -217,6 +218,24 @@ class PcpArchiveHardwareProcessor(object):
     def isJobArchive(archive):
         fname = os.path.basename(archive)
         return fname.startswith('job-')
+    
+    @staticmethod
+    def extractNamedData(fetchedData):
+        """ Used to extract data from instance domains in which 
+            the name is important (such as gpu or infiniband data)
+            by returning a dictionary mapping names to values
+        """
+        result = {}
+        for _, iname, value in fetchedData:
+            result[iname] = value()
+        return result
+    
+    @staticmethod
+    def extractFirstValue(fetchedData):
+        """ Used to extract only the first value from an instance domain
+            which may contain multiple values
+        """
+        return fetchedData[0][2]()
 
 class HardwareStagingTransformer(object):
     """ Transforms the raw data from the archive into a list
@@ -234,16 +253,14 @@ class HardwareStagingTransformer(object):
         
         self.result = [ STAGING_COLUMNS ]
 
-        
-
         # Transform the archive data
         for hw_info in archiveData:
 
-            if 'infiniband' in hw_info:
-                for device in hw_info['infiniband']:
-                    hw_info['ib_device'] = device
-                    hw_info['ib_ca_type'] = hw_info['infiniband'][device][1]
-                    hw_info['ib_ports'] = hw_info['infiniband'][device][2]
+            # Get the name of the first infiniband device
+            if hw_info.get('ib_type'):
+                for deviceName in hw_info['ib_type']:
+                    hw_info['ib_device'] = deviceName
+                    break
 
             if (hw_info.get('gpu')) and ('gpu0' in hw_info['gpu']):
                 devices = list(hw_info['gpu'])
@@ -253,31 +270,32 @@ class HardwareStagingTransformer(object):
             elif 'gpu_device_count' not in hw_info:
                 hw_info['gpu_device_count'] = 0
 
-            self.result.append([
-                hw_info['hostname'],
-                self.get(hw_info.get('manufacturer')),
-                self.get(hw_info.get('codename')),
-                self.get(hw_info.get('model_name')), # model_name (node_mapping)
-                'NA', # clock_speed
-                self.get(hw_info.get('core_count'), 'int'),
-                'NA',
-                'NA',
-                'NA',
-                self.get(hw_info.get('system_manufacturer')),
-                self.get(hw_info.get('system_name')),
-                'NA',
-                self.get(hw_info.get('physmem'), 'int'),
-                self.get(hw_info.get('numa_node_count'), 'int'),
-                self.get(hw_info.get('disk_count'), 'int'),
-                self.get(hw_info.get('ethernet_count'), 'int'),
-                1 if ('ib_device' in hw_info) else 0,
-                self.get(hw_info.get('ib_device')),
-                self.get(hw_info.get('ib_ca_type')),
-                self.get(hw_info.get('ib_ports'), 'int'),
-                hw_info['gpu_device_count'],
-                self.get(hw_info.get('gpu_device_manufacturer')),
-                self.get(hw_info.get('gpu_device_name')),
-                self.get(hw_info.get('record_time_ts'))
+            self.result.append([                                # Column in staging table:
+                hw_info['hostname'],                                # hostname
+                self.get(hw_info.get('manufacturer')),              # manufacturer
+                self.get(hw_info.get('codename')),                  # codename
+                self.get(hw_info.get('model_name')),                # model_name
+                'NA',                                               # clock_speed
+                self.get(hw_info.get('core_count'), 'int'),         # core_count
+                'NA',                                               # board_manufacturer 
+                'NA',                                               # board_name
+                'NA',                                               # board_version
+                self.get(hw_info.get('system_manufacturer')),       # system_manufacturer
+                self.get(hw_info.get('system_name')),               # system_name
+                'NA',                                               # system_version
+                self.get(hw_info.get('physmem'), 'int'),            # physmem
+                self.get(hw_info.get('numa_node_count'), 'int'),    # numa_node_count
+                self.get(hw_info.get('disk_count'), 'int'),         # disk_count
+                self.get(hw_info.get('ethernet_count'), 'int'),     # ethernet_count
+                1 if ('ib_device' in hw_info) else 0,               # ib_device_count
+                self.get(hw_info.get('ib_device')),                 # ib_device
+                self.get(hw_info.get('ib_ca_type')),                # ib_ca_type
+                self.get(hw_info.get('ib_ports'), 'int'),           # ib_ports
+                hw_info['gpu_device_count'],                        # gpu_device_count
+                self.get(hw_info.get('gpu_device_manufacturer')),   # gpu_device_manufacturer
+                self.get(hw_info.get('gpu_device_name')),           # gpu_device_name
+                self.get(hw_info.get('record_time_ts')),            # record_time_ts
+                self.get(hw_info.get('resource_name')),             # resource_name
             ])
 
         # Generate replacement rules from file
@@ -404,7 +422,7 @@ def getOptions():
     args = parser.parse_args()
     return vars(args)
 
-def getHardwareInfo():
+def main():
     """Main entry point"""
     opts = getOptions()
     config = Config(opts['config'])
@@ -428,18 +446,23 @@ def getHardwareInfo():
         count = 0
 
         afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
-        for archive, fast_index, hostname in afind.find(resource['pcp_log_dir']):
-            if not PcpArchiveHardwareProcessor.isJobArchive(archive):
-                hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
-                if hw_info != None:
-                    data.append(hw_info)
-            ##########
-                count += 1
-                if count % 100 == 0:
-                    print('count = ' + str(count))
-            else:
-                print('Job archive skipped')
-            ##########
+        try:
+            for archive, fast_index, hostname in afind.find(resource['pcp_log_dir']):
+                if not PcpArchiveHardwareProcessor.isJobArchive(archive):
+                    hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
+                    if hw_info != None:
+                        hw_info['resource_name'] = resourcename
+                        data.append(hw_info)
+                ##########
+                    count += 1
+                    if count % 100 == 0:
+                        print('count = ' + str(count))
+                else:
+                    print('Job archive skipped')
+                ##########
+        except KeyboardInterrupt as i:
+            print('\nKeyboardInterrupt detected, transforming data for %s archives and writing to output...' % (count))
+            pass
 
     HardwareStagingTransformer(data, replacementPath=opts['replace'], outputFilename=outputFilename)
 
@@ -447,5 +470,5 @@ def getHardwareInfo():
     #     outFile.write(json.dumps(data, indent=4, separators=(',', ': ')))
 
 if __name__ == '__main__':
-    getHardwareInfo()
+    main()
     
