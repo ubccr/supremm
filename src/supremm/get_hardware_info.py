@@ -23,14 +23,14 @@ import cpmapi as c_pmapi
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
 from supremm.indexarchives import PcpArchiveFinder
-from supremm.account import DbArchiveCache
-from supremm.xdmodaccount import XDMoDArchiveCache
 
 # Testing only
 import sys
 import traceback
 
 DAY_DELTA = 3
+
+
 
 STAGING_COLUMNS = [
     'hostname',
@@ -56,8 +56,15 @@ STAGING_COLUMNS = [
     'gpu_device_count',
     'gpu_device_manufacturer',
     'gpu_device_name',
-    'record_time_ts'
+    'record_time_ts',
+    'resource_name',
 ]
+
+# Initialize counting variables
+countArchivesFound = 0      # Total number of archives found in log dir
+countArchivesRead = 0       # Number of archives read (non-job archives)
+countJobArchives = 0        # Number of job archives skipped
+countFinishedArchives = 0   # Number of archives which reached the end before data could be pulled out
 
 class PcpArchiveHardwareProcessor(object):
     """ Parses a pcp archive and adds the archive information to the index """
@@ -68,44 +75,46 @@ class PcpArchiveHardwareProcessor(object):
             @return a dictionary containing the data,
             or None if the processor encounters an error
         """
-        context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-        mdata = context.pmGetArchiveLabel()
-        hostname = mdata.hostname.split('.')[0]
-        record_time_ts = float(mdata.start)
-
-        pmfg = pmapi.fetchgroup(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-
+        global countFinishedArchives
+        
         """
             'alias': {
                 'name': 'the name of the metric in the pcp archive',
                 'type': 'item' for single items, 'indom' for instance domains
-                'extractor': a function which returns the desired data from the fetched object (optional)
+                'extractor': a function which returns the desired data from the fetched instance domain (optional)
+                    - not needed for items (items only contain one value)
+                    - default for instance domains is PcpArchiveHardwareProcessor.extractFirstValue
+                'always_expected': (optional)
+                    - if true: if an archive is missing this metric, send a debug message
                 'default': the value returned if the metric is not found in the archive (optional - None by default)
             }
         """
-        metrics = {
+        DEFAULT_EXTRACTOR = PcpArchiveHardwareProcessor.extractFirstValue
+        METRICS = {
             'core_count': {
                 'name': 'hinv.ncpu',
                 'type': 'item',
+                'always_expected': True,
             },
             'disk_count': {
                 'name': 'hinv.ndisk',
                 'type': 'item',
                 'default': 0,
+                'always_expected': True,
             },
             'physmem': {
                 'name': 'hinv.physmem',
                 'type': 'item',
+                'always_expected': True,
             },
             'manufacturer': {
                 'name': 'hinv.cpu.vendor',
                 'type': 'indom',
-                'extractor': PcpArchiveHardwareProcessor.extractFirstValue,
+                'always_expected': True,
             },
             'model_name': {
                 'name': 'hinv.cpu.model_name',
                 'type': 'indom',
-                'extractor': PcpArchiveHardwareProcessor.extractFirstValue,
             },
             'numa_node_count': {
                 'name': 'hinv.map.cpu_node',
@@ -120,12 +129,10 @@ class PcpArchiveHardwareProcessor(object):
             'ib_ca_type': {
                 'name': 'infiniband.hca.ca_type',
                 'type': 'indom',
-                'extractor': PcpArchiveHardwareProcessor.extractFirstValue,
             },
             'ib_ports': {
                 'name': 'infiniband.hca.numports',
                 'type': 'indom',
-                'extractor': PcpArchiveHardwareProcessor.extractFirstValue,
             },
             'ethernet_count': {
                 'name': 'network.interface.in.bytes',
@@ -139,75 +146,76 @@ class PcpArchiveHardwareProcessor(object):
                 'extractor': PcpArchiveHardwareProcessor.extractNamedData,
             },
         }
+        
+        context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+        mdata = context.pmGetArchiveLabel()
+        hostname = mdata.hostname.split('.')[0]
+        record_time_ts = float(mdata.start)
+
+        pmfg = pmapi.fetchgroup(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
 
         # ExtObjs maps metrics to PCP extend objects
         # Metrics map to None if the metric does not appear in the archive
         extObj = {}
         data = {}
         data['infiniband'] = defaultdict(list)  # TODO change this
-        for metric in metrics:
+        for metric in METRICS:
             try:
-                metricType = metrics[metric]['type']
-                metricName = metrics[metric]['name']
+                metricType = METRICS[metric]['type']
+                metricName = METRICS[metric]['name']
                 if metricType == 'item':
                     extObj[metric] = pmfg.extend_item(metricName)
                 elif metricType == 'indom':
                     extObj[metric] = pmfg.extend_indom(metricName)
             except pmapi.pmErr as exc:
                 # If the metric doesn't appear in the archive
-                if exc.message().startswith('Unknown metric name'):
+                if exc.errno == -12357:    # Unknown metric
                     extObj[metric] = None
                     data[metric] = None
-                    ##########
-                    expected = [
-                        'gpu',
-                        'model_name',
-                        'ib_type',
-                        'ib_ca_type',
-                        'ib_ports',
-                    ]
-                    if metric not in expected:
-                        print("Metric '%s' with name '%s' not found in archive '%s'" % (metric, metricName, archive))
-                    ##########
+                    if METRICS[metric].get('always_expected', False):
+                        logging.debug("Metric '%s' with PCP name '%s' not found in archive '%s'", metric, metricName, archive)
                 else:
                     traceback.print_exception(exc)
-                    print('ERROR: pmfg.extend_item or pmfd.extend_indom threw an unexpected exception')
+                    logging.error('pmfg.extend_item or pmfd.extend_indom threw an unexpected exception')
                     sys.exit(1)
 
-        # fetch data until all metrics have been retrieved, or the end of the archive is reached
-        while not (all(metric in data for metric in metrics)):
+        # fetch data until all METRICS have been retrieved, or the end of the archive is reached
+        while not (all(metric in data for metric in METRICS)):
             try:
                 pmfg.fetch()
             except pmapi.pmErr as exc:
-                if exc.message().startswith('End of PCP archive log'):
-                    # End of archive - fill in missing data with default value
-                    for metric in [m for m in metrics if m not in data]:
-                        if 'default' in metrics[metric]:
-                            data[metric] = metrics[metric]['default']
+                if exc.errno == -12370:    # End of PCP archive log
+                    # End of archive
+                    countFinishedArchives += 1
+                    logging.debug('Processor reached the end of archive %s. Missing METRICS: %s', archive, str([metric for metric in METRICS if metric not in data]))
+
+                    # fill in missing data with default value
+                    for metric in [m for m in METRICS if m not in data]:
+                        if 'default' in METRICS[metric]:
+                            data[metric] = METRICS[metric]['default']
                         else:
                             data[metric] = None
                     break
                 else:
                     traceback.print_exception(exc)
-                    print('ERROR: pmfg.fetch() threw an unexpected exception')
+                    logging.error('pmfg.fetch() threw an unexpected exception')
                     sys.exit(1)
 
-            for metric in metrics:
-                metricType = metrics[metric]['type']
+            # Extract the data needed from METRICS which have not yet been fetched
+            for metric in METRICS:
+                metricType = METRICS[metric]['type']
                 if ((metricType == 'item' and metric not in data) or                                     # item case
-                        (metricType == 'indom' and metric not in data and len(extObj[metric]()) > 0)):    # indom case (list)
+                        (metricType == 'indom' and metric not in data and len(extObj[metric]()) > 0)):   # indom case (list)
 
-                    # Extract the data needed
                     fetchedData = extObj[metric]()
-                    if 'extractor' in metrics[metric]:
-                        data[metric] = metrics[metric]['extractor'](fetchedData)
+                    if metricType == 'indom':
+                        if 'extractor' in METRICS[metric]:
+                            data[metric] = METRICS[metric]['extractor'](fetchedData)
+                        else:
+                            data[metric] = DEFAULT_EXTRACTOR(fetchedData)
                     else:
                         data[metric] = fetchedData
                     
-                    # Transform the infiniband data
-                    # if metric == 'ina' or metric == 'inb' or metric == 'inc':
-                    #     for _, iname, value in fetchedData:
-                    #         data['infiniband'][iname].append(value())
 
         data['record_time_ts'] = record_time_ts
         data['hostname'] = hostname
@@ -218,7 +226,8 @@ class PcpArchiveHardwareProcessor(object):
     def isJobArchive(archive):
         fname = os.path.basename(archive)
         return fname.startswith('job-')
-    
+
+    # Extractor methods
     @staticmethod
     def extractNamedData(fetchedData):
         """ Used to extract data from instance domains in which 
@@ -262,6 +271,7 @@ class HardwareStagingTransformer(object):
                     hw_info['ib_device'] = deviceName
                     break
 
+            # Get GPU data
             if (hw_info.get('gpu')) and ('gpu0' in hw_info['gpu']):
                 devices = list(hw_info['gpu'])
                 hw_info['gpu_device_count'] = len(devices)
@@ -270,19 +280,28 @@ class HardwareStagingTransformer(object):
             elif 'gpu_device_count' not in hw_info:
                 hw_info['gpu_device_count'] = 0
 
+            # Get model_name and clock_speed
+            clock_speed = None
+            model_name = None
+            if hw_info.get('model_name'):
+                processor_info = hw_info['model_name'].split(' @ ')
+                model_name = processor_info[0]
+                if (len(processor_info) > 1):
+                    clock_speed = processor_info[1]
+
             self.result.append([                                # Column in staging table:
                 hw_info['hostname'],                                # hostname
                 self.get(hw_info.get('manufacturer')),              # manufacturer
                 self.get(hw_info.get('codename')),                  # codename
-                self.get(hw_info.get('model_name')),                # model_name
-                'NA',                                               # clock_speed
+                self.get(model_name),                               # model_name
+                self.get(clock_speed, 'int'),                       # clock_speed
                 self.get(hw_info.get('core_count'), 'int'),         # core_count
-                'NA',                                               # board_manufacturer 
-                'NA',                                               # board_name
-                'NA',                                               # board_version
+                self.get(None),                                     # board_manufacturer 
+                self.get(None),                                     # board_name
+                self.get(None),                                     # board_version
                 self.get(hw_info.get('system_manufacturer')),       # system_manufacturer
                 self.get(hw_info.get('system_name')),               # system_name
-                'NA',                                               # system_version
+                self.get(None),                                     # system_version
                 self.get(hw_info.get('physmem'), 'int'),            # physmem
                 self.get(hw_info.get('numa_node_count'), 'int'),    # numa_node_count
                 self.get(hw_info.get('disk_count'), 'int'),         # disk_count
@@ -310,11 +329,10 @@ class HardwareStagingTransformer(object):
                 self.doReplacement()
             except IOError as e:
                 pass
-        ##########
         else:
-            print('No replacement_rules.json file found. Replacement will not be performed')
-        ##########
+            logging.info('No replacement_rules.json file found. Replacement will not be applied to staging columns.')
 
+        logging.debug('Writing staging table columns to %s', os.path.abspath(outputFilename))
         with open(outputFilename, 'w') as outFile:
             outFile.write(json.dumps(self.result, indent=4, separators=(',', ': ')))
     
@@ -342,7 +360,7 @@ class HardwareStagingTransformer(object):
             return -1
     
     def doReplacement(self):
-        print('doing replacement')
+        logging.info('Applying replacement rules to staging columns...')
 
         # Build a dictionary mapping column names to index
         columnToIndex = {}
@@ -357,7 +375,7 @@ class HardwareStagingTransformer(object):
                     for condition in rule['conditions']:
                         assert 'column' in condition, 'Conditions must contain a "column" entry'
                         value = row[columnToIndex[condition['column']]]
-                        reverse = ('reverse' in condition) and (condition['reverse']) # If 'reverse' is true, then the condition must be FALSE to replace
+                        reverse = condition.get('reverse', False) # If 'reverse' is true, then the condition must be FALSE to replace
                         # Case one: equality condition
                         if 'equals' in condition:
                             if (condition['equals'] != value) != reverse:
@@ -424,50 +442,67 @@ def getOptions():
 
 def main():
     """Main entry point"""
+    global countArchivesFound
+    global countArchivesRead
+    global countFinishedArchives
+    global countJobArchives
+
     opts = getOptions()
+    
+    setuplogger(opts['log'], opts['debugfile'], filelevel=logging.DEBUG)
+    logging.debug('Command: %s', ' '.join(sys.argv))
+
     config = Config(opts['config'])
-    outputFilename = opts['output']
 
-    ##########
-    if opts['config'] != None:
-        print('CONFIG_DIR = ' + os.path.abspath(opts['config']))
-        print('MIN_DATE = ' + str(opts['mindate']))
-    ##########
-
+    numberOfResources = len(config._config['resources'])
+    resourceNum = 1
     data = []
-
-    # TODO: Multiple resources?
+    startTime = time.time()
     for resourcename, resource in config.resourceconfigs():
 
-        ##########
-        print('\nresource name = ' + resourcename)
-        print('LOG_DIR = ' + resource['pcp_log_dir'])
-        ##########
-        count = 0
+        logging.info('Processing resource %d of %d', resourceNum, numberOfResources)
+        logging.info('Resource name = %s', resourcename)
+        log_dir = resource['pcp_log_dir']
+        if log_dir == '':
+            logging.info('No log diretcory specified for resource %s. Skipping...', resourcename)
+        else:
+            logging.info('Log directory = %s', log_dir)
+        resourceNum += 1
 
         afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
         try:
-            for archive, fast_index, hostname in afind.find(resource['pcp_log_dir']):
+            for archive, fast_index, hostname in afind.find(log_dir):
                 if not PcpArchiveHardwareProcessor.isJobArchive(archive):
                     hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
                     if hw_info != None:
                         hw_info['resource_name'] = resourcename
                         data.append(hw_info)
-                ##########
-                    count += 1
-                    if count % 100 == 0:
-                        print('count = ' + str(count))
+                    countArchivesRead += 1
+                    if countArchivesRead % 100 == 0:
+                        logging.debug('%d archives read', countArchivesRead)
                 else:
-                    print('Job archive skipped')
-                ##########
+                    countJobArchives += 1
+                countArchivesFound += 1
         except KeyboardInterrupt as i:
-            print('\nKeyboardInterrupt detected, transforming data for %s archives and writing to output...' % (count))
-            pass
+            logging.error('KeyboardInterrupt detected, transforming data for %s archives and writing to output...', countArchivesRead)
+            break
 
-    HardwareStagingTransformer(data, replacementPath=opts['replace'], outputFilename=outputFilename)
+    processTime = time.time() - startTime
+    startTime = time.time()
 
-    # with open(outputFilename, "w") as outFile:
-    #     outFile.write(json.dumps(data, indent=4, separators=(',', ': ')))
+    # Transform data to staging columns
+    HardwareStagingTransformer(data, replacementPath=opts['replace'], outputFilename=opts['output'])
+
+    transformTime = time.time() - startTime
+
+    logging.info('Processing complete.')
+    logging.info('Number of archives found: %d', countArchivesFound)
+    logging.info('Number of job archives skipped: %d/%d (%.1f%%)', countJobArchives, countArchivesFound, (float(countJobArchives)/countArchivesFound)*100)
+    logging.info('Number of archives read: %d/%d (%.1f%%)', countArchivesRead, countArchivesFound, (float(countArchivesRead)/countArchivesFound)*100)
+    logging.info('Number of archives which reached the end: %d/%d (%.1f%%)', countFinishedArchives, countArchivesRead, (float(countFinishedArchives)/countArchivesRead)*100)
+    logging.info('Total process time: %.1f seconds (average per archive read: %.5f seconds)', processTime, processTime / countArchivesRead)
+    logging.info('Total transform time: %.1f seconds (average per archive read: %.5f seconds)', transformTime, transformTime / countArchivesRead)
+
 
 if __name__ == '__main__':
     main()
