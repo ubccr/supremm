@@ -65,6 +65,9 @@ countArchivesFound = 0      # Total number of archives found in log dir
 countArchivesRead = 0       # Number of archives read (non-job archives)
 countJobArchives = 0        # Number of job archives skipped
 countFinishedArchives = 0   # Number of archives which reached the end before data could be pulled out
+countArchivesFailed = 0     # Number of archives which could not be read because of an error
+
+extractionErrorCount = {}
 
 class PcpArchiveHardwareProcessor(object):
     """ Parses a pcp archive and adds the archive information to the index """
@@ -76,6 +79,7 @@ class PcpArchiveHardwareProcessor(object):
             or None if the processor encounters an error
         """
         global countFinishedArchives
+        global countArchivesFailed
         
         """
             'alias': {
@@ -99,7 +103,7 @@ class PcpArchiveHardwareProcessor(object):
             'disk_count': {
                 'name': 'hinv.ndisk',
                 'type': 'item',
-                'default': 0,
+                'default': -1,
                 'always_expected': True,
             },
             'physmem': {
@@ -175,9 +179,9 @@ class PcpArchiveHardwareProcessor(object):
                     if METRICS[metric].get('always_expected', False):
                         logging.debug("Metric '%s' with PCP name '%s' not found in archive '%s'", metric, metricName, archive)
                 else:
-                    traceback.print_exception(exc)
-                    logging.error('pmfg.extend_item or pmfd.extend_indom threw an unexpected exception')
-                    sys.exit(1)
+                    handleUnexpectedException(exc, archive)
+                    countArchivesFailed += 1
+                    return None
 
         # fetch data until all METRICS have been retrieved, or the end of the archive is reached
         while not (all(metric in data for metric in METRICS)):
@@ -197,25 +201,40 @@ class PcpArchiveHardwareProcessor(object):
                             data[metric] = None
                     break
                 else:
-                    traceback.print_exception(exc)
-                    logging.error('pmfg.fetch() threw an unexpected exception')
-                    sys.exit(1)
+                    handleUnexpectedException(exc, archive)
+                    countArchivesFailed += 1
+                    return None
 
             # Extract the data needed from METRICS which have not yet been fetched
             for metric in METRICS:
-                metricType = METRICS[metric]['type']
-                if ((metricType == 'item' and metric not in data) or                                     # item case
-                        (metricType == 'indom' and metric not in data and len(extObj[metric]()) > 0)):   # indom case (list)
-
-                    fetchedData = extObj[metric]()
-                    if metricType == 'indom':
-                        if 'extractor' in METRICS[metric]:
-                            data[metric] = METRICS[metric]['extractor'](fetchedData)
-                        else:
-                            data[metric] = DEFAULT_EXTRACTOR(fetchedData)
+                try:
+                    metricType = METRICS[metric]['type']
+                    if ((metricType == 'item' and metric not in data) or                                     # item case
+                            (metricType == 'indom' and metric not in data and len(extObj[metric]()) > 0)):   # indom case (list)
+                        fetchedData = extObj[metric]()
+                        if metricType == 'indom':
+                            if 'extractor' in METRICS[metric]:
+                                data[metric] = METRICS[metric]['extractor'](fetchedData)
+                            else:
+                                data[metric] = DEFAULT_EXTRACTOR(fetchedData)
+                        elif metricType == 'item':
+                            data[metric] = fetchedData
+                except pmapi.pmErr as exc:
+                    if exc.errno == -4:          # Interrupted system call
+                        logging.error('Metric %s in archive %s unable to be extracted because of an interrupted system call', metric, archive)
+                    if exc.errno == -12351:      # Missing metric value
+                        logging.error('Metric %s in archive %s unable to be extracted because of a "Missing metric value" error', metric, archive)
+                    if exc.errno == -12366:      # IPC protocol failure
+                        logging.error('Metric %s in archive %s unable to be extracted because of an IPC protocol failure', metric, archive)
                     else:
-                        data[metric] = fetchedData
-                    
+                        handleUnexpectedException(exc, archive, metric=metric)
+                    # Add the error to the dictionary which counts different types of extraction errors
+                    key = '%s (errno = %d)' % (exc.message(), exc.errno)
+                    if key in extractionErrorCount:
+                        extractionErrorCount[key] += 1
+                    else:
+                        extractionErrorCount[key] = 1
+                    data[metric] = None
 
         data['record_time_ts'] = record_time_ts
         data['hostname'] = hostname
@@ -401,6 +420,13 @@ class HardwareStagingTransformer(object):
                         else:
                             row[index] = replacement['repl']
 
+def handleUnexpectedException(exc, archive, metric=None):
+    logging.error(str(exc))
+    logging.error('\nAn unexpected exception was thrown for archive %s (errno = %d, message = "%s")', archive, exc.errno, exc.message())
+    if metric:
+        logging.error('metric = %s', metric)
+    traceback.print_exc()
+
 def getOptions():
     """ process comandline options """
     parser = argparse.ArgumentParser()
@@ -446,6 +472,7 @@ def main():
     global countArchivesRead
     global countFinishedArchives
     global countJobArchives
+    global countArchivesFailed
 
     opts = getOptions()
     
@@ -457,7 +484,7 @@ def main():
     numberOfResources = len(config._config['resources'])
     resourceNum = 1
     data = []
-    startTime = time.time()
+
     for resourcename, resource in config.resourceconfigs():
 
         logging.info('Processing resource %d of %d', resourceNum, numberOfResources)
@@ -465,15 +492,26 @@ def main():
         log_dir = resource['pcp_log_dir']
         if log_dir == '':
             logging.info('No log diretcory specified for resource %s. Skipping...', resourcename)
+            continue
         else:
             logging.info('Log directory = %s', log_dir)
         resourceNum += 1
 
         afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
+
+        startTime = time.time()
         try:
             for archive, fast_index, hostname in afind.find(log_dir):
                 if not PcpArchiveHardwareProcessor.isJobArchive(archive):
-                    hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
+                    try:
+                        hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
+                    except pmapi.pmErr as exc:
+                        if exc.errno == -12444:    # Result size exceeded
+                            logging.error('Result size exceeded on archive %s', archive)
+                        else:
+                            handleUnexpectedException(exc, archive)
+                        hw_info = None
+                        countArchivesFailed += 1
                     if hw_info != None:
                         hw_info['resource_name'] = resourcename
                         data.append(hw_info)
@@ -486,23 +524,30 @@ def main():
         except KeyboardInterrupt as i:
             logging.error('KeyboardInterrupt detected, transforming data for %s archives and writing to output...', countArchivesRead)
             break
+        except Exception as exc:
+            logging.error('Unexpected exception occured (%s)', str(exc))
+            traceback.print_exc()
+            countArchivesFailed += 1
 
-    processTime = time.time() - startTime
-    startTime = time.time()
-
+        processTime = time.time() - startTime
+        # Log job info
+        logging.info('Processing complete for resource %s', resourcename)
+        if (countArchivesFound != 0):
+            logging.info('Number of archives found: %d', countArchivesFound)
+            logging.info('Number of job archives skipped: %d/%d (%.1f%%)', countJobArchives, countArchivesFound, (float(countJobArchives)/countArchivesFound)*100)
+            logging.info('Number of archives read: %d/%d (%.1f%%)', countArchivesRead, countArchivesFound, (float(countArchivesRead)/countArchivesFound)*100)
+            logging.info('Number of archives which reached the end: %d/%d (%.1f%%)', countFinishedArchives, countArchivesRead, (float(countFinishedArchives)/countArchivesRead)*100)
+            logging.info('Number of archives which failed to be read because of an error: %d/%d (%.1f%%)', countArchivesFailed, countArchivesRead, (float(countArchivesFailed)/countArchivesRead)*100)
+            logging.info('Total process time: %.1f seconds (%.4f seconds/archive, %.4f archives/second)', processTime, processTime / countArchivesRead, countArchivesRead / processTime)
+            logging.info('Extraction error count = \n%s', json.dumps(extractionErrorCount, indent=4))
+        else:
+            logging.info('No archives found for resource %s in specified date range', resourcename)
+    
     # Transform data to staging columns
+    startTime = time.time()
     HardwareStagingTransformer(data, replacementPath=opts['replace'], outputFilename=opts['output'])
-
     transformTime = time.time() - startTime
-
-    logging.info('Processing complete.')
-    logging.info('Number of archives found: %d', countArchivesFound)
-    logging.info('Number of job archives skipped: %d/%d (%.1f%%)', countJobArchives, countArchivesFound, (float(countJobArchives)/countArchivesFound)*100)
-    logging.info('Number of archives read: %d/%d (%.1f%%)', countArchivesRead, countArchivesFound, (float(countArchivesRead)/countArchivesFound)*100)
-    logging.info('Number of archives which reached the end: %d/%d (%.1f%%)', countFinishedArchives, countArchivesRead, (float(countFinishedArchives)/countArchivesRead)*100)
-    logging.info('Total process time: %.1f seconds (average per archive read: %.5f seconds)', processTime, processTime / countArchivesRead)
-    logging.info('Total transform time: %.1f seconds (average per archive read: %.5f seconds)', transformTime, transformTime / countArchivesRead)
-
+    logging.info('Total transform time: %.1f seconds', transformTime)
 
 if __name__ == '__main__':
     main()
