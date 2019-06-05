@@ -205,12 +205,12 @@ class PcpArchiveHardwareProcessor(object):
                     countArchivesFailed += 1
                     return None
 
-            # Extract the data needed from METRICS which have not yet been fetched
-            for metric in METRICS:
+            # Extract the data needed from metrics which have not yet been fetched
+            for metric in [m for m in METRICS if m not in data]:
                 try:
                     metricType = METRICS[metric]['type']
-                    if ((metricType == 'item' and metric not in data) or                                     # item case
-                            (metricType == 'indom' and metric not in data and len(extObj[metric]()) > 0)):   # indom case (list)
+                    if ((metricType == 'item') or                                     # item case
+                            (metricType == 'indom' and len(extObj[metric]()) > 0)):   # indom case (list)
                         fetchedData = extObj[metric]()
                         if metricType == 'indom':
                             if 'extractor' in METRICS[metric]:
@@ -220,14 +220,7 @@ class PcpArchiveHardwareProcessor(object):
                         elif metricType == 'item':
                             data[metric] = fetchedData
                 except pmapi.pmErr as exc:
-                    if exc.errno == -4:          # Interrupted system call
-                        logging.error('Metric %s in archive %s unable to be extracted because of an interrupted system call', metric, archive)
-                    if exc.errno == -12351:      # Missing metric value
-                        logging.error('Metric %s in archive %s unable to be extracted because of a "Missing metric value" error', metric, archive)
-                    if exc.errno == -12366:      # IPC protocol failure
-                        logging.error('Metric %s in archive %s unable to be extracted because of an IPC protocol failure', metric, archive)
-                    else:
-                        handleUnexpectedException(exc, archive, metric=metric)
+                    logging.error('Metric %s in archive %s unable to be extracted because of pmErr "%s" (errno = %d)', metric, archive, exc.message(), exc.errno)
                     # Add the error to the dictionary which counts different types of extraction errors
                     key = '%s (errno = %d)' % (exc.message(), exc.errno)
                     if key in extractionErrorCount:
@@ -488,6 +481,7 @@ def main():
     for resourcename, resource in config.resourceconfigs():
 
         logging.info('Processing resource %d of %d', resourceNum, numberOfResources)
+        resourceNum += 1
         logging.info('Resource name = %s', resourcename)
         log_dir = resource['pcp_log_dir']
         if log_dir == '':
@@ -495,7 +489,7 @@ def main():
             continue
         else:
             logging.info('Log directory = %s', log_dir)
-        resourceNum += 1
+        
 
         afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
 
@@ -506,10 +500,7 @@ def main():
                     try:
                         hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
                     except pmapi.pmErr as exc:
-                        if exc.errno == -12444:    # Result size exceeded
-                            logging.error('Result size exceeded on archive %s', archive)
-                        else:
-                            handleUnexpectedException(exc, archive)
+                        handleUnexpectedException(exc, archive)
                         hw_info = None
                         countArchivesFailed += 1
                     if hw_info != None:
@@ -522,8 +513,7 @@ def main():
                     countJobArchives += 1
                 countArchivesFound += 1
         except KeyboardInterrupt as i:
-            logging.error('KeyboardInterrupt detected, transforming data for %s archives and writing to output...', countArchivesRead)
-            break
+            logging.error('KeyboardInterrupt detected, skipping this resource after reading %s archives...', countArchivesRead)
         except Exception as exc:
             logging.error('Unexpected exception occured (%s)', str(exc))
             traceback.print_exc()
@@ -542,12 +532,20 @@ def main():
             logging.info('Extraction error count = \n%s', json.dumps(extractionErrorCount, indent=4))
         else:
             logging.info('No archives found for resource %s in specified date range', resourcename)
+        
+        # Reset count variables
+        countArchivesFound = 0
+        countArchivesRead = 0
+        countJobArchives = 0
+        countFinishedArchives = 0
+        countArchivesFailed = 0
+        extractionErrorCount.clear()
     
     # Transform data to staging columns
     startTime = time.time()
     HardwareStagingTransformer(data, replacementPath=opts['replace'], outputFilename=opts['output'])
     transformTime = time.time() - startTime
-    logging.info('Total transform time: %.1f seconds', transformTime)
+    logging.info('Total transform time: %.2f seconds', transformTime)
 
 if __name__ == '__main__':
     main()
