@@ -30,8 +30,6 @@ import traceback
 
 DAY_DELTA = 3
 
-
-
 STAGING_COLUMNS = [
     'hostname',
     'manufacturer',
@@ -67,7 +65,7 @@ countJobArchives = 0        # Number of job archives skipped
 countFinishedArchives = 0   # Number of archives which reached the end before data could be pulled out
 countArchivesFailed = 0     # Number of archives which could not be read because of an error
 
-extractionErrorCount = {}
+errorCount = {}
 
 class PcpArchiveHardwareProcessor(object):
     """ Parses a pcp archive and adds the archive information to the index """
@@ -79,7 +77,6 @@ class PcpArchiveHardwareProcessor(object):
             or None if the processor encounters an error
         """
         global countFinishedArchives
-        global countArchivesFailed
         
         """
             'alias': {
@@ -150,8 +147,13 @@ class PcpArchiveHardwareProcessor(object):
                 'extractor': PcpArchiveHardwareProcessor.extractNamedData,
             },
         }
-        
-        context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+        try:
+            context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
+        except pmapi.pmErr as exc:
+            logging.debug('Context error\n\tarchive: %s\n\terror: "%s" (errno = %d)', archive, exc.message().split(' [')[0], exc.errno)
+            countError(exc)
+            return None
+
         mdata = context.pmGetArchiveLabel()
         hostname = mdata.hostname.split('.')[0]
         record_time_ts = float(mdata.start)
@@ -180,7 +182,6 @@ class PcpArchiveHardwareProcessor(object):
                         logging.debug("Metric '%s' with PCP name '%s' not found in archive '%s'", metric, metricName, archive)
                 else:
                     handleUnexpectedException(exc, archive)
-                    countArchivesFailed += 1
                     return None
 
         # fetch data until all METRICS have been retrieved, or the end of the archive is reached
@@ -200,9 +201,12 @@ class PcpArchiveHardwareProcessor(object):
                         else:
                             data[metric] = None
                     break
+                elif exc.errno == -12373:    # Corrupted record in a PCP archive log
+                    logging.debug('Corrupted record in archive %s', archive)
+                    countError(exc)
+                    return None
                 else:
                     handleUnexpectedException(exc, archive)
-                    countArchivesFailed += 1
                     return None
 
             # Extract the data needed from metrics which have not yet been fetched
@@ -220,14 +224,9 @@ class PcpArchiveHardwareProcessor(object):
                         elif metricType == 'item':
                             data[metric] = fetchedData
                 except pmapi.pmErr as exc:
-                    logging.error('Metric %s in archive %s unable to be extracted because of pmErr "%s" (errno = %d)', metric, archive, exc.message(), exc.errno)
-                    # Add the error to the dictionary which counts different types of extraction errors
-                    key = '%s (errno = %d)' % (exc.message(), exc.errno)
-                    if key in extractionErrorCount:
-                        extractionErrorCount[key] += 1
-                    else:
-                        extractionErrorCount[key] = 1
-                    data[metric] = None
+                    logging.debug('Extraction error\n\tarchive: %s\n\ttimestamp: %f\n\tmetric: %s\n\terror: "%s" (errno = %d)', archive, record_time_ts, metric, exc.message(), exc.errno)
+                    countError(exc)
+                    return None
 
         data['record_time_ts'] = record_time_ts
         data['hostname'] = hostname
@@ -414,11 +413,31 @@ class HardwareStagingTransformer(object):
                             row[index] = replacement['repl']
 
 def handleUnexpectedException(exc, archive, metric=None):
-    logging.error(str(exc))
-    logging.error('\nAn unexpected exception was thrown for archive %s (errno = %d, message = "%s")', archive, exc.errno, exc.message())
+    """ Print an error message for an unexpected exception
+        and record it
+    """
     if metric:
-        logging.error('metric = %s', metric)
-    traceback.print_exc()
+        metricString = '\n\tmetric: ' + metric
+    else:
+        metricString = ''
+    logging.warning('Unexpected exception: %s\n\tarchive: %s%s\n\terror: "%s" (errno = %d)\n%s', 
+            str(exc), archive, metricString, exc.message(), exc.errno, traceback.format_exc())
+    countError(exc)
+
+def countError(exc):
+    """ Record an error in the errorCount dictionary
+    """
+
+    # Clean up the error message to use it as a key
+    message = exc.message()
+    message = message.split(' [')[0]
+    message = message.split(' <')[0]
+
+    key = '%s (errno = %d)' % (message, exc.errno)
+    if key in errorCount:
+        errorCount[key] += 1
+    else:
+        errorCount[key] = 1
 
 def getOptions():
     """ process comandline options """
@@ -461,6 +480,7 @@ def getOptions():
 
 def main():
     """Main entry point"""
+    # Import global variables used to count the archives read
     global countArchivesFound
     global countArchivesRead
     global countFinishedArchives
@@ -493,19 +513,26 @@ def main():
 
         afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
 
+        # Search for and process archives in this resource
         startTime = time.time()
         try:
             for archive, fast_index, hostname in afind.find(log_dir):
                 if not PcpArchiveHardwareProcessor.isJobArchive(archive):
+                    # Try to extract information from the archive
                     try:
                         hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
                     except pmapi.pmErr as exc:
                         handleUnexpectedException(exc, archive)
                         hw_info = None
                         countArchivesFailed += 1
+                    
+                    # Add the extracted information to the data list
                     if hw_info != None:
                         hw_info['resource_name'] = resourcename
                         data.append(hw_info)
+                    else:
+                        countArchivesFailed += 1
+                    
                     countArchivesRead += 1
                     if countArchivesRead % 100 == 0:
                         logging.debug('%d archives read', countArchivesRead)
@@ -513,10 +540,10 @@ def main():
                     countJobArchives += 1
                 countArchivesFound += 1
         except KeyboardInterrupt as i:
-            logging.error('KeyboardInterrupt detected, skipping this resource after reading %s archives...', countArchivesRead)
+            logging.info('KeyboardInterrupt detected, skipping this resource after reading %s archives...', countArchivesRead)
         except Exception as exc:
-            logging.error('Unexpected exception occured (%s)', str(exc))
-            traceback.print_exc()
+            # Ignore and record any unexpected python exceptions
+            logging.error('UNEXPECTED PYTHON ERROR (%s)\n%s', str(exc), traceback.format_exc())
             countArchivesFailed += 1
 
         processTime = time.time() - startTime
@@ -528,8 +555,8 @@ def main():
             logging.info('Number of archives read: %d/%d (%.1f%%)', countArchivesRead, countArchivesFound, (float(countArchivesRead)/countArchivesFound)*100)
             logging.info('Number of archives which reached the end: %d/%d (%.1f%%)', countFinishedArchives, countArchivesRead, (float(countFinishedArchives)/countArchivesRead)*100)
             logging.info('Number of archives which failed to be read because of an error: %d/%d (%.1f%%)', countArchivesFailed, countArchivesRead, (float(countArchivesFailed)/countArchivesRead)*100)
-            logging.info('Total process time: %.1f seconds (%.4f seconds/archive, %.4f archives/second)', processTime, processTime / countArchivesRead, countArchivesRead / processTime)
-            logging.info('Extraction error count = \n%s', json.dumps(extractionErrorCount, indent=4))
+            logging.info('Total process time: %.2f minutes (%.4f seconds/archive, %.4f archives/second)', processTime / 60, processTime / countArchivesRead, countArchivesRead / processTime)
+            logging.info('Error count = \n%s', json.dumps(errorCount, indent=4))
         else:
             logging.info('No archives found for resource %s in specified date range', resourcename)
         
@@ -539,7 +566,7 @@ def main():
         countJobArchives = 0
         countFinishedArchives = 0
         countArchivesFailed = 0
-        extractionErrorCount.clear()
+        errorCount.clear()
     
     # Transform data to staging columns
     startTime = time.time()
