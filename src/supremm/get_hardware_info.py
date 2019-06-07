@@ -79,6 +79,7 @@ class PcpArchiveHardwareProcessor(object):
         global countFinishedArchives
         
         """
+            The METRICS dictionary defines the metrics to be collected, as well as how to extract them
             'alias': {
                 'name': 'the name of the metric in the pcp archive',
                 'type': 'item' for single items, 'indom' for instance domains
@@ -87,7 +88,6 @@ class PcpArchiveHardwareProcessor(object):
                     - default for instance domains is PcpArchiveHardwareProcessor.extractFirstValue
                 'always_expected': (optional)
                     - if true: if an archive is missing this metric, send a debug message
-                'default': the value returned if the metric is not found in the archive (optional - None by default)
             }
         """
         DEFAULT_EXTRACTOR = PcpArchiveHardwareProcessor.extractFirstValue
@@ -100,7 +100,6 @@ class PcpArchiveHardwareProcessor(object):
             'disk_count': {
                 'name': 'hinv.ndisk',
                 'type': 'item',
-                'default': -1,
                 'always_expected': True,
             },
             'physmem': {
@@ -139,7 +138,6 @@ class PcpArchiveHardwareProcessor(object):
                 'name': 'network.interface.in.bytes',
                 'type': 'indom',
                 'extractor': ( lambda x: len([device[1] for device in x if device[1] != 'lo']) ),
-                'default': 0,
             },
             'gpu': {
                 'name': 'nvidia.cardname',
@@ -178,8 +176,12 @@ class PcpArchiveHardwareProcessor(object):
                 if exc.errno == -12357:    # Unknown metric
                     extObj[metric] = None
                     data[metric] = None
+                    # If the metric that is missing should ALWAYS be in the archive, then return None
+                    # because this archive must be corrupted
                     if METRICS[metric].get('always_expected', False):
                         logging.debug("Metric '%s' with PCP name '%s' not found in archive '%s'", metric, metricName, archive)
+                        countError(exc)
+                        return None
                 else:
                     handleUnexpectedException(exc, archive)
                     return None
@@ -190,24 +192,16 @@ class PcpArchiveHardwareProcessor(object):
                 pmfg.fetch()
             except pmapi.pmErr as exc:
                 if exc.errno == -12370:    # End of PCP archive log
-                    # End of archive
+                    # If we reach the end of the archive, it means relevant data is missing
+                    # meaning the archive is corrupted, so return None
                     countFinishedArchives += 1
-                    logging.debug('Processor reached the end of archive %s. Missing METRICS: %s', archive, str([metric for metric in METRICS if metric not in data]))
-
-                    # fill in missing data with default value
-                    for metric in [m for m in METRICS if m not in data]:
-                        if 'default' in METRICS[metric]:
-                            data[metric] = METRICS[metric]['default']
-                        else:
-                            data[metric] = None
-                    break
+                    logging.debug('Processor reached the end of archive %s. Missing metric(s): %s', archive, str([metric for metric in METRICS if metric not in data]))
                 elif exc.errno == -12373:    # Corrupted record in a PCP archive log
                     logging.debug('Corrupted record in archive %s', archive)
                     countError(exc)
-                    return None
                 else:
                     handleUnexpectedException(exc, archive)
-                    return None
+                return None
 
             # Extract the data needed from metrics which have not yet been fetched
             for metric in [m for m in METRICS if m not in data]:
