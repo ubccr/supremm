@@ -29,6 +29,7 @@ import sys
 import traceback
 
 DAY_DELTA = 3
+keepAll = False
 
 STAGING_COLUMNS = [
     'hostname',
@@ -77,6 +78,7 @@ class PcpArchiveHardwareProcessor(object):
             or None if the processor encounters an error
         """
         global countFinishedArchives
+        global keepAll
         
         """
             The METRICS dictionary defines the metrics to be collected, as well as how to extract them
@@ -187,15 +189,30 @@ class PcpArchiveHardwareProcessor(object):
                     return None
 
         # fetch data until all METRICS have been retrieved, or the end of the archive is reached
+        fetchCount = 0
         while not (all(metric in data for metric in METRICS)):
+
+            # # Check if the process is still waiting on gpu data
+            # if fetchCount > 0 and [m for m in METRICS if m not in data] == ['gpu']:
+            #     # If the gpu data has not been found after one fetch
+            #     logging.debug('No gpu data found for archive %s', archive)
+            #     if keepAll:
+            #         # If we want to still keep this archive even though data is missing
+            #         data['gpu'] = None
+            #         break
+            #     else:
+            #         # If we want to ignore this archive because data is missing
+            #         return None
+
             try:
                 pmfg.fetch()
+                fetchCount += 1
             except pmapi.pmErr as exc:
                 if exc.errno == -12370:    # End of PCP archive log
                     # If we reach the end of the archive, it means relevant data is missing
                     # meaning the archive is corrupted, so return None
                     countFinishedArchives += 1
-                    logging.debug('Processor reached the end of archive %s. Missing metric(s): %s', archive, str([metric for metric in METRICS if metric not in data]))
+                    logging.debug('Processor reached the end of archive\n\tarchive: %s\n\tMissing metric(s): %s\n\tfetch count: %d', archive, str([m for m in METRICS if m not in data]), fetchCount)
                 elif exc.errno == -12373:    # Corrupted record in a PCP archive log
                     logging.debug('Corrupted record in archive %s', archive)
                     countError(exc)
@@ -209,6 +226,10 @@ class PcpArchiveHardwareProcessor(object):
                     metricType = METRICS[metric]['type']
                     if ((metricType == 'item') or                                     # item case
                             (metricType == 'indom' and len(extObj[metric]()) > 0)):   # indom case (list)
+                        #######
+                        if (metric == 'gpu' and fetchCount > 1):
+                            logging.debug('GPU_DATA: found gpu data on fetch #%d', fetchCount)
+                        #######
                         fetchedData = extObj[metric]()
                         if metricType == 'indom':
                             if 'extractor' in METRICS[metric]:
@@ -455,6 +476,8 @@ def getOptions():
 
     parser.add_argument('-a', '--all', action='store_true', help='Process all archives regardless of age')
 
+    parser.add_argument('-k', '--keep', action='store_true', help="Keep archives which are missing gpu data (fill in data with 'NA')")
+
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument('-d', '--debug', dest='log', action='store_const', const=logging.DEBUG, default=logging.INFO,
                      help='Set log level to debug')
@@ -480,6 +503,7 @@ def main():
     global countFinishedArchives
     global countJobArchives
     global countArchivesFailed
+    global keepAll
 
     opts = getOptions()
     
@@ -487,6 +511,7 @@ def main():
     logging.debug('Command: %s', ' '.join(sys.argv))
 
     config = Config(opts['config'])
+    keepAll = opts['keep']
 
     numberOfResources = len(config._config['resources'])
     resourceNum = 1
