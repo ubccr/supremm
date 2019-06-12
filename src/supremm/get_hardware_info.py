@@ -13,6 +13,8 @@ import re
 from re import sub, search
 import time
 from copy import deepcopy
+import sys
+import traceback
 
 import json
 from collections import defaultdict
@@ -23,10 +25,6 @@ import cpmapi as c_pmapi
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
 from supremm.indexarchives import PcpArchiveFinder
-
-# Testing only
-import sys
-import traceback
 
 DAY_DELTA = 3
 keepAll = False
@@ -114,6 +112,30 @@ class PcpArchiveHardwareProcessor(object):
                 'type': 'indom',
                 'always_expected': True,
             },
+            'board_manufacturer': {
+                'name': 'hinv.dmi.board_vendor',
+                'type': 'item',
+            },
+            'board_name': {
+                'name': 'hinv.dmi.board_name',
+                'type': 'item',
+            },
+            'board_version': {
+                'name': 'hinv.dmi.board_version',
+                'type': 'item',
+            },
+            'system_manufacturer': {
+                'name': 'hinv.dmi.sys_vendor',
+                'type': 'item',
+            },
+            'system_name': {
+                'name': 'hinv.dmi.product_name',
+                'type': 'item',
+            },
+            'system_version': {
+                'name': 'hinv.dmi.product_version',
+                'type': 'item',
+            },
             'model_name': {
                 'name': 'hinv.cpu.model_name',
                 'type': 'indom',
@@ -192,17 +214,18 @@ class PcpArchiveHardwareProcessor(object):
         fetchCount = 0
         while not (all(metric in data for metric in METRICS)):
 
-            # # Check if the process is still waiting on gpu data
-            # if fetchCount > 0 and [m for m in METRICS if m not in data] == ['gpu']:
-            #     # If the gpu data has not been found after one fetch
-            #     logging.debug('No gpu data found for archive %s', archive)
-            #     if keepAll:
-            #         # If we want to still keep this archive even though data is missing
-            #         data['gpu'] = None
-            #         break
-            #     else:
-            #         # If we want to ignore this archive because data is missing
-            #         return None
+            # Check if the process is still waiting on gpu data
+            if fetchCount > 0 and [m for m in METRICS if m not in data] == ['gpu']:
+                # If the gpu data has not been found after one fetch
+                if keepAll:
+                    # If we want to still keep this archive even though data is missing
+                    data['gpu'] = None
+                    break
+                else:
+                    # If we want to ignore this archive because data is missing
+                    logging.debug('No gpu data found for archive %s', archive)
+                    countFinishedArchives += 1
+                    return None
 
             try:
                 pmfg.fetch()
@@ -226,10 +249,6 @@ class PcpArchiveHardwareProcessor(object):
                     metricType = METRICS[metric]['type']
                     if ((metricType == 'item') or                                     # item case
                             (metricType == 'indom' and len(extObj[metric]()) > 0)):   # indom case (list)
-                        #######
-                        if (metric == 'gpu' and fetchCount > 1):
-                            logging.debug('GPU_DATA: found gpu data on fetch #%d', fetchCount)
-                        #######
                         fetchedData = extObj[metric]()
                         if metricType == 'indom':
                             if 'extractor' in METRICS[metric]:
@@ -322,12 +341,12 @@ class HardwareStagingTransformer(object):
                 self.get(model_name),                               # model_name
                 self.get(clock_speed, 'int'),                       # clock_speed
                 self.get(hw_info.get('core_count'), 'int'),         # core_count
-                self.get(None),                                     # board_manufacturer 
-                self.get(None),                                     # board_name
-                self.get(None),                                     # board_version
+                self.get(hw_info.get('board_manufacturer')),        # board_manufacturer 
+                self.get(hw_info.get('board_name')),                # board_name
+                self.get(hw_info.get('board_version')),             # board_version
                 self.get(hw_info.get('system_manufacturer')),       # system_manufacturer
                 self.get(hw_info.get('system_name')),               # system_name
-                self.get(None),                                     # system_version
+                self.get(hw_info.get('system_version')),            # system_version
                 self.get(hw_info.get('physmem'), 'int'),            # physmem
                 self.get(hw_info.get('numa_node_count'), 'int'),    # numa_node_count
                 self.get(hw_info.get('disk_count'), 'int'),         # disk_count
@@ -497,13 +516,13 @@ def getOptions():
 
 def main():
     """Main entry point"""
-    # Import global variables used to count the archives read
+    # Variables used to count the archives read
     global countArchivesFound
     global countArchivesRead
     global countFinishedArchives
     global countJobArchives
     global countArchivesFailed
-    global keepAll
+    global keepAll  # Option flag
 
     opts = getOptions()
     
@@ -554,7 +573,7 @@ def main():
                     
                     countArchivesRead += 1
                     if countArchivesRead % 100 == 0:
-                        logging.debug('%d archives read', countArchivesRead)
+                        logging.debug('%d archives read (cumulative rate = %f archives/second)', countArchivesRead, countArchivesRead / (time.time() - startTime))
                 else:
                     countJobArchives += 1
                 countArchivesFound += 1
