@@ -11,10 +11,12 @@ mongod -f /etc/mongod.conf
 
 mkdir -p /data/{phillips,pozidriv,frearson,mortorq,robertson}/{pcp-logs,jobscripts}
 mkdir -p "/data/mortorq/pcp-logs/hostname/2016/12/30"
+mkdir -p "/data/pcp-logs/hardware-info-test/hostname/2019/06/17"
 
 python tests/integration_tests/supremm_setup_expect.py
 
 cp tests/integration_tests/pcp_logs_extracted/* /data/mortorq/pcp-logs/hostname/2016/12/30
+cp tests/hardware_info_tests/pcp_logs/* /data/pcp-logs/hardware-info-test/hostname/2019/06/17
 
 # Create files containing 'job scripts'
 jspath=/data/phillips/jobscripts/20170101

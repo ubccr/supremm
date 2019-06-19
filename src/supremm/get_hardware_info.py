@@ -223,7 +223,7 @@ class PcpArchiveHardwareProcessor(object):
                     break
                 else:
                     # If we want to ignore this archive because data is missing
-                    logging.debug('No gpu data found for archive %s', archive)
+                    logging.debug('Missing gpu data in archive %s', archive)
                     countFinishedArchives += 1
                     return None
 
@@ -386,7 +386,7 @@ class HardwareStagingTransformer(object):
         searchpaths = [
             os.path.dirname(os.path.abspath(__file__)) + '/../../../../etc/supremm',
             '/etc/supremm',
-            pkg_resources.resource_filename(pkg_resources.Requirement.parse('supremm'), 'etc/supremm')
+            #pkg_resources.resource_filename(pkg_resources.Requirement.parse('supremm'), 'etc/supremm')
         ]
 
         for path in searchpaths:
