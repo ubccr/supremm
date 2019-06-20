@@ -363,10 +363,7 @@ class HardwareStagingTransformer(object):
             ])
 
         # Generate replacement rules from file
-        if replacementPath == None:
-            replacementPath = self.autoDetectReplacementPath()
-
-        if (replacementPath is not None) and os.path.isdir(replacementPath):
+        if (replacementPath is not None) and os.path.isfile(os.path.join(replacementPath, 'replacement_rules.json')):
             replacementFile = os.path.join(replacementPath, 'replacement_rules.json')
             try:
                 with open(replacementFile, 'r') as inFile:
@@ -479,7 +476,10 @@ def getOptions():
 
     parser.add_argument('-c', '--config', help='Specify the path to the configuration directory')
 
-    parser.add_argument('-r', '--replace', help='Specify the path to the replacement_rules directory (if none, check config dir)')
+    parser.add_argument(
+        "-r", "--resource", metavar="RES",
+        help="Process only archive files for the specified resource, if absent then all resources are processed"
+    )
 
     parser.add_argument('-o', '--output', default='hardware_staging.json', help='Specify the name and path of the output json file')
 
@@ -538,77 +538,80 @@ def main():
 
     for resourcename, resource in config.resourceconfigs():
 
-        logging.info('Processing resource %d of %d', resourceNum, numberOfResources)
-        resourceNum += 1
-        logging.info('Resource name = %s', resourcename)
-        log_dir = resource['pcp_log_dir']
-        if log_dir == '':
-            logging.info('No log diretcory specified for resource %s. Skipping...', resourcename)
-            continue
-        else:
-            logging.info('Log directory = %s', log_dir)
-        
+        if opts['resource'] in (None, resourcename, str(resource['resource_id'])):
 
-        afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
+            logging.info('Processing resource %d of %d', resourceNum, numberOfResources)
+            resourceNum += 1
+            logging.info('Resource name = %s', resourcename)
+            log_dir = resource['pcp_log_dir']
+            if log_dir == '':
+                logging.info('No log diretcory specified for resource %s. Skipping...', resourcename)
+                continue
+            else:
+                logging.info('Log directory = %s', log_dir)
+            
 
-        # Search for and process archives in this resource
-        startTime = time.time()
-        try:
-            for archive, fast_index, hostname in afind.find(log_dir):
-                if not PcpArchiveHardwareProcessor.isJobArchive(archive):
-                    # Try to extract information from the archive
-                    try:
-                        hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
-                    except pmapi.pmErr as exc:
-                        handleUnexpectedException(exc, archive)
-                        hw_info = None
-                        countArchivesFailed += 1
-                    
-                    # Add the extracted information to the data list
-                    if hw_info != None:
-                        hw_info['resource_name'] = resourcename
-                        data.append(hw_info)
+            afind = PcpArchiveFinder(opts['mindate'], opts['maxdate'], opts['all'])
+
+            # Search for and process archives in this resource
+            startTime = time.time()
+            try:
+                for archive, fast_index, hostname in afind.find(log_dir):
+                    if not PcpArchiveHardwareProcessor.isJobArchive(archive):
+                        # Try to extract information from the archive
+                        try:
+                            hw_info = PcpArchiveHardwareProcessor.getDataFromArchive(archive)
+                        except pmapi.pmErr as exc:
+                            handleUnexpectedException(exc, archive)
+                            hw_info = None
+                            countArchivesFailed += 1
+                        
+                        # Add the extracted information to the data list
+                        if hw_info != None:
+                            hw_info['resource_name'] = resourcename
+                            data.append(hw_info)
+                        else:
+                            countArchivesFailed += 1
+                        
+                        countArchivesRead += 1
+                        if countArchivesRead % 100 == 0:
+                            logging.debug('%d archives read (cumulative rate = %f archives/second)', countArchivesRead, countArchivesRead / (time.time() - startTime))
                     else:
-                        countArchivesFailed += 1
-                    
-                    countArchivesRead += 1
-                    if countArchivesRead % 100 == 0:
-                        logging.debug('%d archives read (cumulative rate = %f archives/second)', countArchivesRead, countArchivesRead / (time.time() - startTime))
-                else:
-                    countJobArchives += 1
-                countArchivesFound += 1
-        except KeyboardInterrupt as i:
-            logging.info('KeyboardInterrupt detected, skipping this resource after reading %s archives...', countArchivesRead)
-        except Exception as exc:
-            # Ignore and record any unexpected python exceptions
-            logging.error('UNEXPECTED PYTHON ERROR (%s)\n%s', str(exc), traceback.format_exc())
-            countArchivesFailed += 1
+                        countJobArchives += 1
+                    countArchivesFound += 1
+            except KeyboardInterrupt as i:
+                logging.info('KeyboardInterrupt detected, skipping this resource after reading %s archives...', countArchivesRead)
+            except Exception as exc:
+                # Ignore and record any unexpected python exceptions
+                logging.error('UNEXPECTED PYTHON ERROR (%s)\n%s', str(exc), traceback.format_exc())
+                countArchivesFailed += 1
 
-        processTime = time.time() - startTime
-        # Log job info
-        logging.info('Processing complete for resource %s', resourcename)
-        if (countArchivesFound != 0):
-            logging.info('Number of archives found: %d', countArchivesFound)
-            logging.info('Number of job archives skipped: %d/%d (%.1f%%)', countJobArchives, countArchivesFound, (float(countJobArchives)/countArchivesFound)*100)
-            logging.info('Number of archives read: %d/%d (%.1f%%)', countArchivesRead, countArchivesFound, (float(countArchivesRead)/countArchivesFound)*100)
-            logging.info('Number of archives which reached the end: %d/%d (%.1f%%)', countFinishedArchives, countArchivesRead, (float(countFinishedArchives)/countArchivesRead)*100)
-            logging.info('Number of archives which failed to be read because of an error: %d/%d (%.1f%%)', countArchivesFailed, countArchivesRead, (float(countArchivesFailed)/countArchivesRead)*100)
-            logging.info('Total process time: %.2f minutes (%.4f seconds/archive, %.4f archives/second)', processTime / 60, processTime / countArchivesRead, countArchivesRead / processTime)
-            logging.info('Error count = \n%s', json.dumps(errorCount, indent=4))
-        else:
-            logging.info('No archives found for resource %s in specified date range', resourcename)
-        
-        # Reset count variables
-        countArchivesFound = 0
-        countArchivesRead = 0
-        countJobArchives = 0
-        countFinishedArchives = 0
-        countArchivesFailed = 0
-        errorCount.clear()
+            processTime = time.time() - startTime
+            # Log job info
+            logging.info('Processing complete for resource %s', resourcename)
+            if (countArchivesFound != 0):
+                logging.info('Number of archives found: %d', countArchivesFound)
+                logging.info('Number of job archives skipped: %d/%d (%.1f%%)', countJobArchives, countArchivesFound, (float(countJobArchives)/countArchivesFound)*100)
+                logging.info('Number of archives read: %d/%d (%.1f%%)', countArchivesRead, countArchivesFound, (float(countArchivesRead)/countArchivesFound)*100)
+                logging.info('Number of archives which reached the end: %d/%d (%.1f%%)', countFinishedArchives, countArchivesRead, (float(countFinishedArchives)/countArchivesRead)*100)
+                logging.info('Number of archives which failed to be read because of an error: %d/%d (%.1f%%)', countArchivesFailed, countArchivesRead, (float(countArchivesFailed)/countArchivesRead)*100)
+                logging.info('Total process time: %.2f minutes (%.4f seconds/archive, %.4f archives/second)', processTime / 60, processTime / countArchivesRead, countArchivesRead / processTime)
+                if errorCount != {}:
+                    logging.info('Error count = \n%s', json.dumps(errorCount, indent=4))
+            else:
+                logging.info('No archives found for resource %s in specified date range', resourcename)
+            
+            # Reset count variables
+            countArchivesFound = 0
+            countArchivesRead = 0
+            countJobArchives = 0
+            countFinishedArchives = 0
+            countArchivesFailed = 0
+            errorCount.clear()
     
     # Transform data to staging columns
     startTime = time.time()
-    HardwareStagingTransformer(data, replacementPath=opts['replace'], outputFilename=opts['output'])
+    HardwareStagingTransformer(data, replacementPath=config.getconfpath(), outputFilename=opts['output'])
     transformTime = time.time() - startTime
     logging.info('Total transform time: %.2f seconds', transformTime)
 

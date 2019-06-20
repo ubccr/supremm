@@ -26,6 +26,8 @@ class Config(object):
         if confpath == None:
             confpath = self.autodetectconfpath()
 
+        self.confpath = confpath
+
         if confpath is None or os.path.isdir(confpath) == False:
             raise Exception("Missing configuration path %s" % confpath)
 
@@ -118,6 +120,10 @@ class Config(object):
                 continue
             resdata['name'] = resname
             yield (resname, resdata)
+
+    def getconfpath(self):
+        """ Get the path to the configuration directory """
+        return self.confpath
 
 def test():
     """ test """
