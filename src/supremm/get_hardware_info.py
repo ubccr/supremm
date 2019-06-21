@@ -172,6 +172,7 @@ class PcpArchiveHardwareProcessor(object):
         try:
             context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
         except pmapi.pmErr as exc:
+            #pylint: disable=not-callable
             logging.debug('Context error\n\tarchive: %s\n\terror: "%s" (errno = %d)', archive, exc.message().split(' [')[0], exc.errno)
             countError(exc)
             return None
@@ -258,6 +259,7 @@ class PcpArchiveHardwareProcessor(object):
                         elif metricType == 'item':
                             data[metric] = fetchedData
                 except pmapi.pmErr as exc:
+                    #pylint: disable=not-callable
                     logging.debug('Extraction error\n\tarchive: %s\n\ttimestamp: %f\n\tmetric: %s\n\terror: "%s" (errno = %d)', archive, record_time_ts, metric, exc.message(), exc.errno)
                     countError(exc)
                     return None
@@ -437,6 +439,7 @@ def handleUnexpectedException(exc, archive, metric=None):
         metricString = '\n\tmetric: ' + metric
     else:
         metricString = ''
+    #pylint: disable=not-callable
     logging.warning('Unexpected exception: %s\n\tarchive: %s%s\n\terror: "%s" (errno = %d)\n%s', 
             str(exc), archive, metricString, exc.message(), exc.errno, traceback.format_exc())
     countError(exc)
@@ -446,6 +449,7 @@ def countError(exc):
     """
 
     # Clean up the error message to use it as a key
+    #pylint: disable=not-callable
     message = exc.message()
     message = message.split(' [')[0]
     message = message.split(' <')[0]
