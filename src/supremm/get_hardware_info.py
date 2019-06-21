@@ -187,7 +187,6 @@ class PcpArchiveHardwareProcessor(object):
         # Metrics map to None if the metric does not appear in the archive
         extObj = {}
         data = {}
-        data['infiniband'] = defaultdict(list)  # TODO change this
         for metric in METRICS:
             try:
                 metricType = METRICS[metric]['type']
