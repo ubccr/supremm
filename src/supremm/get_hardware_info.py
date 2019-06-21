@@ -377,20 +377,6 @@ class HardwareStagingTransformer(object):
         logging.debug('Writing staging table columns to %s', os.path.abspath(outputFilename))
         with open(outputFilename, 'w') as outFile:
             outFile.write(json.dumps(self.result, indent=4, separators=(',', ': ')))
-    
-    @staticmethod
-    def autoDetectReplacementPath():
-        searchpaths = [
-            os.path.dirname(os.path.abspath(__file__)) + '/../../../../etc/supremm',
-            '/etc/supremm',
-            #pkg_resources.resource_filename(pkg_resources.Requirement.parse('supremm'), 'etc/supremm')
-        ]
-
-        for path in searchpaths:
-            if os.path.exists(os.path.join(path, 'replacement_rules.json')):
-                return os.path.abspath(path)
-
-        return None
 
     @staticmethod
     def get(value, typehint='str'):
