@@ -15,8 +15,6 @@ def main():
     RESOURCE = 'phillips'
     MIN_DATE = '2019-06-17'
     MAX_DATE = '2019-06-18'
-
-    os.remove(LOG_FILE) # Remove old log file
     
     COMMAND = '%s -q -o %s -D %s -r %s -m %s -M %s' % (SCRIPT, OUT_FILE, LOG_FILE, RESOURCE, MIN_DATE, MAX_DATE)
 
