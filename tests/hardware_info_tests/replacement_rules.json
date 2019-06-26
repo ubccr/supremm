@@ -43,6 +43,11 @@
                 "column": "gpu_device_count",
                 "equals": 0,
                 "reverse": true
+            },
+            {
+                "column": "gpu_device_count",
+                "equals": -1,
+                "reverse": true
             }
         ],
         "replacements":[

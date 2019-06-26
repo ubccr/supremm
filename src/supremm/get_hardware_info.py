@@ -57,6 +57,11 @@ STAGING_COLUMNS = [
     'resource_name',
 ]
 
+# Build a dictionary mapping column names to index
+columnToIndex = {}
+for i in range(len(STAGING_COLUMNS)):
+    columnToIndex[STAGING_COLUMNS[i]] = i
+
 # Initialize counting variables
 countArchivesFound = 0      # Total number of archives found in log dir
 countArchivesRead = 0       # Number of archives read (non-job archives)
@@ -87,7 +92,7 @@ class PcpArchiveHardwareProcessor(object):
                     - not needed for items (items only contain one value)
                     - default for instance domains is PcpArchiveHardwareProcessor.extractFirstValue
                 'always_expected': (optional)
-                    - if true: if an archive is missing this metric, send a debug message
+                    - if true: if an archive is missing this metric, send a debug message and omit it from the results
             }
         """
         DEFAULT_EXTRACTOR = PcpArchiveHardwareProcessor.extractFirstValue
@@ -161,6 +166,7 @@ class PcpArchiveHardwareProcessor(object):
             'ethernet_count': {
                 'name': 'network.interface.in.bytes',
                 'type': 'indom',
+                'always_expected': True,
                 'extractor': ( lambda x: len([device[1] for device in x if device[1] != 'lo']) ),
             },
             'gpu': {
@@ -305,8 +311,9 @@ class HardwareStagingTransformer(object):
         replacement: the path to the replacement dictionary
         outputFilename: the name/path of the json output file
         """
+        global keepAll
         
-        self.result = [ STAGING_COLUMNS ]
+        self.result = []
 
         # Transform the archive data
         for hw_info in archiveData:
@@ -363,7 +370,11 @@ class HardwareStagingTransformer(object):
                 self.get(hw_info.get('resource_name')),             # resource_name
             ])
 
-        # Generate replacement rules from file
+        # Patch gpu data into archives which are missing it
+        if keepAll:
+            self.patchMissingData()
+
+        # Generate replacement rules from file and do replacement
         if (replacementPath is not None) and os.path.isfile(os.path.join(replacementPath, 'replacement_rules.json')):
             replacementFile = os.path.join(replacementPath, 'replacement_rules.json')
             try:
@@ -376,6 +387,10 @@ class HardwareStagingTransformer(object):
             logging.info('No replacement_rules.json file found. Replacement will not be applied to staging columns.')
 
         logging.debug('Writing staging table columns to %s', os.path.abspath(outputFilename))
+
+        self.result.insert(0, STAGING_COLUMNS)   # Add header row to result
+
+        # Output staging rows to file
         with open(outputFilename, 'w') as outFile:
             outFile.write(json.dumps(self.result, indent=4, separators=(',', ': ')))
 
@@ -390,11 +405,6 @@ class HardwareStagingTransformer(object):
     
     def doReplacement(self):
         logging.info('Applying replacement rules to staging columns...')
-
-        # Build a dictionary mapping column names to index
-        columnToIndex = {}
-        for i in range(len(self.result[0])):
-            columnToIndex[self.result[0][i]] = i
 
         for row in self.result[1:]:
             for rule in self.replacementRules:
@@ -429,6 +439,42 @@ class HardwareStagingTransformer(object):
                         # Case two: replace whole value
                         else:
                             row[index] = replacement['repl']
+
+    def patchMissingData(self):
+        """ If data (such as gpu data) is missing for one archive,
+            patch this data using the next/previous archive for that host
+        """
+        # Sort the data by hostname, then by timestamp
+        logging.info('Sorting data...')
+        self.result.sort(key=lambda x: (x[columnToIndex['hostname']], x[columnToIndex['record_time_ts']]))
+
+        columnsToPatch = ['gpu_device_count', 'gpu_device_name']
+        indexsToPatch = [columnToIndex[c] for c in columnsToPatch]
+
+        logging.info('Patching missing gpu data...')
+        gpuIndex = columnToIndex['gpu_device_count']
+
+        for i in range(1, len(self.result)-1):
+            previousRow = self.result[i-1]
+            currentRow = self.result[i]
+            nextRow = self.result[i+1]
+
+            if (previousRow[gpuIndex] != 0 and currentRow[gpuIndex] == 0 and self.rowsAreEqual(previousRow, nextRow)):
+                # Patch missing data into current row using data from previous row
+                for index in indexsToPatch:
+                    self.result[i][index] = previousRow[index]
+
+    def rowsAreEqual(self, row1, row2):
+        """ Returns true if the first row is equal to the second row, EXCEPT the record_time_ts column
+        """
+        columnsToCheck = [x for x in STAGING_COLUMNS if x != 'record_time_ts']
+
+        for c in columnsToCheck:
+            index = columnToIndex[c]
+            if row1[index] != row2[index]:
+                return False
+        
+        return True
 
 def handleUnexpectedException(exc, archive, metric=None):
     """ Print an error message for an unexpected exception
@@ -600,7 +646,8 @@ def main():
     
     # Transform data to staging columns
     startTime = time.time()
-    HardwareStagingTransformer(data, replacementPath=config.getconfpath(), outputFilename=opts['output'])
+    #HardwareStagingTransformer(data, replacementPath=config.getconfpath(), outputFilename=opts['output'])
+    HardwareStagingTransformer(data, replacementPath='/user/mdudek/supremm/tests/hardware_info_tests', outputFilename=opts['output'])
     transformTime = time.time() - startTime
     logging.info('Total transform time: %.2f seconds', transformTime)
 
