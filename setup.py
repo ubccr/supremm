@@ -55,6 +55,7 @@ setup(
             'summarize_mpi.py = supremm.summarize_mpi:main',
             'indexarchives.py = supremm.indexarchives:runindexing',
             'get_hardware_info.py = supremm.get_hardware_info:main',
+            'patch_and_replace.py = supremm.patch_and_replace.py:main',
             'account.py = supremm.account:runingest',
             'supremmconf.py = supremm.supremmconf:main',
             'supremm-setup = supremm.supremm_setup:main',

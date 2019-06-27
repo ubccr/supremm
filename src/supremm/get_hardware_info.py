@@ -10,11 +10,11 @@ from datetime import datetime, timedelta
 import logging
 import os
 import re
-from re import sub, search
 import time
 from copy import deepcopy
 import sys
 import traceback
+from math import ceil
 
 import json
 from collections import defaultdict
@@ -25,6 +25,7 @@ import cpmapi as c_pmapi
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
 from supremm.indexarchives import PcpArchiveFinder
+from supremm.patch_and_replace import patchData, replaceData
 
 DAY_DELTA = 3
 keepAll = False
@@ -56,11 +57,6 @@ STAGING_COLUMNS = [
     'record_time_ts',
     'resource_name',
 ]
-
-# Build a dictionary mapping column names to index
-columnToIndex = {}
-for i in range(len(STAGING_COLUMNS)):
-    columnToIndex[STAGING_COLUMNS[i]] = i
 
 # Initialize counting variables
 countArchivesFound = 0      # Total number of archives found in log dir
@@ -342,6 +338,10 @@ class HardwareStagingTransformer(object):
                 if (len(processor_info) > 1):
                     clock_speed = processor_info[1]
 
+            # Convert MB to GB
+            if hw_info.get('physmem'):
+                hw_info['physmem'] = int(ceil(hw_info['physmem'] / 1024.0))
+
             self.result.append([                                # Column in staging table:
                 hw_info['hostname'],                                # hostname
                 self.get(hw_info.get('manufacturer')),              # manufacturer
@@ -372,19 +372,10 @@ class HardwareStagingTransformer(object):
 
         # Patch gpu data into archives which are missing it
         if keepAll:
-            self.patchMissingData()
+            self.result = patchData(self.result)
 
-        # Generate replacement rules from file and do replacement
-        if (replacementPath is not None) and os.path.isfile(os.path.join(replacementPath, 'replacement_rules.json')):
-            replacementFile = os.path.join(replacementPath, 'replacement_rules.json')
-            try:
-                with open(replacementFile, 'r') as inFile:
-                    self.replacementRules = json.load(inFile)
-                self.doReplacement()
-            except IOError as e:
-                pass
-        else:
-            logging.info('No replacement_rules.json file found. Replacement will not be applied to staging columns.')
+        # Do replacement
+        self.result = replaceData(self.result, replacementPath)
 
         logging.debug('Writing staging table columns to %s', os.path.abspath(outputFilename))
 
@@ -402,79 +393,6 @@ class HardwareStagingTransformer(object):
             return 'NA'
         else:
             return -1
-    
-    def doReplacement(self):
-        logging.info('Applying replacement rules to staging columns...')
-
-        for row in self.result[1:]:
-            for rule in self.replacementRules:
-                # Check if conditions are true
-                conditionsMet = True
-                if 'conditions' in rule:
-                    for condition in rule['conditions']:
-                        assert 'column' in condition, 'Conditions must contain a "column" entry'
-                        value = row[columnToIndex[condition['column']]]
-                        reverse = condition.get('reverse', False) # If 'reverse' is true, then the condition must be FALSE to replace
-                        # Case one: equality condition
-                        if 'equals' in condition:
-                            if (condition['equals'] != value) != reverse:
-                                conditionsMet = False
-                                break
-                        # Case two: contains condition
-                        else:
-                            assert 'contains' in condition, 'Conditions must contain either an "equals" or a "contains" property'
-                            if (search(condition['contains'], value) == None) != reverse:
-                                conditionsMet = False
-                                break
-                # Process replacements
-                if conditionsMet:
-                    assert 'replacements' in rule, "Rules must contain a 'replacements' entry"
-                    for replacement in rule['replacements']:
-                        assert 'column' in replacement, "Replacements must contain a 'column' entry"
-                        assert 'repl' in replacement, "Replacements must contain a 'repl' entry"
-                        index = columnToIndex[replacement['column']]
-                        # Case one: regex pattern replacement
-                        if 'pattern' in replacement:
-                            row[index] = sub(replacement['pattern'], replacement['repl'], row[index])
-                        # Case two: replace whole value
-                        else:
-                            row[index] = replacement['repl']
-
-    def patchMissingData(self):
-        """ If data (such as gpu data) is missing for one archive,
-            patch this data using the next/previous archive for that host
-        """
-        # Sort the data by hostname, then by timestamp
-        logging.info('Sorting data...')
-        self.result.sort(key=lambda x: (x[columnToIndex['hostname']], x[columnToIndex['record_time_ts']]))
-
-        columnsToPatch = ['gpu_device_count', 'gpu_device_name']
-        indexsToPatch = [columnToIndex[c] for c in columnsToPatch]
-
-        logging.info('Patching missing gpu data...')
-        gpuIndex = columnToIndex['gpu_device_count']
-
-        for i in range(1, len(self.result)-1):
-            previousRow = self.result[i-1]
-            currentRow = self.result[i]
-            nextRow = self.result[i+1]
-
-            if (previousRow[gpuIndex] != 0 and currentRow[gpuIndex] == 0 and self.rowsAreEqual(previousRow, nextRow)):
-                # Patch missing data into current row using data from previous row
-                for index in indexsToPatch:
-                    self.result[i][index] = previousRow[index]
-
-    def rowsAreEqual(self, row1, row2):
-        """ Returns true if the first row is equal to the second row, EXCEPT the record_time_ts column
-        """
-        columnsToCheck = [x for x in STAGING_COLUMNS if x != 'record_time_ts']
-
-        for c in columnsToCheck:
-            index = columnToIndex[c]
-            if row1[index] != row2[index]:
-                return False
-        
-        return True
 
 def handleUnexpectedException(exc, archive, metric=None):
     """ Print an error message for an unexpected exception
