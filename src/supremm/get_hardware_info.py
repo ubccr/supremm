@@ -25,7 +25,7 @@ import cpmapi as c_pmapi
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
 from supremm.indexarchives import PcpArchiveFinder
-from supremm.patch_and_replace import patchData, replaceData
+from patch_and_replace import patchData, replaceData
 
 DAY_DELTA = 3
 keepAll = False
@@ -370,9 +370,8 @@ class HardwareStagingTransformer(object):
                 self.get(hw_info.get('resource_name')),             # resource_name
             ])
 
-        # Patch gpu data into archives which are missing it
-        if keepAll:
-            self.result = patchData(self.result)
+        # Patch gpu data and ib data into archives which are missing it
+        self.result = patchData(self.result)
 
         # Do replacement
         self.result = replaceData(self.result, replacementPath)

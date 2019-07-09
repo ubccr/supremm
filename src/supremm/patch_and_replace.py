@@ -63,12 +63,12 @@ def patchData(stagingData):
     stagingData.sort(key=lambda x: (x[columnToIndex['hostname']], x[columnToIndex['record_time_ts']]))
 
     gpuColumnsToPatch = ['gpu_device_count', 'gpu_device_name']
-    gpuIndexsToPatch = [columnToIndex[c] for c in gpuColumnsToPatch]
-    gpuIndex = columnToIndex['gpu_device_count']
+    # gpuIndexsToPatch = [columnToIndex[c] for c in gpuColumnsToPatch]
+    # gpuIndex = columnToIndex['gpu_device_count']
 
     ibColumnsToPatch = ['ib_device_count', 'ib_device', 'ib_ca_type', 'ib_ports']
-    ibIndexsToPatch = [columnToIndex[c] for c in ibColumnsToPatch]
-    ibIndex = columnToIndex['ib_device_count']
+    # ibIndexsToPatch = [columnToIndex[c] for c in ibColumnsToPatch]
+    # ibIndex = columnToIndex['ib_device_count']
 
     # TODO: Get rid of this (adjust the memory)
     for i in range(len(stagingData)):
@@ -77,24 +77,70 @@ def patchData(stagingData):
         if row[mem] > 4000:
             row[mem] = int(ceil(row[mem] / 1024.0))
 
+    patchByColumn(stagingData, gpuColumnsToPatch, 'gpu_device_count')
+    patchByColumn(stagingData, ibColumnsToPatch, 'ib_device_count')
+
+    # for i in range(1, len(stagingData)-1):
+    #     previousRow = stagingData[i-1]
+    #     currentRow = stagingData[i]
+    #     nextRow = stagingData[i+1]
+
+    #     # Patch gpu data
+    #     if (previousRow[gpuIndex] != 0 and currentRow[gpuIndex] == 0 and rowsAreEqual(previousRow, nextRow)):
+    #         # Patch missing data into current row using data from previous row
+    #         for index in gpuIndexsToPatch:
+    #             stagingData[i][index] = previousRow[index]
+        
+    #     # Patch ib data
+    #     if (previousRow[ibIndex] != 0 and currentRow[ibIndex] == 0 and rowsAreEqual(previousRow, nextRow)):
+    #         # Patch missing data into current row using data from previous row
+    #         for index in ibIndexsToPatch:
+    #             stagingData[i][index] = previousRow[index]
+
+    return stagingData
+
+def patchByColumn(stagingData, columnsToPatch, indicatorColumn):
+    """ Patch the data for a list of columns
+        stagingData: the list of staging rows
+        columnsToPatch: the list of columns to patch missing data for
+        indicatorColumn: the column which equals 0 when data is missing
+
+        Assumes that the stagingData list has at least 3 rows
+    """
+
+    # Store indexes of columns for faster retrieval of data
+    indexsToPatch = [columnToIndex[c] for c in columnsToPatch]
+    indicatorIndex = columnToIndex[indicatorColumn]
+    hostnameIndex = columnToIndex['hostname']
+
+    # Patch first row
+    firstRow = stagingData[0]
+    secondRow = stagingData[1]
+
+    if (firstRow[indicatorIndex] == 0 and secondRow[indicatorIndex] != 0 and firstRow[hostnameIndex] == secondRow[hostnameIndex]):
+        for index in indexsToPatch:
+            firstRow[index] = secondRow[index]
+
+    # Patch last row
+    lastRow = stagingData[-1]
+    penultimateRow = stagingData[-2]
+
+    if (lastRow[indicatorIndex] == 0 and penultimateRow[indicatorIndex] != 0 and lastRow[hostnameIndex] == penultimateRow[hostnameIndex]):
+        for index in indexsToPatch:
+            lastRow[index] = penultimateRow[index]
+
+    # Patch middle data
     for i in range(1, len(stagingData)-1):
         previousRow = stagingData[i-1]
         currentRow = stagingData[i]
         nextRow = stagingData[i+1]
 
-        # Patch gpu data
-        if (previousRow[gpuIndex] != 0 and currentRow[gpuIndex] == 0 and rowsAreEqual(previousRow, nextRow)):
+        # Patch data
+        if (previousRow[indicatorIndex] != 0 and currentRow[indicatorIndex] == 0 and rowsAreEqual(previousRow, nextRow)):
             # Patch missing data into current row using data from previous row
-            for index in gpuIndexsToPatch:
-                stagingData[i][index] = previousRow[index]
-        
-        # Patch ib data
-        if (previousRow[ibIndex] != 0 and currentRow[ibIndex] == 0 and rowsAreEqual(previousRow, nextRow)):
-            # Patch missing data into current row using data from previous row
-            for index in ibIndexsToPatch:
-                stagingData[i][index] = previousRow[index]
-
-
+            for index in indexsToPatch:
+                currentRow[index] = previousRow[index]
+    
     return stagingData
 
 def rowsAreEqual(row1, row2):
