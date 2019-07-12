@@ -25,7 +25,7 @@ import cpmapi as c_pmapi
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
 from supremm.indexarchives import PcpArchiveFinder
-from patch_and_replace import patchData, replaceData
+from patch_and_replace import StagingPatcher, replaceData
 
 DAY_DELTA = 3
 keepAll = False
@@ -338,9 +338,9 @@ class HardwareStagingTransformer(object):
                 if (len(processor_info) > 1):
                     clock_speed = processor_info[1]
 
-            # Convert MB to GB
+            # Convert MB to GB, round up to nearest even GB
             if hw_info.get('physmem'):
-                hw_info['physmem'] = int(ceil(hw_info['physmem'] / 1024.0))
+                hw_info['physmem'] = int(ceil(hw_info['physmem'] / 1024.0 / 2.0) * 2)
 
             self.result.append([                                # Column in staging table:
                 hw_info['hostname'],                                # hostname
@@ -371,7 +371,8 @@ class HardwareStagingTransformer(object):
             ])
 
         # Patch gpu data and ib data into archives which are missing it
-        self.result = patchData(self.result)
+        self.result = StagingPatcher(self.result, mode='gpu').stagingData
+        self.result = StagingPatcher(self.result, mode='ib').stagingData
 
         # Do replacement
         self.result = replaceData(self.result, replacementPath)
