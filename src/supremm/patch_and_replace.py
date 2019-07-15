@@ -103,40 +103,42 @@ class StagingPatcher(object):
 
         for i in range(len(self.stagingData)):
             self.currentIndex = i
-            row = self.stagingData[i]
 
-            # If the hostname was the same as last time
-            if self.currentHostname != None and row[self.hostnameIndex] == self.currentHostname:
-                # If currently tracking data
-                if self.lastIndex != None:
-                    # If the time since we started tracking exceeds the max data gap set by maxdays
-                    if self.maxTimeExceeded():
-                        self.resetState()
-                    else:
-                        # If we encounter a row without missing data, at least 2 indexes away from when we last encountered
-                        # full data, it means that there is a hole which needs to be patched
-                        if not self.isMissingData() and (i - self.lastIndex > 1):
-                            self.fillInMissingData()
-                else:
-                    # If we weren't tracking data before, but we encounter an index that isn't missing data
-                    if not self.isMissingData():
-                        # Start tracking
-                        self.resetState()
-            else:
-                # Move to a new hostname
-                self.resetState()
+            if self.patchingShouldOccur():
+                self.fillInMissingData()
+            self.resetState()
 
-    def fillInMissingData(self):
+    def patchingShouldOccur(self):
+        """ Returns True if patching needs to occur at the current index """
         index = self.currentIndex
-        correctRow = self.stagingData[self.lastIndex] # The last row to have full data
-        # Missing data rows
-        for j in range(self.lastIndex+1, index):
-            row = self.stagingData[j]
-            # Missing data columns
-            for c in self.indexsToPatch:
-                row[c] = correctRow[c]
-        # Now that data is pathced, reset the state
-        self.resetState()
+        row = self.stagingData[index]
+
+        # Check hostname (make sure it is the same as the current hostname)
+        if self.hostnameChanged():
+            return False
+
+        # Check if currently tracking
+        if self.lastIndex == None:
+            return False
+        
+        # Check if data is missing (can't patch if it still is)
+        if self.isMissingData():
+            return False
+        
+        # Check if it's been too long since the data was last there
+        if self.maxTimeExceeded():
+            return False
+        
+        # Check if there's actually a gap of 2 or greater
+        if (index - self.lastIndex <= 1):
+            return False
+        
+        return True
+        
+    def hostnameChanged(self):
+        """ Returns True if the hostname is different than the last row """
+        row = self.stagingData[self.currentIndex]
+        return row[self.hostnameIndex] != self.currentHostname
 
     def maxTimeExceeded(self):
         """ Returns true if the time difference between the current row and the row specified by lastIndex
@@ -154,56 +156,34 @@ class StagingPatcher(object):
         row = self.stagingData[self.currentIndex]
         return row[self.indicatorIndex] == self.indicatorValue
 
+    def fillInMissingData(self):
+        index = self.currentIndex
+        correctRow = self.stagingData[self.lastIndex] # The last row to have full data
+
+        # Missing data rows
+        for j in range(self.lastIndex+1, index):
+            row = self.stagingData[j]
+            # Missing data columns
+            for c in self.indexsToPatch:
+                row[c] = correctRow[c]
+
+        # Debug message
+        numberOfRows = index - self.lastIndex - 1
+        if numberOfRows > 1:
+            logging.debug('Patched %d rows', numberOfRows)
+
     def resetState(self):
         """ Resets the iteration state based on data at index """
-        index = self.currentIndex
-        row = self.stagingData[index]
-        self.currentHostname = row[self.hostnameIndex]
-        if self.isMissingData():
-            self.lastIndex = None
-        else:
-            self.lastIndex = index
-
-def patchData(stagingData):
-    """ If data (such as gpu data) is missing for one archive,
-        patch this data using the next/previous archive for that host
-    """
-    logging.info('Patching missing gpu and ib data...')
-
-    # Sort the data by hostname, then by timestamp
-    stagingData.sort(key=lambda x: (x[columnToIndex['hostname']], x[columnToIndex['record_time_ts']]))
-
-    gpuColumnsToPatch = ['gpu_device_count', 'gpu_device_name']
-    # gpuIndexsToPatch = [columnToIndex[c] for c in gpuColumnsToPatch]
-    # gpuIndex = columnToIndex['gpu_device_count']
-
-    ibColumnsToPatch = ['ib_device_count', 'ib_device', 'ib_ca_type', 'ib_ports']
-    # ibIndexsToPatch = [columnToIndex[c] for c in ibColumnsToPatch]
-    # ibIndex = columnToIndex['ib_device_count']
-
-    
-
-    patchByColumn(stagingData, gpuColumnsToPatch, 'gpu_device_count')
-    patchByColumn(stagingData, ibColumnsToPatch, 'ib_device_count')
-
-    # for i in range(1, len(stagingData)-1):
-    #     previousRow = stagingData[i-1]
-    #     currentRow = stagingData[i]
-    #     nextRow = stagingData[i+1]
-
-    #     # Patch gpu data
-    #     if (previousRow[gpuIndex] != 0 and currentRow[gpuIndex] == 0 and rowsAreEqual(previousRow, nextRow)):
-    #         # Patch missing data into current row using data from previous row
-    #         for index in gpuIndexsToPatch:
-    #             stagingData[i][index] = previousRow[index]
+        row = self.stagingData[self.currentIndex]
         
-    #     # Patch ib data
-    #     if (previousRow[ibIndex] != 0 and currentRow[ibIndex] == 0 and rowsAreEqual(previousRow, nextRow)):
-    #         # Patch missing data into current row using data from previous row
-    #         for index in ibIndexsToPatch:
-    #             stagingData[i][index] = previousRow[index]
+        if self.isMissingData():
+            if self.hostnameChanged():
+                # Reset if the hostname changed, otherwise stay the same
+                self.lastIndex = None
+        else:
+            self.lastIndex = self.currentIndex
 
-    return stagingData
+        self.currentHostname = row[self.hostnameIndex]
 
 def patchByColumn(stagingData, columnsToPatch, indicatorColumn):
     """ Patch the data for a list of columns
@@ -219,7 +199,7 @@ def patchByColumn(stagingData, columnsToPatch, indicatorColumn):
     indicatorIndex = columnToIndex[indicatorColumn]
     hostnameIndex = columnToIndex['hostname']
 
-    # Patch first row
+    # #TODO Patch first row 
     firstRow = stagingData[0]
     secondRow = stagingData[1]
 
@@ -321,6 +301,12 @@ def getOptions():
 
     parser.add_argument("-r", "--replace", help="Specify the path to the repalcement rules directory (if replacement should occur)")
 
+    grp = parser.add_mutually_exclusive_group()
+    grp.add_argument('-d', '--debug', dest='log', action='store_const', const=logging.DEBUG, default=logging.INFO,
+                    help='Set log level to debug')
+    grp.add_argument('-q', '--quiet', dest='log', action='store_const', const=logging.ERROR,
+                    help='Only log errors')
+
     args = parser.parse_args()
 
     if not (args.replace or args.patch):
@@ -332,7 +318,7 @@ def main():
     """ Main entry point """
     opts = getOptions()
 
-    setuplogger(logging.INFO)
+    setuplogger(opts['log'])
 
     inputFile = os.path.abspath(opts['input'])
 
