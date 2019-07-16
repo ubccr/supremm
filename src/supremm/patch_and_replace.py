@@ -8,43 +8,18 @@
 import json
 import os
 import sys
+import fnmatch
 import logging
 import argparse
 from re import sub, search
 from supremm.scripthelpers import setuplogger
+from get_hardware_info import getStagingColumns
 
 # TODO: Remove
 from math import ceil
 
-STAGING_COLUMNS = [
-    'hostname',
-    'manufacturer',
-    'codename',
-    'model_name',
-    'clock_speed',
-    'core_count',
-    'board_manufacturer',
-    'board_name',
-    'board_version',
-    'system_manufacturer',
-    'system_name',
-    'system_version',
-    'physmem',
-    'numa_node_count',
-    'disk_count',
-    'ethernet_count',
-    'ib_device_count',
-    'ib_device',
-    'ib_ca_type',
-    'ib_ports',
-    'gpu_device_count',
-    'gpu_device_manufacturer',
-    'gpu_device_name',
-    'record_time_ts',
-    'resource_name',
-]
-
-# Build a dictionary mapping column names to index
+# Initialize staging columns and build a dictionary mapping column names to index
+STAGING_COLUMNS = getStagingColumns()
 columnToIndex = {}
 for i in range(len(STAGING_COLUMNS)):
     columnToIndex[STAGING_COLUMNS[i]] = i
@@ -55,7 +30,7 @@ def loadJson(filename):
 
 class StagingPatcher(object):
 
-    def __init__(self, stagingData, maxdays=10, mode='gpu'):
+    def __init__(self, stagingData, maxgap=-1, mode='gpu'):
 
         modes = {
             'gpu': {
@@ -85,7 +60,7 @@ class StagingPatcher(object):
         self.indicatorIndex = columnToIndex[self.indicatorColumn]
 
         self.stagingData = stagingData
-        self.maxdays = maxdays
+        self.maxgap = maxgap
     
         self.patch()
 
@@ -110,6 +85,7 @@ class StagingPatcher(object):
 
     def patchingShouldOccur(self):
         """ Returns True if patching needs to occur at the current index """
+        #TODO Patch first row 
         index = self.currentIndex
         row = self.stagingData[index]
 
@@ -126,14 +102,18 @@ class StagingPatcher(object):
             return False
         
         # Check if it's been too long since the data was last there
-        if self.maxTimeExceeded():
+        if self.maxTimeExceeded() and self.getGapLength() > 2:
             return False
         
         # Check if there's actually a gap of 2 or greater
-        if (index - self.lastIndex <= 1):
+        if self.getGapLength() <= 1:
             return False
         
         return True
+
+    def getGapLength(self):
+        """ Return the number of records read since the last record with data """
+        return self.currentIndex - self.lastIndex
         
     def hostnameChanged(self):
         """ Returns True if the hostname is different than the last row """
@@ -142,12 +122,16 @@ class StagingPatcher(object):
 
     def maxTimeExceeded(self):
         """ Returns true if the time difference between the current row and the row specified by lastIndex
-        (i.e., the last row to contain data) is greater that the max gap in data allowed (specified by self.maxdays)"""
+        (i.e., the last row to contain data) is greater that the max gap in data allowed (specified by self.maxgap)"""
+
+        # If maxgap is negative, the time is never exceeded (no maximum)
+        if self.maxgap < 0:
+            return False
 
         row = self.stagingData[self.currentIndex]
 
         SECONDS_PER_DAY = 86400
-        maxSeconds = self.maxdays * SECONDS_PER_DAY
+        maxSeconds = self.maxgap * SECONDS_PER_DAY
         timeGap = row[self.timestampIndex] - self.stagingData[self.lastIndex][self.timestampIndex]
         return timeGap > maxSeconds
 
@@ -184,63 +168,6 @@ class StagingPatcher(object):
             self.lastIndex = self.currentIndex
 
         self.currentHostname = row[self.hostnameIndex]
-
-def patchByColumn(stagingData, columnsToPatch, indicatorColumn):
-    """ Patch the data for a list of columns
-        stagingData: the list of staging rows
-        columnsToPatch: the list of columns to patch missing data for
-        indicatorColumn: the column which equals 0 when data is missing
-
-        Assumes that the stagingData list has at least 3 rows
-    """
-
-    # Store indexes of columns for faster retrieval of data
-    indexsToPatch = [columnToIndex[c] for c in columnsToPatch]
-    indicatorIndex = columnToIndex[indicatorColumn]
-    hostnameIndex = columnToIndex['hostname']
-
-    # #TODO Patch first row 
-    firstRow = stagingData[0]
-    secondRow = stagingData[1]
-
-    if (firstRow[indicatorIndex] == 0 and secondRow[indicatorIndex] != 0 and firstRow[hostnameIndex] == secondRow[hostnameIndex]):
-        for index in indexsToPatch:
-            firstRow[index] = secondRow[index]
-
-    # Patch last row
-    lastRow = stagingData[-1]
-    penultimateRow = stagingData[-2]
-
-    if (lastRow[indicatorIndex] == 0 and penultimateRow[indicatorIndex] != 0 and lastRow[hostnameIndex] == penultimateRow[hostnameIndex]):
-        for index in indexsToPatch:
-            lastRow[index] = penultimateRow[index]
-
-    # Patch middle data
-    for i in range(1, len(stagingData)-1):
-        previousRow = stagingData[i-1]
-        currentRow = stagingData[i]
-        nextRow = stagingData[i+1]
-
-        # Patch data
-        if (previousRow[indicatorIndex] != 0 and currentRow[indicatorIndex] == 0 and rowsAreEqual(previousRow, nextRow)):
-            # Patch missing data into current row using data from previous row
-            for index in indexsToPatch:
-                currentRow[index] = previousRow[index]
-    
-    return stagingData
-
-def rowsAreEqual(row1, row2):
-    """ Returns true if the first row is equal to the second row, EXCEPT the record_time_ts column
-        (helper function for patch())
-    """
-    columnsToCheck = [x for x in STAGING_COLUMNS if x != 'record_time_ts']
-
-    for c in columnsToCheck:
-        index = columnToIndex[c]
-        if row1[index] != row2[index]:
-            return False
-    
-    return True
 
 def replaceData(stagingData, replacementPath):
     # Look for replacement file
@@ -293,11 +220,15 @@ def getOptions():
     """ process comandline options """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-i", "--input", help="The path to the input json file", required=True)
+    parser.add_argument("-i", "--input", help="Path to input directory", required=True)
+
+    parser.add_argument("-f", "--filepattern", default="*.json", help="The Unix filepattern of input files")
 
     parser.add_argument('-o', '--output', default='hardware_staging.json', help='Specify the name and path of the output json file')
 
     parser.add_argument("-p", "--patch", action="store_true", help="Patch the data")
+
+    parser.add_argument("-M", "--maxgap", type=int, default=40, help="The maximum length of time to patch over, in days (-1 for no gap)")
 
     parser.add_argument("-r", "--replace", help="Specify the path to the repalcement rules directory (if replacement should occur)")
 
@@ -320,17 +251,30 @@ def main():
 
     setuplogger(opts['log'])
 
-    inputFile = os.path.abspath(opts['input'])
+    # Load data from input files
+    rawData = []
+    inputPath = os.path.abspath(opts['input'])
+    for f in os.listdir(inputPath):
+        inputFile = os.path.join(inputPath, f)
+        if fnmatch.fnmatch(f, opts['filepattern']):
+            logging.info('Loading data from %s', inputFile)
+            rawData.append(loadJson(inputFile))
+    if rawData == []:
+        logging.error('No files found using pattern %s', os.path.join(inputPath, opts['filepattern']))
+        exit()
 
-    if os.path.isfile(inputFile):
-        stagingData = loadJson(inputFile)[1:]   # Remove header from input
-    else:
-        logging.error("Can't find input file %s", inputFile)
-        sys.exit(1)
+    # Check staging columns
+    if STAGING_COLUMNS != rawData[0][0]:
+        logging.error("Staging columns don't match expected columns.\n\tExpected columns: %s\n\tColumns in file: %s", str(STAGING_COLUMNS), str(rawData[0][0]))
+        exit()
+
+    # Combine input files to generate staging data
+    stagingData = []
+    for inputData in rawData:
+        stagingData.extend(inputData[1:])   # Strip header from input data
+    del rawData[:]
 
     if opts['patch']:
-        # stagingData = patchData(stagingData)
-
         # TODO: Get rid of this (adjust the memory)
         for i in range(len(stagingData)):
             row = stagingData[i]
@@ -340,8 +284,8 @@ def main():
             if row[mem] % 2 != 0:
                 row[mem] = int(ceil(row[mem] / 2.0) * 2)
 
-        stagingData = StagingPatcher(stagingData, mode='gpu').stagingData
-        stagingData = StagingPatcher(stagingData, mode='ib').stagingData
+        stagingData = StagingPatcher(stagingData, maxgap=opts['maxgap'], mode='gpu').stagingData
+        stagingData = StagingPatcher(stagingData, maxgap=opts['maxgap'], mode='ib').stagingData
     
     if opts['replace'] != None:
         stagingData = replaceData(stagingData, opts['replace'])

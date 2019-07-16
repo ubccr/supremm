@@ -30,33 +30,37 @@ from patch_and_replace import StagingPatcher, replaceData
 DAY_DELTA = 3
 keepAll = False
 
-STAGING_COLUMNS = [
-    'hostname',
-    'manufacturer',
-    'codename',
-    'model_name',
-    'clock_speed',
-    'core_count',
-    'board_manufacturer',
-    'board_name',
-    'board_version',
-    'system_manufacturer',
-    'system_name',
-    'system_version',
-    'physmem',
-    'numa_node_count',
-    'disk_count',
-    'ethernet_count',
-    'ib_device_count',
-    'ib_device',
-    'ib_ca_type',
-    'ib_ports',
-    'gpu_device_count',
-    'gpu_device_manufacturer',
-    'gpu_device_name',
-    'record_time_ts',
-    'resource_name',
-]
+def getStagingColumns():
+    result = [
+        'hostname',
+        'manufacturer',
+        'codename',
+        'model_name',
+        'clock_speed',
+        'core_count',
+        'board_manufacturer',
+        'board_name',
+        'board_version',
+        'system_manufacturer',
+        'system_name',
+        'system_version',
+        'physmem',
+        'numa_node_count',
+        'disk_count',
+        'ethernet_count',
+        'ib_device_count',
+        'ib_device',
+        'ib_ca_type',
+        'ib_ports',
+        'gpu_device_count',
+        'gpu_device_manufacturer',
+        'gpu_device_name',
+        'record_time_ts',
+        'resource_name',
+    ]
+    return result
+
+STAGING_COLUMNS = getStagingColumns()
 
 # Initialize counting variables
 countArchivesFound = 0      # Total number of archives found in log dir
