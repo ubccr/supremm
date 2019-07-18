@@ -175,7 +175,7 @@ def replaceData(stagingData, replacementPath):
         replacementFile = os.path.join(replacementPath, 'replacement_rules.json')
         replacementRules = loadJson(replacementFile)
     else:
-        logging.info('No replacement_rules.json file found. Replacement will not be applied to staging columns.')
+        logging.warning('No replacement_rules.json file found in directory %s. Replacement will not be applied to staging columns.', replacementPath)
         return stagingData
     
     logging.info('Applying replacement rules to staging columns using file %s...', replacementFile)
@@ -226,11 +226,11 @@ def getOptions():
 
     parser.add_argument('-o', '--output', default='hardware_staging.json', help='Specify the name and path of the output json file')
 
-    parser.add_argument("-p", "--patch", action="store_true", help="Patch the data")
+    parser.add_argument("-P", "--patch", action="store_true", help="Patch the data")
 
     parser.add_argument("-M", "--maxgap", type=int, default=40, help="The maximum length of time to patch over, in days (-1 for no gap)")
 
-    parser.add_argument("-r", "--replace", help="Specify the path to the repalcement rules directory (if replacement should occur)")
+    parser.add_argument("-R", "--replace", help="Specify the path to the repalcement rules directory (if replacement should occur)")
 
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument('-d', '--debug', dest='log', action='store_const', const=logging.DEBUG, default=logging.INFO,

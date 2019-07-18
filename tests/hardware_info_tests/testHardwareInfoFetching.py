@@ -16,7 +16,7 @@ def main():
     MIN_DATE = '2019-06-17'
     MAX_DATE = '2019-06-18'
     
-    COMMAND = '%s -q -o %s -D %s -r %s -m %s -M %s' % (SCRIPT, OUT_FILE, LOG_FILE, RESOURCE, MIN_DATE, MAX_DATE)
+    COMMAND = '%s -q -o %s -D %s -r %s -m %s -M %s -P -R' % (SCRIPT, OUT_FILE, LOG_FILE, RESOURCE, MIN_DATE, MAX_DATE)
 
     os.system(COMMAND)
 
@@ -24,6 +24,13 @@ def main():
     expectedOutput = jsonLoad(EXPECTED_OUTPUT_FILE)
 
     if (actualOutput != expectedOutput):
+        # Failure - print info
+        print('Script output did not match expected output\n')
+        print(' == Log from get_hardware_info.py == ')
+        os.system('cat ' + LOG_FILE)
+
+        print('\nExpected output:\n' + str(expectedOutput[1]))
+        print('Actual output:\n' + str(actualOutput[1]))
         sys.exit(1)
     
     # Success - return 0

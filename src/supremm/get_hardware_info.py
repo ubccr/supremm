@@ -27,7 +27,11 @@ from supremm.scripthelpers import parsetime, setuplogger
 from supremm.indexarchives import PcpArchiveFinder
 
 DAY_DELTA = 3
+
+# Option flags
 keepAll = False
+doPatching = False
+doReplacement = False
 
 def getStagingColumns():
     result = [
@@ -312,7 +316,9 @@ class HardwareStagingTransformer(object):
         outputFilename: the name/path of the json output file
         """
         from patch_and_replace import StagingPatcher, replaceData #TODO - Remove?
-        global keepAll
+        # Option flags
+        global doPatching
+        global doReplacement
         
         self.result = []
 
@@ -376,11 +382,13 @@ class HardwareStagingTransformer(object):
             ])
 
         # Patch gpu data and ib data into archives which are missing it
-        self.result = StagingPatcher(self.result, mode='gpu').stagingData
-        self.result = StagingPatcher(self.result, mode='ib').stagingData
+        if doPatching:
+            self.result = StagingPatcher(self.result, mode='gpu').stagingData
+            self.result = StagingPatcher(self.result, mode='ib').stagingData
 
         # Do replacement
-        self.result = replaceData(self.result, replacementPath)
+        if doReplacement:
+            self.result = replaceData(self.result, replacementPath)
 
         logging.debug('Writing staging table columns to %s', os.path.abspath(outputFilename))
 
@@ -455,6 +463,10 @@ def getOptions():
 
     parser.add_argument('-k', '--keep', action='store_true', help="Keep archives which are missing gpu data (fill in data with 'NA')")
 
+    parser.add_argument("-P", "--patch", action="store_true", help="Patch the data using patch_and_replace.py before outputting")
+
+    parser.add_argument("-R", "--replace", action="store_true", help="Run replacement on the data using a repalcement_rules.json file in the config directory")
+
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument('-d', '--debug', dest='log', action='store_const', const=logging.DEBUG, default=logging.INFO,
                      help='Set log level to debug')
@@ -480,7 +492,10 @@ def main():
     global countFinishedArchives
     global countJobArchives
     global countArchivesFailed
-    global keepAll  # Option flag
+    # Option flags
+    global keepAll
+    global doPatching
+    global doReplacement
 
     opts = getOptions()
     
@@ -489,6 +504,8 @@ def main():
 
     config = Config(opts['config'])
     keepAll = opts['keep']
+    doPatching = opts['patch']
+    doReplacement = opts['replace']
 
     numberOfResources = len(config._config['resources'])
     resourceNum = 1
@@ -569,8 +586,9 @@ def main():
     
     # Transform data to staging columns
     startTime = time.time()
-    #HardwareStagingTransformer(data, replacementPath=config.getconfpath(), outputFilename=opts['output'])
-    HardwareStagingTransformer(data, replacementPath='/user/mdudek/supremm/tests/hardware_info_tests', outputFilename=opts['output'])
+    HardwareStagingTransformer(data, replacementPath=config.getconfpath(), outputFilename=opts['output'])
+    # TODO: Used for testing, remove this
+    # HardwareStagingTransformer(data, replacementPath='/user/mdudek/supremm/tests/hardware_info_tests', outputFilename=opts['output'])
     transformTime = time.time() - startTime
     logging.info('Total transform time: %.2f seconds', transformTime)
 
