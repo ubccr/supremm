@@ -25,7 +25,6 @@ import cpmapi as c_pmapi
 from supremm.config import Config
 from supremm.scripthelpers import parsetime, setuplogger
 from supremm.indexarchives import PcpArchiveFinder
-from patch_and_replace import StagingPatcher, replaceData
 
 DAY_DELTA = 3
 keepAll = False
@@ -302,6 +301,7 @@ class HardwareStagingTransformer(object):
     """ Transforms the raw data from the archive into a list
         representing rows in the hardware staging table
     """
+    
 
     def __init__(self, archiveData, replacementPath=None, outputFilename='hardware_staging.json'):
         """ Run the transformation
@@ -311,6 +311,7 @@ class HardwareStagingTransformer(object):
         replacement: the path to the replacement dictionary
         outputFilename: the name/path of the json output file
         """
+        from patch_and_replace import StagingPatcher, replaceData #TODO - Remove?
         global keepAll
         
         self.result = []
