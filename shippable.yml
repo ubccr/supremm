@@ -19,3 +19,4 @@ build:
         - pytest --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
         - summarize_jobs.py -h > /dev/null
         - indexarchives.py -h > /dev/null
+
