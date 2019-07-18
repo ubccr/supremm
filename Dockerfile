@@ -17,7 +17,7 @@ RUN yum install -y \
     python-pcp-3.12.2 \
     pcp-devel-3.12.2
 
-RUN pip install pylint==1.8.3 coverage pytest pytest-cov setuptools==36.4.0 pexpect==4.4.0
+RUN pip install pylint==1.8.3 coverage pytest==4.6.3 pytest-cov==2.7.1 setuptools==36.4.0 pexpect==4.4.0
 
 RUN pip install --ignore-installed six>=1.10.0
 
