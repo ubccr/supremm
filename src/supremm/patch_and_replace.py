@@ -230,6 +230,8 @@ def getOptions():
 
     parser.add_argument("-M", "--maxgap", type=int, default=40, help="The maximum length of time to patch over, in days (-1 for no gap)")
 
+    parser.add_argument("-t", "--truncate", action="store_true", help="Only output the last M days of data, where M is the maxgap")
+
     parser.add_argument("-R", "--replace", help="Specify the path to the repalcement rules directory (if replacement should occur)")
 
     grp = parser.add_mutually_exclusive_group()
@@ -289,6 +291,22 @@ def main():
     
     if opts['replace'] != None:
         stagingData = replaceData(stagingData, opts['replace'])
+
+
+    # Truncate
+    if opts['truncate'] and opts['maxgap'] > 0:
+        logging.info('Truncating data to last %d days...', opts['maxgap'])
+        stagingData.sort(key=lambda x: x[columnToIndex['record_time_ts']])  # Sort by timestamp
+
+        lastTimestamp = stagingData[-1][columnToIndex['record_time_ts']]
+        SECONDS_PER_DAY = 86400
+        earliestTimestamp = lastTimestamp - ((opts['maxgap'] + 1) * SECONDS_PER_DAY)
+
+        for i in range(len(stagingData)):
+            timestamp = stagingData[i][columnToIndex['record_time_ts']]
+            if timestamp >= earliestTimestamp:
+                stagingData = stagingData[i:]   # Truncate
+                break
 
     stagingData.insert(0, STAGING_COLUMNS)   # Add header row back to result
 
