@@ -59,7 +59,7 @@ var sdef = {
             "help": "The total rate of data transferred to and from the parallel filesystem. The rate is computed over each time interval and is the sum of data sent and received by each node."
         },
         "block": {
-            "units": "MB/s",
+            "units": "GB/s",
             "description": "Block Filesystem traffic",
             "help": "The total rate of data transferred to and from the block devices on each node.  The rate is computed over each time interval and is the sum of data read and written."
         },
