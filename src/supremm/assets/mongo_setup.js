@@ -33,6 +33,11 @@ var sdef = {
             "description": "Node Memory RSS",
             "help": "The total physical memory used by the operating system excluding memory used for caches. This value includes the contribution for <em>all</em> processes including system daemons and all running HPC jobs but does not include the physical memory used by the kernel page and SLAB caches. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)"
         },
+        "power": {
+            "units": "Watts",
+            "help": "The power consumption of the compute nodes obtained from the IPMI DCMI interface. This does not include any associated power usage from other datacenter components such as network switches, parallel filesystems and cooling.",
+            "description": "Node Power"
+        },
         "memused": {
             "units": "GB",
             "description": "Total Node Memory",
