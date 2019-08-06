@@ -15,9 +15,6 @@ from re import sub, search
 from supremm.scripthelpers import setuplogger
 from get_hardware_info import getStagingColumns
 
-# TODO: Remove
-from math import ceil
-
 # Initialize staging columns and build a dictionary mapping column names to index
 STAGING_COLUMNS = getStagingColumns()
 columnToIndex = {}
@@ -85,7 +82,6 @@ class StagingPatcher(object):
 
     def patchingShouldOccur(self):
         """ Returns True if patching needs to occur at the current index """
-        #TODO Patch first row 
         index = self.currentIndex
         row = self.stagingData[index]
 
@@ -277,15 +273,6 @@ def main():
     del rawData[:]
 
     if opts['patch']:
-        # TODO: Get rid of this (adjust the memory)
-        for i in range(len(stagingData)):
-            row = stagingData[i]
-            mem = columnToIndex['physmem']
-            if row[mem] > 4000:
-                row[mem] = int(ceil(row[mem] / 1024.0 / 2.0) * 2)
-            if row[mem] % 2 != 0:
-                row[mem] = int(ceil(row[mem] / 2.0) * 2)
-
         stagingData = StagingPatcher(stagingData, maxgap=opts['maxgap'], mode='gpu').stagingData
         stagingData = StagingPatcher(stagingData, maxgap=opts['maxgap'], mode='ib').stagingData
     

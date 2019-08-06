@@ -315,7 +315,7 @@ class HardwareStagingTransformer(object):
         replacement: the path to the replacement dictionary
         outputFilename: the name/path of the json output file
         """
-        from patch_and_replace import StagingPatcher, replaceData #TODO - Remove?
+        from patch_and_replace import StagingPatcher, replaceData
         # Option flags
         global doPatching
         global doReplacement
@@ -587,8 +587,6 @@ def main():
     # Transform data to staging columns
     startTime = time.time()
     HardwareStagingTransformer(data, replacementPath=config.getconfpath(), outputFilename=opts['output'])
-    # TODO: Used for testing, remove this
-    # HardwareStagingTransformer(data, replacementPath='/user/mdudek/supremm/tests/hardware_info_tests', outputFilename=opts['output'])
     transformTime = time.time() - startTime
     logging.info('Total transform time: %.2f seconds', transformTime)
 
