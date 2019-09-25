@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.0] - 2019-09-30
+
+### Added
+- Added IPMI power timeseries plugin that generates timeseries data from
+  IPMI power measurements.
+- Add component tests for the performance counter plugins.
+
+### Changed
+- Updated RPM dependencies to match the official PCP version in RedHat/Centos 7.
+- Update the CI build to test against XDMoD version 8.1.
+- Improved support for hardware performance counters in the various performance
+  counter plugins.
+
+### Fixed
+- Fixed bug in the performance counter preprocessor that caused it to
+  incorrectly mark the performance counters as disabled by user.
+- Fixed incorrect unit in schema definition for the block device timeseries metric.
+
 ## [1.2.0] - 2019-04-24
 
 ### Added
