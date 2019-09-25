@@ -1,7 +1,5 @@
-FROM       tas-tools-ext-01.ccr.xdmod.org/xdmod-centos7:open7.5.1-supremm7.5.1-v1
+FROM       tas-tools-ext-01.ccr.xdmod.org/centos7_6-open-job_performance-8.1.0:latest
 MAINTAINER Joseph P. White <jpwhite4@buffalo.edu>
-
-RUN wget https://bintray.com/pcp/el7/rpm -O /etc/yum.repos.d/bintray-pcp-el7.repo
 
 RUN yum install -y \
     gcc \
@@ -14,8 +12,8 @@ RUN yum install -y \
     python-pymongo \
     MySQL-python \
     Cython \
-    python-pcp-3.12.2 \
-    pcp-devel-3.12.2
+    python-pcp \
+    pcp-devel
 
 RUN pip install pylint==1.8.3 coverage pytest==4.6.3 pytest-cov==2.7.1 setuptools==36.4.0 pexpect==4.4.0
 

@@ -19,8 +19,11 @@ def main():
         p.sendline()
 
         while True:
-            i = p.expect(["Overwrite config file", "frearson", "mortorq", "phillips", "pozidriv", "robertson" ])
-            p.sendline()
+            i = p.expect(["Overwrite config file", "frearson", "mortorq", "phillips", "pozidriv", "robertson", "openstack", "recex", "torx"])
+            if i > 5:
+                p.sendline("n")
+                continue
+            p.sendline("y")
             if i != 0:
                 p.expect("Directory containing node-level PCP archives")
                 p.sendline()

@@ -5,7 +5,7 @@ shopt -s extglob
 python setup.py bdist_rpm
 yum install -y dist/supremm-+([0-9.])*.x86_64.rpm
 ~/bin/services start
-rm -rf /var/lib/mongodb/*
+rm -rf /var/lib/mongo/*
 mongod -f /etc/mongod.conf
 ~/bin/importmongo.sh
 
