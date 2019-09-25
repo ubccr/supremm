@@ -32,10 +32,9 @@ This section provides instructions on how to create an RPM or source packages fo
 software development or debugging. The instructions for installing the released
 packages are available on the [main website](https://supremm.xdmod.org/supremm-processing-install.html).
 
-### Centos 7
+### Centos 7 (7.6 and later)
 
-Install the PCP repository configuration following the instructions on the [pcp packages
-page][pcpbintray]. Install the EPEL repository configuration:
+Install the EPEL repository configuration:
 
     yum install epel-release
 
@@ -52,8 +51,8 @@ Install the build dependencies:
                 python-pymongo \
                 MySQL-python \
                 Cython \
-                python-pcp-3.12.2 \
-                pcp-libs-devel-3.12.2
+                python-pcp \
+                pcp-libs-devel
 
     pip install setuptools==36.4.0
 
@@ -149,4 +148,3 @@ the [GNU Lesser General Public License ("LGPL") Version 3.0][lgpl3].
 [listserv]:   http://listserv.buffalo.edu/cgi-bin/wa?SUBED1=ccr-xdmod-list&A=1
 [ghpr]:       https://help.github.com/articles/using-pull-requests/
 [pydist]:     https://setuptools.readthedocs.io/en/latest/
-[pcpbintray]: https://bintray.com/pcp/

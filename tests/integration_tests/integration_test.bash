@@ -17,10 +17,10 @@ EOF
 ingest_jobscripts.py
 
 count=$(mysql -ss -u root modw_supremm <<EOF
-SELECT COUNT(*) FROM \`batchscripts\` WHERE resource_id = 3 and local_job_id IN (1234234, 197155, 197199, 123424, 197186, 197182);
+SELECT COUNT(*) FROM \`job_scripts\` js , \`modw\`.\`job_tasks\` jt WHERE js.tg_job_id = jt.job_id and jt.resource_id = 3 and jt.local_jobid IN (197155, 197199, 197186, 197182);
 EOF
 )
 
-[[ $count -eq 6 ]]
+[[ $count -eq 4 ]]
 
 pytest tests/integration_tests/integration_plugin_api.py
