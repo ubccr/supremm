@@ -20,6 +20,11 @@ NHM_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
                "perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value",
                "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
 
+NHM_ALT_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+               "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
+               "perfevent.hwcounters.L1D_REPL.value",
+               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
+
 AMD_INTERLAGOS_METRICS = ["perfevent.hwcounters.CPU_CLK_UNHALTED.value",
                           "perfevent.hwcounters.RETIRED_INSTRUCTIONS.value",
                           "perfevent.hwcounters.DATA_CACHE_MISSES_DC_MISS_STREAMING_STORE.value",
@@ -30,7 +35,7 @@ class CpuPerfCounters(Plugin):
 
     name = property(lambda x: "cpuperf")
     mode = property(lambda x: "firstlast")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, AMD_INTERLAGOS_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, AMD_INTERLAGOS_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 

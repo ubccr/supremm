@@ -10,6 +10,7 @@ build:
     ci:
         - ./tests/integration_tests/bootstrap.sh
         - ./tests/integration_tests/integration_test.bash
+        - ./tests/component/runtests.sh
         - summarize_jobs.py -h > /dev/null
         - indexarchives.py -h > /dev/null
         - ingest_jobscripts.py -d
