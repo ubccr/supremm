@@ -25,6 +25,10 @@ NHM_ALT_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
                "perfevent.hwcounters.L1D_REPL.value",
                "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
 
+GENERIC_INTEL_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+                         "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
+                         "perfevent.hwcounters.L1D_REPLACEMENT.value"]
+
 AMD_INTERLAGOS_METRICS = ["perfevent.hwcounters.CPU_CLK_UNHALTED.value",
                           "perfevent.hwcounters.RETIRED_INSTRUCTIONS.value",
                           "perfevent.hwcounters.DATA_CACHE_MISSES_DC_MISS_STREAMING_STORE.value",
@@ -35,7 +39,7 @@ class CpuPerfCounters(Plugin):
 
     name = property(lambda x: "cpuperf")
     mode = property(lambda x: "firstlast")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, AMD_INTERLAGOS_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, GENERIC_INTEL_METRICS, AMD_INTERLAGOS_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -78,6 +82,7 @@ class CpuPerfCounters(Plugin):
         if nhosts < 1:
             return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
 
+        hasFlops = True
         flops = numpy.zeros(self._totalcores)
         cpiref = numpy.zeros(self._totalcores)
         cpldref = numpy.zeros(self._totalcores)
@@ -94,8 +99,15 @@ class CpuPerfCounters(Plugin):
                 cpiref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[1]
                 cpldref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[2]
                 coreindex += len(data[0])
+            elif len(data) == len(GENERIC_INTEL_METRICS):
+                hasFlops = False
+                cpiref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[1]
+                cpldref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[2]
+                coreindex += len(data[0])
             else:
                 return {"error": ProcessingError.INSUFFICIENT_DATA}
 
         results = {"flops": calculate_stats(flops), "cpiref": calculate_stats(cpiref), "cpldref": calculate_stats(cpldref)}
+        if not hasFlops:
+            del results['flops']
         return results

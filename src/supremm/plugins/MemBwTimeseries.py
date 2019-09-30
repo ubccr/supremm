@@ -16,6 +16,15 @@ SNB_METRICS = ["perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_RD.value",
                "perfevent.hwcounters.snbep_unc_imc3__UNC_M_CAS_COUNT_RD.value",
                "perfevent.hwcounters.snbep_unc_imc3__UNC_M_CAS_COUNT_WR.value"]
 
+IVB_METRICS = ["perfevent.hwcounters.ivbep_unc_imc0__UNC_M_CAS_COUNT_RD.value",
+               "perfevent.hwcounters.ivbep_unc_imc0__UNC_M_CAS_COUNT_WR.value",
+               "perfevent.hwcounters.ivbep_unc_imc1__UNC_M_CAS_COUNT_RD.value",
+               "perfevent.hwcounters.ivbep_unc_imc1__UNC_M_CAS_COUNT_WR.value",
+               "perfevent.hwcounters.ivbep_unc_imc2__UNC_M_CAS_COUNT_RD.value",
+               "perfevent.hwcounters.ivbep_unc_imc2__UNC_M_CAS_COUNT_WR.value",
+               "perfevent.hwcounters.ivbep_unc_imc3__UNC_M_CAS_COUNT_RD.value",
+               "perfevent.hwcounters.ivbep_unc_imc3__UNC_M_CAS_COUNT_WR.value"]
+
 NHM_METRICS = ["perfevent.hwcounters.UNC_LLC_MISS_READ.value",
                "perfevent.hwcounters.UNC_LLC_MISS_WRITE.value"]
 
@@ -24,7 +33,7 @@ class MemBwTimeseries(Plugin):
 
     name = property(lambda x: "membw")
     mode = property(lambda x: "timeseries")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, IVB_METRICS, NHM_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
