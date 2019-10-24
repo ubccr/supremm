@@ -2,6 +2,7 @@
 """
     pcp archive processing functions
 """
+import errno
 import logging
 import datetime
 import os
@@ -172,11 +173,15 @@ def pmlogextract(job, conf, resconf, opts):
     if not os.path.exists(jobdir):
         try:
             os.makedirs(jobdir)
+        except OSError as e:
+            if e.errno == errno.EEXIST and os.path.isdir(jobdir):
+                pass
+            else:
+                logging.error("Job directory %s could not be created. Error: %s %s", jobdir, str(e), traceback.format_exc())
+                return 1
         except EnvironmentError as e:
             logging.error("Job directory %s could not be created. Error: %s %s", jobdir, str(e), traceback.format_exc())
             return 1
-        except OSError:
-            pass
 
     job.setjobdir(jobdir)
 
