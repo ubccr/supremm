@@ -107,7 +107,19 @@ class CpuPerfCounters(Plugin):
             else:
                 return {"error": ProcessingError.INSUFFICIENT_DATA}
 
-        results = {"flops": calculate_stats(flops), "cpiref": calculate_stats(cpiref), "cpldref": calculate_stats(cpldref)}
-        if not hasFlops:
-            del results['flops']
+        results = {}
+
+        if hasFlops:
+            results['flops'] = calculate_stats(flops)
+
+        if numpy.isnan(cpiref).any():
+            results['cpiref'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
+        else:
+            results['cpiref'] = calculate_stats(cpiref)
+
+        if numpy.isnan(cpldref).any():
+            results['cpldref'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
+        else:
+            results['cpldref'] = calculate_stats(cpldref)
+
         return results
