@@ -34,7 +34,7 @@ def getoptions():
         "help",
         "plugin-include",
         "plugin-exclude",
-        "config"
+        "config="
     ])
 
     retdata = {
