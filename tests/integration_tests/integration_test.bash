@@ -24,3 +24,4 @@ EOF
 [[ $count -eq 4 ]]
 
 pytest tests/integration_tests/integration_plugin_api.py
+python tests/hardware_info_tests/testHardwareInfoFetching.py

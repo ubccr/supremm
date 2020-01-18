@@ -1,0 +1,86 @@
+[
+    {
+        "replacements":[
+            {
+                "column": "manufacturer",
+                "pattern": "GenuineIntel",
+                "repl": "INTEL"
+            },
+            {
+                "column": "manufacturer",
+                "pattern": "AuthenticAMD",
+                "repl": "AMD"
+            }
+        ]
+    },
+    {
+        "replacements":[
+            {
+                "column": "system_manufacturer",
+                "pattern": "Dell Inc\\.",
+                "repl": "Dell"
+            }
+        ]
+    },
+    {
+        "conditions":[
+            {
+                "column": "system_manufacturer",
+                "equals": "HP"
+            }
+        ],
+        "replacements":[
+            {
+                "column": "system_name",
+                "pattern": "ProLiant xxxxxx Gen8",
+                "repl": "ProLiant SL230s Gen8"
+            }
+        ]
+    },
+    {
+        "conditions":[
+            {
+                "column": "gpu_device_count",
+                "equals": 0,
+                "reverse": true
+            },
+            {
+                "column": "gpu_device_count",
+                "equals": -1,
+                "reverse": true
+            }
+        ],
+        "replacements":[
+            {
+                "column": "gpu_device_manufacturer",
+                "repl": "Nvidia"
+            }
+        ]
+    },
+    {
+        "conditions":[
+            {
+                "column": "hostname",
+                "equals": "cpn-u25-30"
+            }
+        ],
+        "replacements":[
+            {
+                "column": "ib_device_count",
+                "repl": 1
+            },
+            {
+                "column": "ib_device",
+                "repl": "hfi1_0"
+            },
+            {
+                "column": "ib_ca_type",
+                "repl": "NA"
+            },
+            {
+                "column": "ib_ports",
+                "repl": 1
+            }
+        ]
+    }
+]
