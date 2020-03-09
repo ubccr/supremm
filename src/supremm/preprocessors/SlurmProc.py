@@ -74,8 +74,8 @@ class SlurmProc(PreProcessor):
         if 'errors' not in self.output:
             self.output['errors'] = {}
         if self.hostname not in self.output['errors']:
-            self.output['errors'][self.hostname] = []
-        self.output['errors'][self.hostname].append(info)
+            self.output['errors'][self.hostname] = set()
+        self.output['errors'][self.hostname].add(info)
 
     def process(self, timestamp, data, description):
 
@@ -99,7 +99,7 @@ class SlurmProc(PreProcessor):
 
         for pid, idx in currentpids.iteritems():
             if pid not in description[1]:
-                self.logerror("missing process name for pid {0}".format(pid))
+                self.logerror("missing process name")
                 continue
 
             s = unicode(description[1][pid], errors='replace')
