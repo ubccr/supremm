@@ -34,7 +34,7 @@ def get_jobs(opts, account):
 def clean_jobdir(opts, job):
     if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
         # Clean up
-        shutil.rmtree(job.jobdir)
+        shutil.rmtree(job.jobdir, ignore_errors=True)
 
 
 def process_summary(m, dbif, opts, job, summarize_time, result):
