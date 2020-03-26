@@ -259,7 +259,8 @@ def configure_resource(display, resource_id, resource, defaults):
                "hostname_mode": "hostname",
                "host_name_ext": get_hostname_ext(),
                "pcp_log_dir": "/data/" + resource + "/pcp-logs",
-               "script_dir": "/data/" + resource + "/jobscripts"}
+               "batchscript.path": "/data/" + resource + "/jobscripts",
+               "batchscript.timestamp_mode": "start"}
 
     descriptions = {"resource_id": None,
                     "enabled": "Enable SUPReMM summarization for this resource?",
@@ -267,9 +268,10 @@ def configure_resource(display, resource_id, resource, defaults):
                     "hostname_mode": "node name unique identifier ('hostname' or 'fqdn')",
                     "host_name_ext": "domain name for resource",
                     "pcp_log_dir": "Directory containing node-level PCP archives",
-                    "script_dir": "Directory containing job launch scripts (enter [space] for none)"}
+                    "batchscript.path": "Directory containing job launch scripts (enter [space] for none)",
+                    "batchscript.timestamp_mode": "Job launch script timestamp lookup mode ('submit', 'start' or 'none')"}
 
-    keys = ["enabled", "pcp_log_dir", "batch_system", "hostname_mode", "host_name_ext", "script_dir"]
+    keys = ["enabled", "pcp_log_dir", "batch_system", "hostname_mode", "host_name_ext", "batchscript.path", "batchscript.timestamp_mode"]
 
     resdefault = {}
 
@@ -284,6 +286,9 @@ def configure_resource(display, resource_id, resource, defaults):
             del setting["host_name_ext"]
             continue
 
+        if key == "batchscript.timestamp_mode" and setting["batchscript.path"] == ' ':
+            continue
+
         setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
         if key == "enabled" and setting[key] == False:
@@ -295,6 +300,13 @@ def configure_resource(display, resource_id, resource, defaults):
 WARNING The directory {0} does not exist. Make sure to create and populate this
 directory before running the summarization software.
 """.format(setting[key]))
+
+    setting['batchscript'] = {
+        'path': setting['batchscript.path'].strip(),
+        'timestamp_mode': setting['batchscript.timestamp_mode']
+    }
+    del setting['batchscript.path']
+    del setting['batchscript.timestamp_mode']
 
     return setting
 

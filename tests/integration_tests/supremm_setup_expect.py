@@ -2,6 +2,9 @@ import pexpect
 import sys
 
 def main():
+
+    scriptsettings = ['start', 'start', 'start', 'end', 'submit']
+
     with open("supremm_expect_log", "w") as f:
         p = pexpect.spawn('supremm-setup')
         p.logfile = f
@@ -20,6 +23,8 @@ def main():
 
         while True:
             i = p.expect(["Overwrite config file", "frearson", "mortorq", "phillips", "pozidriv", "robertson", "openstack", "recex", "torx"])
+            if i > 1:
+                p.expect('Enable SUPReMM summarization for this resource?')
             if i > 5:
                 p.sendline("n")
                 continue
@@ -33,6 +38,8 @@ def main():
                 p.sendline()
                 p.expect("Directory containing job launch scripts")
                 p.sendline()
+                p.expect("Job launch script timestamp lookup mode \('submit', 'start' or 'none'\)")
+                p.sendline(scriptsettings[i-1])
             else:
                 break
 
