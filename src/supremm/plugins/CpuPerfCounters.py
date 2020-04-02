@@ -21,13 +21,20 @@ NHM_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
                "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
 
 NHM_ALT_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
-               "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
-               "perfevent.hwcounters.L1D_REPL.value",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
+                   "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
+                   "perfevent.hwcounters.L1D_REPL.value",
+                   "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
 
 GENERIC_INTEL_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
                          "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
                          "perfevent.hwcounters.L1D_REPLACEMENT.value"]
+
+GENERIC_INTEL_ALT_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+                             "perfevent.hwcounters.INSTRUCTION_RETIRED.value"]
+
+GENERIC_INTEL_ALT2_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+                              "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value"]
+
 
 AMD_INTERLAGOS_METRICS = ["perfevent.hwcounters.CPU_CLK_UNHALTED.value",
                           "perfevent.hwcounters.RETIRED_INSTRUCTIONS.value",
@@ -39,7 +46,7 @@ class CpuPerfCounters(Plugin):
 
     name = property(lambda x: "cpuperf")
     mode = property(lambda x: "firstlast")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, GENERIC_INTEL_METRICS, AMD_INTERLAGOS_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, GENERIC_INTEL_METRICS, AMD_INTERLAGOS_METRICS, GENERIC_INTEL_ALT_METRICS, GENERIC_INTEL_ALT2_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -83,6 +90,8 @@ class CpuPerfCounters(Plugin):
             return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
 
         hasFlops = True
+        hasCpld = True
+        clks = numpy.zeros(self._totalcores)
         flops = numpy.zeros(self._totalcores)
         cpiref = numpy.zeros(self._totalcores)
         cpldref = numpy.zeros(self._totalcores)
@@ -93,16 +102,25 @@ class CpuPerfCounters(Plugin):
                 flops[coreindex:coreindex + len(data[0])] = 1.0 * data[3]
                 cpiref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[1]
                 cpldref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[2]
+                clks[coreindex:coreindex + len(data[0])] = data[0] / 1232896.0
                 coreindex += len(data[0])
             elif len(data) == len(SNB_METRICS):
                 flops[coreindex:coreindex + len(data[0])] = 4.0 * data[3] + 2.0 * data[4] + 1.0 * data[5] + 1.0 * data[6]
                 cpiref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[1]
                 cpldref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[2]
+                clks[coreindex:coreindex + len(data[0])] = data[0] / 1232896.0
                 coreindex += len(data[0])
             elif len(data) == len(GENERIC_INTEL_METRICS):
                 hasFlops = False
                 cpiref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[1]
                 cpldref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[2]
+                clks[coreindex:coreindex + len(data[0])] = data[0] / 1232896.0
+                coreindex += len(data[0])
+            elif len(data) == len(GENERIC_INTEL_ALT_METRICS): # also covers the ALT2 variant
+                hasFlops = False
+                hasCpld = False
+                cpiref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[1]
+                clks[coreindex:coreindex + len(data[0])] = data[0] / 1232896.0
                 coreindex += len(data[0])
             else:
                 return {"error": ProcessingError.INSUFFICIENT_DATA}
@@ -117,9 +135,11 @@ class CpuPerfCounters(Plugin):
         else:
             results['cpiref'] = calculate_stats(cpiref)
 
-        if numpy.isnan(cpldref).any():
+        if (not hasCpld) or numpy.isnan(cpldref).any():
             results['cpldref'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
         else:
             results['cpldref'] = calculate_stats(cpldref)
+
+        results['clk_mhz'] = calculate_stats(clks)
 
         return results
