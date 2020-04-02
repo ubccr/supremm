@@ -17,12 +17,13 @@ MAX_SCRIPT_LEN = (64 * 1024) - 1
 class DbHelper(object):
     """ Helper class to interact with the database """
 
-    def __init__(self, dwconfig, schema):
+    def __init__(self, dwconfig, schema, timestamp_mode):
 
         # The database schema should be created with utf8-unicode encoding.
         self.con = getdbconnection(dwconfig, False, {'charset': 'utf8', 'use_unicode': True})
         self.tablename = "`{0}`.`batchscripts`".format(schema)
         self.xdmod_schema_version = 7
+        self.timestamp_mode = timestamp_mode
 
         try:
             cur = self.con.cursor()
@@ -46,8 +47,16 @@ class DbHelper(object):
                             `modw`.`job_tasks`
                         WHERE
                             resource_id = %s 
-                            AND local_job_id_raw = %s
-                            AND DATE(FROM_UNIXTIME(start_time_ts)) = %s"""
+                            AND local_job_id_raw = %s"""
+
+            if self.timestamp_mode == 'start':
+                self.query += ' AND ABS(DATEDIFF(DATE(FROM_UNIXTIME(start_time_ts)), %s)) < 2'
+            elif self.timestamp_mode == 'submit':
+                self.query += ' AND ABS(DATEDIFF(DATE(FROM_UNIXTIME(submit_time_ts)), %s)) < 2'
+            elif self.timestamp_mode == 'end':
+                self.query += ' AND ABS(DATEDIFF(DATE(FROM_UNIXTIME(end_time_ts)), %s)) < 2'
+            #else
+                # self.timestamp_mode == 'None' which means no date restrictions
 
         self.buffered = 0
 
@@ -56,7 +65,9 @@ class DbHelper(object):
         cur = self.con.cursor()
 
         if self.xdmod_schema_version == 8:
-            qdata = [data['script'], data['resource_id'], data['local_job_id_raw'], data['start_date']]
+            qdata = [data['script'], data['resource_id'], data['local_job_id_raw']]
+            if self.timestamp_mode in ['start', 'submit', 'end']:
+                qdata.append(data['start_date'])
         else:
             qdata = [data['resource_id'], data['local_job_id_raw'], data['script']]
 
@@ -208,6 +219,23 @@ def getoptions():
     return retdata
 
 
+def parse_resource_config(settings):
+    """ Parse the resource configuration settings. Support both the 1.3.0 and
+        1.4.0 configuration styles """
+
+    respath = None
+    timestamp_mode = 'start'
+
+    if 'batchscript' in settings:
+        if 'path' in settings['batchscript']:
+            respath = settings['batchscript']['path']
+        if 'timestamp_mode' in settings['batchscript']:
+            timestamp_mode = settings['batchscript']['timestamp_mode']
+    elif 'script_dir' in settings:
+        respath = settings['script_dir']
+
+    return respath, timestamp_mode
+
 def main():
     """
     main entry point for script
@@ -221,7 +249,6 @@ def main():
     config = Config(opts['config'])
 
     dwconfig = config.getsection("datawarehouse")
-    dbif = DbHelper(dwconfig, "modw_supremm")
 
     for resourcename, settings in config.resourceconfigs():
 
@@ -229,14 +256,19 @@ def main():
 
             logging.debug("Processing %s (id=%s)", resourcename, settings['resource_id'])
 
-            if "script_dir" in settings:
-                total = processfor(settings['resource_id'], settings['script_dir'], dbif, opts['deltadays'])
+            respath, timestamp_mode = parse_resource_config(settings)
+
+            if respath:
+                dbif = DbHelper(dwconfig, "modw_supremm", timestamp_mode)
+
+                total = processfor(settings['resource_id'], respath, dbif, opts['deltadays'])
+
+                dbif.postinsert()
 
                 logging.info("Processed %s files for %s", total, resourcename)
             else:
                 logging.debug("Skip resource %s no script dir defined", resourcename)
 
-    dbif.postinsert()
 
 if __name__ == "__main__":
     main()
