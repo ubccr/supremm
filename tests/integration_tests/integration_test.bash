@@ -23,4 +23,11 @@ EOF
 
 [[ $count -eq 4 ]]
 
+count=$(mysql -ss -u root modw_supremm <<EOF
+SELECT COUNT(*) FROM \`job_scripts\`;
+EOF
+)
+
+[[ $count -eq 6 ]]
+
 pytest tests/integration_tests/integration_plugin_api.py

@@ -31,7 +31,8 @@ class XDMoDStyleSetupMenu(object):
 
     def erase(self):
         """ Clear screen """
-        self.stdscr.erase()
+        self.stdscr.clear()
+        self.stdscr.refresh()
         self.row = 0
 
     def nextrow(self, increment=1):
