@@ -62,5 +62,11 @@ class ProcessingError(object):
         """ get """
         return self._id
 
+class NotApplicableError(Exception):
+    """ Used by plugins to indicate that their analysis is not avaiable for
+        the HPC job. For example, if a plugin implements a resource-manager-specific
+        analysis and the job was not run on the supported resource manager. """
+    pass
+
 if __name__ == "__main__":
     print ProcessingError.doc()
