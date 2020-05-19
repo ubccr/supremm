@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 """ Memory usage plugin """
 
+import re
 from supremm.plugin import Plugin
 from supremm.statistics import RollingStats, calculate_stats
-from supremm.errors import ProcessingError
+from supremm.errors import ProcessingError, NotApplicableError
 
-class SlurmCgroupMemory(Plugin):
+class CgroupMemory(Plugin):
     """ Cgroup memory statistics for the job """
 
     name = property(lambda x: "process_memory")
@@ -16,10 +17,15 @@ class SlurmCgroupMemory(Plugin):
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
-        super(SlurmCgroupMemory, self).__init__(job)
+        super(CgroupMemory, self).__init__(job)
         self._data = {}
         self._hostcounts = {}
-        self._expectedcgroup = "/slurm/uid_{0}/job_{1}".format(job.acct['uid'], job.job_id)
+        if job.acct['resource_manager'] == 'pbs':
+            self._expectedcgroup = "/torque/{0}".format(job.job_id)
+        elif job.acct['resource_manager'] == 'slurm':
+            self._expectedcgroup = "/slurm/uid_{0}/job_{1}".format(job.acct['uid'], job.job_id)
+        else:
+            raise NotApplicableError
 
     def process(self, nodemeta, timestamp, data, description):
         """ CGroup Memory statistics are the aritmetic mean of all values except the
@@ -38,8 +44,14 @@ class SlurmCgroupMemory(Plugin):
             return True
 
         try:
-            dataidx = description[0][1].index(self._expectedcgroup)
-
+            dataidx = None
+            for idx, desc in enumerate(description[0][1]):
+                if re.match(r"^" + re.escape(self._expectedcgroup) + r"($|\.)", desc):
+                    dataidx = idx
+                    break
+            # No cgroup info at this datapoint
+            if dataidx is None:
+                return True
             for i in xrange(len(self.requiredMetrics)):
                 if len(data[i]) < dataidx:
                     # Skip timesteps with incomplete information

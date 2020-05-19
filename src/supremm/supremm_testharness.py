@@ -70,7 +70,7 @@ class MockJob(object):
         self.end_str = "end"
         self.walltime = 9751
         self.nodecount = len(archivelist)
-        self.acct = {"end_time": 12312, "id": 1, "uid": "sdf", "user": "werqw", "partition": "test", "local_job_id": "1234"}
+        self.acct = {"end_time": 12312, "id": 1, "uid": "sdf", "user": "werqw", "partition": "test", "local_job_id": "1234", "resource_manager": "slurm"}
         self.nodes = ["node" + str(i) for i in xrange(len(archivelist))]
         self._data = {}
         self._errors = []

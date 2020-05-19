@@ -1,42 +1,53 @@
 #!/usr/bin/env python
 """ Proc information pre-processor """
 
+import re
+import itertools
 from collections import Counter
 
 from supremm.plugin import PreProcessor
 from supremm.errors import ProcessingError
 from supremm.linuxhelpers import parsecpusallowed
-import re
-import itertools
 
-GROUP_RE = re.compile(r"cpuset:/slurm/uid_(\d+)/job_(\d+)/")
+SLURM_CGROUP_RE = re.compile(r"cpuset:/slurm/uid_(\d+)/job_(\d+)/")
+TORQUE_CGROUP_RE = re.compile(r"cpuset:/torque/(\d+(?:\[\d+\])?)(?:\.[^\.].*)?")
 
 
-class SlurmProc(PreProcessor):
-    """ Parse and analyse the proc information for a job that ran under slurm
-        where the slurm cgroups plugin was enabled. 
+class Proc(PreProcessor):
+    """ Parse and analyse the proc information for a job. Supports parsing the cgroup information
+        from SLRUM and PBS/Torque (if available).
     """
 
     name = property(lambda x: "proc")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: [
-        [ "proc.psinfo.cpusallowed",
-        "proc.id.uid_nm",
-        "proc.psinfo.cgroups" ],
-        [ "hotproc.psinfo.cpusallowed",
-        "hotproc.id.uid_nm",
-        "hotproc.psinfo.cgroups" ] 
+        ["proc.psinfo.cpusallowed",
+         "proc.id.uid_nm",
+         "proc.psinfo.cgroups"],
+        ["hotproc.psinfo.cpusallowed",
+         "hotproc.id.uid_nm",
+         "hotproc.psinfo.cgroups"]
         ])
 
     optionalMetrics = property(lambda x: ["cgroup.cpuset.cpus"])
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
-        super(SlurmProc, self).__init__(job)
+        super(Proc, self).__init__(job)
 
-        self.expectedslurmscript = "/var/spool/slurmd/job" + job.job_id + "/slurm_script"
-        self.cgrouppath = "/slurm/uid_" + str(job.acct['uid']) + "/job_" + job.job_id
-        self.expectedcgroup = "cpuset:" + self.cgrouppath
+        self.cgrouppath = None
+        self.expectedcgroup = None
+        self.cgroupparser = None
+
+        if job.acct['resource_manager'] == 'slurm':
+            self.cgrouppath = "/slurm/uid_" + str(job.acct['uid']) + "/job_" + job.job_id
+            self.expectedcgroup = "cpuset:" + self.cgrouppath
+            self.cgroupparser = self.slurmcgroupparser
+        elif job.acct['resource_manager'] == 'pbs':
+            self.cgrouppath = "/torque/" + job.job_id
+            self.expectedcgroup = "cpuset:" + self.cgrouppath
+            self.cgroupparser = self.torquecgroupparser
+
         self.jobusername = job.acct['user']
 
         self.cpusallowed = None
@@ -46,31 +57,34 @@ class SlurmProc(PreProcessor):
         self.output = {"procDump": {"constrained": Counter(), "unconstrained": Counter()}, "cpusallowed": {}}
 
     @staticmethod
+    def torquecgroupparser(s):
+        """ Parse linux cgroup string for slurm-specific settings and extract
+            the jobid of each job
+        """
+        m = TORQUE_CGROUP_RE.search(s)
+        if m:
+            return None, m.group(1)
+
+        return None, None
+
+    @staticmethod
     def slurmcgroupparser(s):
         """ Parse linux cgroup string for slurm-specific settings and extract
             the UID and jobid of each job
         """
 
-        m = GROUP_RE.search(s)
+        m = SLURM_CGROUP_RE.search(s)
         if m:
             return m.group(1), m.group(2)
         else:
             return None, None
-
-    @staticmethod
-    def instanceparser(s):
-        tokens = s.split(" ")
-
-        pid = tokens[0]
-        cmd = tokens[1:]
-
-        return pid,cmd
 
     def hoststart(self, hostname):
         self.hostname = hostname
         self.output['cpusallowed'][hostname] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
 
     def logerror(self, info):
+        """ record error information """
         if 'errors' not in self.output:
             self.output['errors'] = {}
         if self.hostname not in self.output['errors']:
@@ -105,17 +119,20 @@ class SlurmProc(PreProcessor):
             s = unicode(description[1][pid], errors='replace')
             command = s[s.find(" ") + 1:]
 
-            if self.expectedcgroup in data[2][idx][0]:
-                containedprocs[pid] = command
-                cgroupedprocs.append(idx)
-            else:
-                otheruid, otherjobid = self.slurmcgroupparser(data[2][idx][0])
-                if otherjobid is not None:
-                    otherjobs[pid] = command
+            if self.cgroupparser is not None:
+                if self.expectedcgroup in data[2][idx][0]:
+                    containedprocs[pid] = command
+                    cgroupedprocs.append(idx)
                 else:
-                    unconstrainedprocs[pid] = command
+                    _, otherjobid = self.cgroupparser(data[2][idx][0])
+                    if otherjobid is not None:
+                        otherjobs[pid] = command
+                    else:
+                        unconstrainedprocs[pid] = command
+            else:
+                unconstrainedprocs[pid] = command
 
-        if len(data) > 3 and self.cgroupcpuset is None:
+        if len(data) > 3 and self.cgrouppath is not None and self.cgroupcpuset is None:
             for cpuset in itertools.ifilter(lambda x: x[1] == self.cgrouppath, description[3].iteritems()):
                 for content in itertools.ifilter(lambda x: int(x[1]) == cpuset[0], data[3]):
                     self.cgroupcpuset = parsecpusallowed(content[0])
@@ -180,4 +197,3 @@ class SlurmProc(PreProcessor):
             i += 1
 
         return {'procDump': result}
-
