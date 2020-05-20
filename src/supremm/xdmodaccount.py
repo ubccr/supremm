@@ -42,7 +42,8 @@ class XDMoDAcct(Accounting):
                     jf.`exit_state` AS `exit_status`,
                     jf.`cpu_req` AS `reqcpus`,
                     jf.`mem_req` AS `reqmem`,
-                    jf.`timelimit` AS `timelimit`
+                    jf.`timelimit` AS `timelimit`,
+                    sj.`source_format` AS `resource_manager`
                 FROM
                     modw.job_tasks jf
                         INNER JOIN
@@ -53,6 +54,8 @@ class XDMoDAcct(Accounting):
                     modw.account aa ON jr.account_id = aa.id
                         LEFT JOIN
                     modw_supremm.`process` p ON jf.job_id = p.jobid
+                        LEFT JOIN
+                    mod_shredder.`shredded_job` sj ON jf.job_id = sj.shredded_job_id
                 WHERE
                     jf.resource_id = %s
             """
@@ -81,7 +84,8 @@ class XDMoDAcct(Accounting):
                     jf.`exit_state` as `exit_status`,
                     jf.`cpu_req` as `reqcpus`,
                     jf.`mem_req` as `reqmem`,
-                    jf.`timelimit` as `timelimit`
+                    jf.`timelimit` as `timelimit`,
+                    sj.`source_format` AS `resource_manager`
                 FROM
                     modw.jobfact jf
                 LEFT JOIN
@@ -90,6 +94,8 @@ class XDMoDAcct(Accounting):
                     modw.systemaccount sa ON jf.systemaccount_id = sa.id
                 INNER JOIN
                     modw.account aa ON jf.account_id = aa.id
+                LEFT JOIN
+                    mod_shredder.`shredded_job` sj ON jf.job_id = sj.shredded_job_id
                 WHERE
                     jf.resource_id = %s
             """
