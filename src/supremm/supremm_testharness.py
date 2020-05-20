@@ -71,7 +71,7 @@ class MockJob(object):
         self.walltime = 9751
         self.nodecount = len(archivelist)
         self.acct = {"end_time": 12312, "id": 1, "uid": "sdf", "user": "werqw", "partition": "test", "local_job_id": "1234", "resource_manager": "slurm"}
-        self.nodes = ["node" + str(i) for i in xrange(len(archivelist))]
+        self.nodes = [os.path.basename(x) for x in archivelist]
         self._data = {}
         self._errors = []
 
@@ -109,7 +109,7 @@ class MockJob(object):
         """ generator for node archive information """
         i = 0
         for filename in self.node_archives:
-            yield ("node" + str(i), i, filename)
+            yield (os.path.basename(filename), i, filename)
             i += 1
 
     def __str__(self):
