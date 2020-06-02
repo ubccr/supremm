@@ -62,11 +62,21 @@ def calculate_stats(v):
 
 
 class RollingStats(object):
+    """ Uses Welford's method [1] to compute the mean and stddev of
+        a series for data without storing all datapoints.
+    
+        Data should be added to the class instance using the append()
+        function and the summary statistics can be accessed using get()
 
+        [1] B. P. Welford (1962) Note on a Method for Calculating
+        Corrected Sums of Squares and Products, Technometrics,
+        4:3, 419-420, DOI: 10.1080/00401706.1962.10490022
+    """
     def __init__(self):
         self._count = 0
 
     def append(self, x):
+        """ append a datum. """ 
         self._count += 1
 
         if self._count == 1:
@@ -96,7 +106,7 @@ class RollingStats(object):
         return 0.0
 
     def count(self):
-        """ Take a wild guess at what this function does """
+        """ returns the number of data points that have been processed """
         return self._count
 
     def variance(self):
