@@ -347,11 +347,6 @@ class LoadFileIndexUpdater(object):
         self.dry_run = dry_run
 
     def __enter__(self):
-        if self.batch_system == "XDMoD":
-            self.dbac = XDMoDArchiveCache(self.config)
-        else:
-            self.dbac = DbArchiveCache(self.config)
-
         self.paths_file = tempfile.NamedTemporaryFile('wb', delete=not self.keep_csv, suffix=".csv", prefix="archive_paths")
         self.paths_csv = csv.writer(self.paths_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
         self.joblevel_file = tempfile.NamedTemporaryFile('wb', delete=not self.keep_csv, suffix=".csv", prefix="archives_joblevel")
@@ -369,7 +364,12 @@ class LoadFileIndexUpdater(object):
         self.joblevel_file.file.flush()
         self.nodelevel_file.file.flush()
         if not self.dry_run:
-            self.dbac.insert_from_files(self.paths_file.name, self.joblevel_file.name, self.nodelevel_file.name)
+            if self.batch_system == "XDMoD":
+                dbac = XDMoDArchiveCache(self.config)
+            else:
+                dbac = DbArchiveCache(self.config)
+
+            dbac.insert_from_files(self.paths_file.name, self.joblevel_file.name, self.nodelevel_file.name)
         self.paths_file.close()
         self.joblevel_file.close()
         self.nodelevel_file.close()
