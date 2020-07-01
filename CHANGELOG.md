@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.4.0] - 2020-07-10
+
+### Added
+- Added new configuration setting that determines how the job script timestamps
+  are interpreted. See https://supremm.xdmod.org/9.0/supremm-jobscript.html for details.
+- Added timeseries plot generation for Lustre filesystem data.
+- Added support for PBS style cgroups for CPU and memory metrics.
+
+### Changed
+- Improve error reporting when the temporary job directories cannot be created.
+- Improve the cpu performance counter plugin to report data on the available counters
+  even if not all are present.
+- Update internal developer documentation
+- The supremm-setup script now requires mongo client 3 or later to run the mongo database setup
+  (instructions for manual setup using the older client are at https://supremm.xdmod.org/9.0/supremm-processing-configuration.html#setup-mongodb)
+- Improve the job metadata handling in the developer test harness
+
+### Fixed
+- Update indexarchives.py to defer opening the connection to the XDMoD database until it
+  it needed. This resolves an timeout issue when processing a large number of files
+  or on a slow filesystem.
+
 ## [1.3.0] - 2019-09-30
 
 ### Added
