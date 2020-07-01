@@ -376,9 +376,6 @@ def create_mongodb(display):
 
     mongouri = display.prompt_string("URI", dbsettings['uri'])
 
-    if mongouri.startswith("mongodb://"):
-        mongouri = mongouri[10:]
-
     display.print_warning("""
 
 WARNING This operation will write to mongo
