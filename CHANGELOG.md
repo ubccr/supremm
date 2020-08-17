@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.4.0] - 2020-07-10
+## [1.4.0] - 2020-08-17
 
 ### Added
 - Added new configuration setting that determines how the job script timestamps
