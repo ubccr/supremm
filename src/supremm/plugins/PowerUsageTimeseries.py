@@ -12,13 +12,14 @@ class PowerUsageTimeseries(Plugin):
     """ Generate the Power usage as a timeseries data """
 
     name = property(lambda x: "power")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: ["ipmi.dcmi.power"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(PowerUsageTimeseries, self).__init__(job)
+    def __init__(self, job, config):
+        super(PowerUsageTimeseries, self).__init__(job, config)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
 

@@ -21,13 +21,14 @@ class SimdInsTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """
 
     name = property(lambda x: "simdins")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, INTERLAGOS_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(SimdInsTimeseries, self).__init__(job)
+    def __init__(self, job, config):
+        super(SimdInsTimeseries, self).__init__(job, config)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
         self._hostdevnames = {}

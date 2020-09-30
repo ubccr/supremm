@@ -8,7 +8,13 @@ from supremm.errors import ProcessingError
 import os
 import numpy
 import pkgutil
+import requests
+try:
+    import urlparse as urlparse
+except LoadError:
+    import urllib.parse as urlparse
 from collections import Counter
+import logging
 
 def loadplugins(plugindir=None, namespace="plugins"):
     """ Load all of the modules from the plugins directory and instantiate the
@@ -64,15 +70,20 @@ class Plugin(object):
     """ abstract base class describing the plugin interface """
     __metaclass__ = ABCMeta
 
-    def __init__(self, job):
+    def __init__(self, job, config):
         self._job = job
         self._status = "uninitialized"
+        self._config = config
 
     @property
     def status(self):
         """ The status state is used by the framework to decide whether to include the
             plugin data in the output """
         return self._status
+
+    @property
+    def config(self):
+        return self._config
 
     @status.setter
     def status(self, value):
@@ -91,6 +102,10 @@ class Plugin(object):
 
     @abstractproperty
     def name(self):
+        pass
+
+    @abstractproperty
+    def metric_system(self):
         pass
 
     @abstractproperty
@@ -119,15 +134,20 @@ class PreProcessor(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, job):
+    def __init__(self, job, config):
         self._job = job
         self._status = "uninitialized"
+        self._config = config
 
     @property
     def status(self):
         """ The status state is used by the framework to decide whether to include the
             plugin data in the output """
         return self._status
+
+    @property
+    def config(self):
+        return self._config
 
     @status.setter
     def status(self, value):
@@ -166,6 +186,10 @@ class PreProcessor(object):
         pass
 
     @abstractproperty
+    def metric_system(self):
+        pass
+
+    @abstractproperty
     def requiredMetrics(self):
         pass
 
@@ -191,8 +215,8 @@ class DeviceBasedPlugin(Plugin):
 
     mode = property(lambda x: "firstlast")
 
-    def __init__(self, job):
-        super(DeviceBasedPlugin, self).__init__(job)
+    def __init__(self, job, config):
+        super(DeviceBasedPlugin, self).__init__(job, config)
         self._first = {}
         self._data = {}
         self._error = None
@@ -257,8 +281,8 @@ class DeviceInstanceBasedPlugin(Plugin):
 
     mode = property(lambda x: "firstlast")
 
-    def __init__(self, job):
-        super(DeviceInstanceBasedPlugin, self).__init__(job)
+    def __init__(self, job, config):
+        super(DeviceInstanceBasedPlugin, self).__init__(job, config)
         self._first = {}
         self._data = {}
         self._error = None
@@ -306,8 +330,8 @@ class RateConvertingTimeseriesPlugin(Plugin):
 
     mode = property(lambda x: "timeseries")
 
-    def __init__(self, job):
-        super(RateConvertingTimeseriesPlugin, self).__init__(job)
+    def __init__(self, job, config):
+        super(RateConvertingTimeseriesPlugin, self).__init__(job, config)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
 
@@ -368,6 +392,183 @@ class RateConvertingTimeseriesPlugin(Plugin):
         for hostidx in includelist:
             retdata['hosts'][str(hostidx)] = {}
             retdata['hosts'][str(hostidx)]['all'] = rates[hostidx, :].tolist()
+
+        return retdata
+
+    @staticmethod
+    def collatedata(args, rates):
+        """ build output data """
+        result = []
+        for timepoint, hostidx in enumerate(args):
+            try:
+                result.append([rates[hostidx, timepoint], int(hostidx)])
+            except IndexError:
+                pass
+
+        return result
+
+class PrometheusPlugin(Plugin):
+    """
+    A base abstract class for summarising the data from Prometheus
+    """
+    __metaclass__ = ABCMeta
+
+    mode = property(lambda x: "all")
+
+    def __init__(self, job, config):
+        super(PrometheusPlugin, self).__init__(job, config)
+        self._first = {}
+        self._data = {}
+        self._error = None
+        self.allmetrics = {}
+        for k,v in self.requiredMetrics.items():
+            self.allmetrics[k] = v
+        for k,v in self.optionalMetrics.items():
+            self.allmetrics[k] = v
+
+        self.metric_configs = config.metric_configs()
+        self.prometheus_url = self.metric_configs.get('prometheus_url', None)
+        self.step = self.metric_configs.get('step', '1m')
+
+    def query(self, query, start, end):
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+        params = {
+            'query': query,
+            'start': str(start),
+            'end': str(end),
+            'step': self.step,
+        }
+        url = urlparse.urljoin(self.prometheus_url, "/api/v1/query_range")
+        logging.debug('Prometheus QUERY, url="%s" params="%s"', url, params)
+        r = requests.post(url, data=params, headers=headers)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        return data
+
+    def process(self, mdata):
+        rate = self.metric_configs.get('rates', {}).get(self.name, '5m')
+        for metricname, metric in self.allmetrics.items():
+            indom_label = metric.get('indom', None)
+            query = metric['metric'].format(node=mdata.nodename, rate=rate)
+            data = self.query(query, mdata.start, mdata.end)
+            if data is None:
+                self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
+                return None
+            for r in data.get('data', {}).get('result', []):
+                if indom_label:
+                    indom = r.get('metric', {}).get(indom_label, None)
+                else:
+                    indom = 'NA'
+                if indom is None:
+                    logging.error("Unable to find Prometheus label to match requested indom=%s", metric.indom)
+                    continue
+                if indom_label and indom not in self._data:
+                    self._data[indom] = {}
+                if not indom_label and metricname not in self._data:
+                    self._data[metricname] = {}
+                if indom_label and metricname not in self._data[indom]:
+                    self._data[indom][metricname] = []
+                for v in r.get('values', []):
+                    value = float(v[1])
+                    if indom == 'NA':
+                        self._data[metricname].append(value)
+                    else:
+                        self._data[indom][metricname].append(value)
+        return True
+
+    def results(self):
+
+        if self._error != None:
+            return {"error": self._error}
+
+        if len(self._data) == 0:
+            return {"error": ProcessingError.INSUFFICIENT_DATA}
+
+        output = {}
+
+        for devicename, device in self._data.iteritems():
+            cleandevname = devicename.replace(".", "-")
+            output[cleandevname] = {}
+            for metricname, metric in device.iteritems():
+                output[cleandevname][metricname] = calculate_stats(metric)
+
+        return output
+
+class PrometheusTimeseriesPlugin(PrometheusPlugin):
+    """
+    A base abstract class for summarising the data from Prometheus
+    """
+    __metaclass__ = ABCMeta
+
+    mode = property(lambda x: "timeseries")
+
+    def __init__(self, job, config):
+        super(PrometheusTimeseriesPlugin, self).__init__(job, config)
+        self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
+        self._hostdata = {}
+
+    def process(self, mdata):
+        for metricname, metric in self.allmetrics.items():
+            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate='5m')
+            data = self.query(query, mdata.start, mdata.end)
+            if data is None:
+                self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
+                return None
+            for r in data.get('data', {}).get('result', []):
+                if mdata.nodeindex not in self._hostdata:
+                    self._hostdata[mdata.nodeindex] = 1
+                for v in r.get('values', []):
+                    value = float(v[1])
+                    self._data.adddata(mdata.nodeindex, v[0], value)
+        return True
+
+    def results(self):
+        if self._error != None:
+            return {"error": self._error}
+        if len(self._hostdata) != self._job.nodecount:
+            return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
+
+        values = self._data.get()
+
+        if len(values[0, :, 0]) < 3:
+            return {"error": ProcessingError.JOB_TOO_SHORT}
+
+        data = values[:, :, 1]
+
+        if len(self._hostdata) > 64:
+
+            # Compute min, max & median data and only save the host data
+            # for these hosts
+
+            sortarr = numpy.argsort(data.T, axis=1)
+
+            retdata = {
+                "min": self.collatedata(sortarr[:, 0], data),
+                "max": self.collatedata(sortarr[:, -1], data),
+                "med": self.collatedata(sortarr[:, sortarr.shape[1] / 2], data),
+                "times": values[:, :, 0].tolist(),
+                "hosts": {}
+            }
+
+            uniqhosts = Counter(sortarr[:, 0])
+            uniqhosts.update(sortarr[:, -1])
+            uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
+            includelist = uniqhosts.keys()
+        else:
+            # Save data for all hosts
+            retdata = {
+                "times": values[:, :, 0].tolist(),
+                "hosts": {}
+            }
+            includelist = self._hostdata.keys()
+
+
+        for hostidx in includelist:
+            retdata['hosts'][str(hostidx)] = {}
+            retdata['hosts'][str(hostidx)]['all'] = values[hostidx, :, 1].tolist()
 
         return retdata
 

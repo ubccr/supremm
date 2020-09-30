@@ -9,13 +9,14 @@ class GpuPower(Plugin):
     """ Compute the power statistics for a job """
 
     name = property(lambda x: "gpupower")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: ["nvidia.powerused"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(GpuPower, self).__init__(job)
+    def __init__(self, job, config):
+        super(GpuPower, self).__init__(job, config)
         self._data = {}
 
     def process(self, nodemeta, timestamp, data, description):

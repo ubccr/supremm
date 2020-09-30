@@ -40,8 +40,8 @@ class TimeseriesPatterns(Plugin):
     def derivedMetrics(self):
         return []
 
-    def __init__(self, job):
-        super(TimeseriesPatterns, self).__init__(job)
+    def __init__(self, job, config):
+        super(TimeseriesPatterns, self).__init__(job, config)
 
         EPOCH = datetime(1970, 1, 1)
         self.start_time = (job.start_datetime - EPOCH).total_seconds()

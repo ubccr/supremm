@@ -9,9 +9,10 @@ class Accounting(object):
 
     PROCESS_VERSION = 1
 
-    def __init__(self, resource_id, config):
+    def __init__(self, resource_id, config, resconf):
         self._resource_id = resource_id
         self._config = config
+        self._resconf = resconf
 
     @abstractmethod
     def getbylocaljobid(self, localjobid):

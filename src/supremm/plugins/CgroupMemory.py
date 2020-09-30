@@ -10,14 +10,15 @@ class CgroupMemory(Plugin):
     """ Cgroup memory statistics for the job """
 
     name = property(lambda x: "process_memory")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: ["cgroup.memory.usage", "cgroup.memory.limit"])
 
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(CgroupMemory, self).__init__(job)
+    def __init__(self, job, config):
+        super(CgroupMemory, self).__init__(job, config)
         self._data = {}
         self._hostcounts = {}
         if job.acct['resource_manager'] == 'pbs':

@@ -21,13 +21,14 @@ NHM_METRICS = ["taccstats_perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
 class TaccPerfCounters(Plugin):
     """ Compute various performance counter derived metrics """
     name = property(lambda x: "cpuperf")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(TaccPerfCounters, self).__init__(job)
+    def __init__(self, job, config):
+        super(TaccPerfCounters, self).__init__(job, config)
         self._last = {}
         self._data = {}
         self._totalcores = 0

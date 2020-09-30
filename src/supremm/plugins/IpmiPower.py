@@ -11,13 +11,14 @@ class IpmiPower(Plugin):
     """ Compute the power statistics for a job """
 
     name = property(lambda x: "ipmi")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: ["ipmi.dcmi.power"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(IpmiPower, self).__init__(job)
+    def __init__(self, job, config):
+        super(IpmiPower, self).__init__(job, config)
         self._data = {}
 
     def process(self, nodemeta, timestamp, data, description):

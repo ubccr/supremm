@@ -9,6 +9,7 @@ class Catastrophe(Plugin):
         tacc_stats project """
 
     name = property(lambda x: "catastrophe")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: [["perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value"],
                                           ["perfevent.hwcounters.L1D_REPLACEMENT.value"],
@@ -17,8 +18,8 @@ class Catastrophe(Plugin):
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(Catastrophe, self).__init__(job)
+    def __init__(self, job, config):
+        super(Catastrophe, self).__init__(job, config)
         self._data = {}
         self._error = None
 

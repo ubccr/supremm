@@ -9,13 +9,14 @@ class MemoryUsage(Plugin):
     """ Compute the overall memory usage for a job """
 
     name = property(lambda x: "memory")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: ["mem.numa.util.used", "mem.numa.util.filePages", "mem.numa.util.slab", "kernel.percpu.cpu.user"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(MemoryUsage, self).__init__(job)
+    def __init__(self, job, config):
+        super(MemoryUsage, self).__init__(job, config)
         self._data = {}
         self._hostcpucounts = {}
 

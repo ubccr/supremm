@@ -37,6 +37,7 @@
             "enabled": true,
             "resource_id": 1,
             "batch_system": "XDMoD",
+            "metric_system": "pcp",
             "hostname_mode": "hostname",
             "pcp_log_dir": "/data/pcp-logs/my_cluster_name",
             "script_dir": "/data/jobscripts/my_cluster_name",

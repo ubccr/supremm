@@ -10,13 +10,14 @@ class TaccCatastrophe(Plugin):
         tacc_stats project """
 
     name = property(lambda x: "catastrophe")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: [ ["taccstats_perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value"], ["taccstats_perfevent.hwcounters.L1D_REPLACEMENT.value"] ])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(TaccCatastrophe, self).__init__(job)
+    def __init__(self, job, config):
+        super(TaccCatastrophe, self).__init__(job, config)
         self._data = {}
         self._values = {}
 

@@ -10,13 +10,14 @@ class HardwareInventory(PreProcessor):
     """
 
     name = property(lambda x: "hinv")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: [["kernel.percpu.cpu.user"], ["hinv.ncpu"]])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(HardwareInventory, self).__init__(job)
+    def __init__(self, job, config):
+        super(HardwareInventory, self).__init__(job, config)
         self.hostname = None
         self.corecount = None
         self.data = {}

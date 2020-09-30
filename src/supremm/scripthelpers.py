@@ -7,6 +7,7 @@ import MySQLdb
 import MySQLdb.cursors
 import sys
 import logging
+import requests
 
 def parsetime(strtime):
     """ Try to be flexible in the time formats supported:
@@ -79,4 +80,5 @@ def setuplogger(consolelevel, filename=None, filelevel=None):
     consolehandler.setLevel(consolelevel)
     consolehandler.setFormatter(formatter)
     rootlogger.addHandler(consolehandler)
+    logging.getLogger("requests").setLevel(logging.WARNING)
 

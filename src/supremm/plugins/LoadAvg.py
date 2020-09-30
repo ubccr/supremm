@@ -9,13 +9,14 @@ class LoadAvg(Plugin):
     """ Process the load average metrics """
 
     name = property(lambda x: "load1")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: ["kernel.all.load"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(LoadAvg, self).__init__(job)
+    def __init__(self, job, config):
+        super(LoadAvg, self).__init__(job, config)
         self._data = {}
 
     def process(self, nodemeta, timestamp, data, description):

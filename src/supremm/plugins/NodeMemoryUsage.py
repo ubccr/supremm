@@ -9,13 +9,14 @@ class NodeMemoryUsage(Plugin):
     """ Compute the overall memory usage for a job """
 
     name = property(lambda x: "nodememory")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: [["mem.freemem", "mem.physmem"], ["mem.util.free", "hinv.physmem", "mem.util.cached"]])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(NodeMemoryUsage, self).__init__(job)
+    def __init__(self, job, config):
+        super(NodeMemoryUsage, self).__init__(job, config)
         self._data = {}
 
     def process(self, nodemeta, timestamp, data, description):

@@ -6,6 +6,7 @@ class Nfs(DeviceBasedPlugin):
     """ Generate usage statistics for NFS clients """
 
     name = property(lambda x: "nfs")
+    metric_system = property(lambda x: "pcp")
     requiredMetrics = property(lambda x: [
         "nfsclient.bytes.read.normal",
         "nfsclient.bytes.read.direct",

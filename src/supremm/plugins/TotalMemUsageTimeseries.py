@@ -10,13 +10,14 @@ class TotalMemUsageTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """
 
     name = property(lambda x: "memused")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: ["mem.numa.util.used"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(TotalMemUsageTimeseries, self).__init__(job)
+    def __init__(self, job, config):
+        super(TotalMemUsageTimeseries, self).__init__(job, config)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
         self._hostdevnames = {}

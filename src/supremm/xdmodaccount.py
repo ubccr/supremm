@@ -10,10 +10,11 @@ import logging
 
 class XDMoDAcct(Accounting):
     """ account reader that gets data from xdmod datawarehouse """
-    def __init__(self, resource_id, config):
-        super(XDMoDAcct, self).__init__(resource_id, config)
+    def __init__(self, resource_id, config, resconf):
+        super(XDMoDAcct, self).__init__(resource_id, config, resconf)
 
         self.dbsettings = config.getsection("datawarehouse")
+        self.metric_system = self._resconf.get('metric_system', 'pcp')
 
         xdmod_schema_version = self.detectXdmodSchema()
 
@@ -100,46 +101,61 @@ class XDMoDAcct(Accounting):
                     jf.resource_id = %s
             """
 
-        self.hostquery = """
-            SELECT 
-                tt.hostname, tt.filename
-            FROM (
-            SELECT 
-                h.hostname, ap.filename, na.start_time_ts
-            FROM
-                modw_supremm.`archive_paths` ap,
-                modw_supremm.`archives_nodelevel` na,
-                modw.`hosts` h,
-                modw.`jobhosts` jh,
-                modw.`{0}` j
-            WHERE
-                j.job_id = jh.job_id
-                    AND jh.job_id = %s
-                    AND jh.host_id = h.id
-                    AND na.host_id = h.id
-                    AND ((j.start_time_ts BETWEEN na.start_time_ts AND na.end_time_ts)
-                    OR (j.end_time_ts BETWEEN na.start_time_ts AND na.end_time_ts)
-                    OR (j.start_time_ts < na.start_time_ts
-                    AND j.end_time_ts > na.end_time_ts))
-                    AND ap.id = na.archive_id 
-            UNION 
-            SELECT 
-                h.hostname, ap.filename, ja.start_time_ts
-            FROM
-                modw_supremm.`archive_paths` ap,
-                modw_supremm.`archives_joblevel` ja,
-                modw.`hosts` h,
-                modw.`jobhosts` jh,
-                modw.`{0}` j
-            WHERE
-                j.job_id = jh.job_id
-                    AND jh.job_id = %s
-                    AND jh.host_id = h.id
-                    AND ja.host_id = h.id
-                    AND ja.local_job_id_raw = j.local_job_id_raw
-                    AND ja.archive_id = ap.id
-            ) tt ORDER BY 1 ASC, tt.start_time_ts ASC
-        """.format(jobfacttable)
+        if self.metric_system == 'pcp':
+            self.hostquery = """
+                SELECT 
+                    tt.hostname, tt.filename
+                FROM (
+                SELECT 
+                    h.hostname, ap.filename, na.start_time_ts
+                FROM
+                    modw_supremm.`archive_paths` ap,
+                    modw_supremm.`archives_nodelevel` na,
+                    modw.`hosts` h,
+                    modw.`jobhosts` jh,
+                    modw.`{0}` j
+                WHERE
+                    j.job_id = jh.job_id
+                        AND jh.job_id = %s
+                        AND jh.host_id = h.id
+                        AND na.host_id = h.id
+                        AND ((j.start_time_ts BETWEEN na.start_time_ts AND na.end_time_ts)
+                        OR (j.end_time_ts BETWEEN na.start_time_ts AND na.end_time_ts)
+                        OR (j.start_time_ts < na.start_time_ts
+                        AND j.end_time_ts > na.end_time_ts))
+                        AND ap.id = na.archive_id 
+                UNION 
+                SELECT 
+                    h.hostname, ap.filename, ja.start_time_ts
+                FROM
+                    modw_supremm.`archive_paths` ap,
+                    modw_supremm.`archives_joblevel` ja,
+                    modw.`hosts` h,
+                    modw.`jobhosts` jh,
+                    modw.`{0}` j
+                WHERE
+                    j.job_id = jh.job_id
+                        AND jh.job_id = %s
+                        AND jh.host_id = h.id
+                        AND ja.host_id = h.id
+                        AND ja.local_job_id_raw = j.local_job_id_raw
+                        AND ja.archive_id = ap.id
+                ) tt ORDER BY 1 ASC, tt.start_time_ts ASC
+            """.format(jobfacttable)
+        elif self.metric_system == 'prometheus':
+            self.hostquery = """
+                SELECT 
+                    h.hostname
+                FROM
+                    modw.`hosts` h,
+                    modw.`jobhosts` jh,
+                    modw.`{0}` j
+                WHERE
+                    j.job_id = jh.job_id
+                        AND jh.job_id = %s
+                        AND jh.host_id = h.id
+                ORDER BY 1 ASC
+            """.format(jobfacttable)
 
         self.con = None
         self.hostcon = None
@@ -256,22 +272,29 @@ class XDMoDAcct(Accounting):
         for record in cur:
 
             hostcur = self.hostcon.cursor()
-            hostcur.execute(self.hostquery, (record['job_id'], record['job_id']))
 
-            hostarchives = {}
-            hostlist = []
-            for h in hostcur:
-                if h[0] not in hostarchives:
+            if self.metric_system == 'pcp':
+                hostcur.execute(self.hostquery, (record['job_id'], record['job_id']))
+                hostarchives = {}
+                hostlist = []
+                for h in hostcur:
+                    if h[0] not in hostarchives:
+                        hostlist.append(h[0])
+                        hostarchives[h[0]] = []
+                    hostarchives[h[0]].append(h[1])
+            else:
+                hostcur.execute(self.hostquery, (record['job_id'],))
+                hostlist = []
+                for h in hostcur:
                     hostlist.append(h[0])
-                    hostarchives[h[0]] = []
-                hostarchives[h[0]].append(h[1])
 
             jobpk = record['job_id']
             del record['job_id']
             record['host_list'] = hostlist
             job = Job(jobpk, str(record['local_job_id']), record)
             job.set_nodes(hostlist)
-            job.set_rawarchives(hostarchives)
+            if self.metric_system == 'pcp':
+                job.set_rawarchives(hostarchives)
 
             yield job
 

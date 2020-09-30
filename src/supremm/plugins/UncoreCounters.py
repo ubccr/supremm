@@ -33,13 +33,14 @@ class UncoreCounters(Plugin):
     """ Compute various uncore performance counter derived metrics """
 
     name = property(lambda x: "uncperf")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "firstlast")
     requiredMetrics = property(lambda x: [SNB_METRICS, IVB_METRICS, NHM_METRICS, INTERLAGOS_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(UncoreCounters, self).__init__(job)
+    def __init__(self, job, config):
+        super(UncoreCounters, self).__init__(job, config)
         self._first = {}
         self._data = {}
         self._error = None

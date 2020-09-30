@@ -32,13 +32,14 @@ class MemBwTimeseries(Plugin):
     """ Generate the memory bandwidth as timeseries data """
 
     name = property(lambda x: "membw")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: [SNB_METRICS, IVB_METRICS, NHM_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(MemBwTimeseries, self).__init__(job)
+    def __init__(self, job, config):
+        super(MemBwTimeseries, self).__init__(job, config)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
         self._hostdevnames = {}

@@ -19,6 +19,7 @@ class Proc(PreProcessor):
     """
 
     name = property(lambda x: "proc")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: [
         ["proc.psinfo.cpusallowed",
@@ -32,8 +33,8 @@ class Proc(PreProcessor):
     optionalMetrics = property(lambda x: ["cgroup.cpuset.cpus"])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(Proc, self).__init__(job)
+    def __init__(self, job, config):
+        super(Proc, self).__init__(job, config)
 
         self.cgrouppath = None
         self.expectedcgroup = None

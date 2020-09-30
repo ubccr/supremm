@@ -8,6 +8,7 @@ class NfsTimeseries(RateConvertingTimeseriesPlugin):
     """ Generate timeseries summary for NFS usage data """
 
     name = property(lambda x: "nfs")
+    metric_system = property(lambda x: "pcp")
     requiredMetrics = property(lambda x: ["nfsclient.bytes.read.normal",
                                           "nfsclient.bytes.read.direct",
                                           "nfsclient.bytes.read.server",
@@ -17,8 +18,8 @@ class NfsTimeseries(RateConvertingTimeseriesPlugin):
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(NfsTimeseries, self).__init__(job)
+    def __init__(self, job, config):
+        super(NfsTimeseries, self).__init__(job, config)
 
     def computetimepoint(self, data):
         try:

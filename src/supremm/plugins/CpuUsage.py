@@ -10,6 +10,7 @@ class CpuUsage(Plugin):
     """ Compute the overall cpu usage for a job """
 
     name = property(lambda x: "cpu")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "firstlast")
     requiredMetrics = property(lambda x: [[
             "kernel.percpu.cpu.user", 
@@ -35,8 +36,8 @@ class CpuUsage(Plugin):
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(CpuUsage, self).__init__(job)
+    def __init__(self, job, config):
+        super(CpuUsage, self).__init__(job, config)
         self._first = {}
         self._last = {}
         self._totalcores = 0

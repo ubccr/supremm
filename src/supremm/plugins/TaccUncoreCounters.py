@@ -13,13 +13,14 @@ class TaccUncoreCounters(Plugin):
     """ Compute various uncore performance counter derived metrics """
 
     name = property(lambda x: "uncperf")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: TACC_NHM_METRICS)
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(TaccUncoreCounters, self).__init__(job)
+    def __init__(self, job, config):
+        super(TaccUncoreCounters, self).__init__(job, config)
         self._last = {}
         self._data = {}
         self._error = None

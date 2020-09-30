@@ -45,13 +45,14 @@ class CpuPerfCounters(Plugin):
     """ Compute various performance counter derived metrics """
 
     name = property(lambda x: "cpuperf")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "firstlast")
     requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, GENERIC_INTEL_METRICS, AMD_INTERLAGOS_METRICS, GENERIC_INTEL_ALT_METRICS, GENERIC_INTEL_ALT2_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(CpuPerfCounters, self).__init__(job)
+    def __init__(self, job, config):
+        super(CpuPerfCounters, self).__init__(job, config)
         self._first = {}
         self._data = {}
         self._totalcores = 0

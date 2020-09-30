@@ -11,13 +11,14 @@ class PerfEvent(PreProcessor):
     """
 
     name = property(lambda x: "perf")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: ["perfevent.active"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(PerfEvent, self).__init__(job)
+    def __init__(self, job, config):
+        super(PerfEvent, self).__init__(job, config)
         self.perfactive = None
 
     def hoststart(self, hostname):

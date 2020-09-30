@@ -9,13 +9,14 @@ class Lnet(Plugin):
     """ Compute the overall lnet usage for a job """
 
     name = property(lambda x: "lnet")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "firstlast")
     requiredMetrics = property(lambda x: ["lustre.lnet.drop_length", "lustre.lnet.recv_length", "lustre.lnet.send_length", "lustre.lnet.drop_count", "lustre.lnet.recv_count", "lustre.lnet.send_count"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(Lnet, self).__init__(job)
+    def __init__(self, job, config):
+        super(Lnet, self).__init__(job, config)
         self._first = {}
         self._data = numpy.empty((job.nodecount, len(self.requiredMetrics)))
         self._hostidx = 0

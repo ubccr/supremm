@@ -233,12 +233,12 @@ def getoptions(has_mpi):
     sys.exit(1)
 
 
-def instantiatePlugins(plugins, job):
+def instantiatePlugins(plugins, job, config):
     """ Create plugin/preprocessor instances from the list of class names """
     instances = []
     for plugin in plugins:
         try:
-            instances.append(plugin(job))
+            instances.append(plugin(job, config))
         except NotApplicableError:
             logging.debug("Skipping (not applicable) %s", plugin)
 
@@ -254,6 +254,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
 
     mdata = {}
     mergestart = time.time()
+    metric_system = resconf.get('metric_system', 'pcp')
 
     summarizeerror = None
 
@@ -276,13 +277,13 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
         summarizeerror = ProcessingError.INVALID_NODECOUNT
         missingnodes = job.nodecount
         logging.info("Skipping %s, skipped_invalid_nodecount", job.job_id)
-    elif not job.has_any_archives():
+    elif metric_system == 'pcp' and not job.has_any_archives():
         mergeresult = 1
         mdata["skipped_noarchives"] = True
         summarizeerror = ProcessingError.NO_ARCHIVES
         missingnodes = job.nodecount
         logging.info("Skipping %s, skipped_noarchives", job.job_id)
-    elif not job.has_enough_raw_archives():
+    elif metric_system == 'pcp' and not job.has_enough_raw_archives():
         mergeresult = 1
         mdata["skipped_rawarchives"] = True
         summarizeerror = ProcessingError.RAW_ARCHIVES
@@ -306,6 +307,10 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
         summarizeerror = ProcessingError.TIME_TOO_LONG
         missingnodes = job.nodecount
         logging.info("Skipping %s, skipped_too_long", job.job_id)
+    elif metric_system == 'prometheus':
+        # do nothing
+        mergeresult = 0
+        missingnodes = 0
     else:
         mergeresult = extract_and_merge_logs(job, conf, resconf, opts)
         missingnodes = -1.0 * mergeresult
@@ -318,16 +323,25 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
             logging.error("Failure extracting logs for job %s", job.job_id)
             return None
 
-    preprocessors = instantiatePlugins(preprocs, job)
-    analytics = instantiatePlugins(plugins, job)
-    s = Summarize(preprocessors, analytics, job, conf, opts["fail_fast"])
+    preprocessors = instantiatePlugins(preprocs, job, conf)
+    analytics = instantiatePlugins(plugins, job, conf)
+
+    filtered_preprocessors = [x for x in preprocessors if x.metric_system == metric_system]
+    filtered_analytics = [x for x in analytics if x.metric_system == metric_system]
+    logging.debug("Filtered %d Preprocessors", len(filtered_preprocessors))
+    logging.debug("Filtered %d Plugins", len(filtered_analytics))
+
+    s = Summarize(filtered_preprocessors, filtered_analytics, job, conf, opts["fail_fast"])
 
     enough_nodes = False
 
     if 0 == mergeresult or (job.nodecount != 0 and (missingnodes / job.nodecount < 0.05)):
         enough_nodes = True
         logging.info("Success for %s files in %s (%s/%s)", job.job_id, job.jobdir, missingnodes, job.nodecount)
-        s.process()
+        if metric_system == 'prometheus':
+            s.process_prometheus()
+        else:
+            s.process()
     elif summarizeerror == None and job.nodecount != 0 and (missingnodes / job.nodecount >= 0.05):
         # Don't overwrite existing error
         # Don't have enough node data to even try summarization
@@ -343,7 +357,10 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
     if missingnodes > 0:
         mdata['missingnodes'] = missingnodes
 
-    success = s.good_enough()
+    if metric_system == 'pcp':
+        success = s.good_enough()
+    else:
+        success = True
 
     if not success and enough_nodes:
         # We get here if the pmlogextract step gave us enough nodes but summarization didn't succeed for enough nodes

@@ -226,6 +226,16 @@ class Job(object):
             self._nodes[node] = JobNode(node, nodeid)
 
     @property
+    def nodes(self):
+        """
+        Get job's nodes.
+
+        Returns:
+            JobNode
+        """
+        return self._nodes
+
+    @property
     def end_datetime(self):
         """
         Gets a datetime object representing the job's end time, or None

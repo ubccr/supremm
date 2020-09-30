@@ -8,13 +8,14 @@ class GpuUsage(Plugin):
     """ Compute the overall gpu usage for a job """
 
     name = property(lambda x: "gpu")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "all")
     requiredMetrics = property(lambda x: ["nvidia.gpuactive", "nvidia.memused"])
     optionalMetrics = property(lambda x: ["nvidia.memactive"])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(GpuUsage, self).__init__(job)
+    def __init__(self, job, config):
+        super(GpuUsage, self).__init__(job, config)
         self._data = {}
         self.statnames = None
 

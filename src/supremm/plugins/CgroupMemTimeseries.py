@@ -14,13 +14,14 @@ class CgroupMemTimeseries(Plugin):
     """
 
     name = property(lambda x: "process_mem_usage")
+    metric_system = property(lambda x: "pcp")
     mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: ["cgroup.memory.usage"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    def __init__(self, job):
-        super(CgroupMemTimeseries, self).__init__(job)
+    def __init__(self, job, config):
+        super(CgroupMemTimeseries, self).__init__(job, config)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
         self._hostdata = {}
         self._hostcounts = {}

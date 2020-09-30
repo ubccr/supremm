@@ -53,6 +53,7 @@ class Config(object):
             @returns Directory name or None if no suitable directory found
         """
         searchpaths = [
+            os.getenv('SUPREMM_CONFIG_DIR', '/etc/supremm'),
             os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm",
             "/etc/supremm",
             pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
@@ -60,6 +61,7 @@ class Config(object):
 
         for path in searchpaths:
             if os.path.exists(os.path.join(path, "config.json")):
+                print path
                 return os.path.abspath(path)
 
         return None
@@ -118,6 +120,10 @@ class Config(object):
                 continue
             resdata['name'] = resname
             yield (resname, resdata)
+
+    def metric_configs(self):
+        metrics = self._config.get('metrics', {})
+        return metrics
 
 def test():
     """ test """

@@ -6,6 +6,7 @@ class InfiniBand(DeviceBasedPlugin):
     """ This plugin processes lots of metric that are all interested in the difference over the process """
 
     name = property(lambda x: "infiniband")
+    metric_system = property(lambda x: "pcp")
     requiredMetrics = property(lambda x: [
         "infiniband.port.switch.in.bytes",
         "infiniband.port.switch.in.packets",

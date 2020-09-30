@@ -31,6 +31,20 @@ class ArchiveMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
     archive = property(lambda self: self._archivedata)
 
+class PrometheusMeta(NodeMetadata):
+    """ container for achive metadata """
+    def __init__(self, nodename, nodeidx, start, end):
+        self._nodename = nodename
+        self._nodeidx = nodeidx
+        self._start = start
+        self._end = end
+
+    nodename = property(lambda self: self._nodename)
+    nodeindex = property(lambda self: self._nodeidx)
+    start = property(lambda self: self._start)
+    end = property(lambda self: self._end)
+    plugin = property(lambda self: self._plugin)
+
 class Summarize(object):
     """
     Summarize class is responsible for iteracting with the pmapi python code
@@ -78,6 +92,47 @@ class Summarize(object):
                 self.adderror("archive", "{0}: Exception: {1}. {2}".format(archive, str(exc), traceback.format_exc()))
                 if self.fail_fast:
                     raise
+
+        return success == 0
+
+    def process_prometheus(self):
+        """ Main entry point for Prometheus."""
+        success = 0
+        self.archives_processed = 0
+        print self.job.nodes
+        for node, jobnode in self.job.nodes.items():
+            nodeidx = jobnode.nodeindex
+            start_time = self.job.start_datetime
+            end_time = self.job.end_datetime
+
+            start = int((start_time - datetime.datetime(1970,1,1)).total_seconds())
+            end = int((end_time - datetime.datetime(1970,1,1)).total_seconds())
+
+            mdata = PrometheusMeta(node, nodeidx, start, end)
+
+            for preproc in self.preprocs:
+                preproc.hoststart(mdata.nodename)
+                try:
+                    preproc.process(mdata)
+                except Exception as exp:
+                    preproc.status = "failure"
+                    preproc.hostend()
+                    raise exp
+                preproc.status = "complete"
+                preproc.hostend()
+            for analytic in self.alltimestamps:
+                try:
+                    success = analytic.process(mdata)
+                    self.archives_processed += 1
+                    analytic.status = "complete"
+                except Exception as exc:
+                    success -= 1
+                    #pylint: disable=not-callable
+                    self.adderror("plugin", "{0}: Exception: {1}. {2}".format(analytic.name, str(exc), traceback.format_exc()))
+                    analytic.status = "failed"
+                    if self.fail_fast:
+                        raise
+                
 
         return success == 0
 
