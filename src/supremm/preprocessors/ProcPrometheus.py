@@ -4,7 +4,6 @@ https://github.com/treydock/cgroup_exporter
 https://github.com/prometheus/node_exporter
 """
 
-from collections import Counter
 from supremm.plugin import PrometheusPlugin
 from supremm.errors import ProcessingError
 
@@ -20,6 +19,9 @@ class ProcPrometheus(PrometheusPlugin):
         'cpusallowed': {
             'metric': 'cgroup_cpu_info{{instance=~"^{node}.+"}} * on(cgroup, instance) group_left(jobid) cgroup_info{{instance=~"^{node}.+",jobid="{jobid}"}}',
         },
+        'processes': {
+            'metric': 'cgroup_process_exec_count{{instance=~"^{node}.+"}} * on(cgroup, instance) group_left(jobid) cgroup_info{{instance=~"^{node}.+",jobid="{jobid}"}}',
+        },
         'hostcpus': {
             'metric': 'count by(instance) (node_cpu_info{{instance=~"{node}.+"}})',
         }
@@ -34,7 +36,7 @@ class ProcPrometheus(PrometheusPlugin):
         self.cpusallowed = None
         self.hostcpus = None
         self.hostname = None
-        self.output = {"procDump": {"constrained": Counter(), "unconstrained": Counter()}, "cpusallowed": {}, "hostcpus": {}}
+        self.output = {"procDump": {"constrained": [], "unconstrained": []}, "cpusallowed": {}, "hostcpus": {}}
 
     def hoststart(self, hostname):
         self.hostname = hostname
@@ -71,6 +73,13 @@ class ProcPrometheus(PrometheusPlugin):
                 elif metricname == 'hostcpus':
                     value = float(values[0][1])
                     self.hostcpus = value
+                elif metricname == 'processes':
+                    execname = m.get('exec', None)
+                    if execname is None:
+                        self.output['procDump']['constrained'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
+                        continue
+                    if execname not in self.output['procDump']['constrained']:
+                        self.output['procDump']['constrained'].append(execname)
 
         return True
 
@@ -78,13 +87,17 @@ class ProcPrometheus(PrometheusPlugin):
         if self._error != None:
             return {"error": self._error}
 
-        result = {"constrained": [],
-                  "unconstrained": [],
-                  "cpusallowed": {}}
+        result = {
+            "constrained": [],
+            "unconstrained": [],
+            "cpusallowed": {},
+            "hostcpus": {},
+        }
 
-        for metric, values in self.output.items():
-            result[metric] = {}
-            for hostname, value in values.items():
-                result[metric][hostname] = value
+        for hostname, value in self.output['cpusallowed'].items():
+            result['cpusallowed'][hostname] = ','.join(value)
+        for hostname, value in self.output['hostcpus'].items():
+            result['hostcpus'][hostname] = value
+        result['constrained'] = self.output['procDump']['constrained']
             
         return {'procDump': result}
