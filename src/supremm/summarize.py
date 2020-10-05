@@ -181,7 +181,7 @@ class Summarize(object):
         output['acct']['id'] = self.job.job_id
 
         if len(timeseries) > 0:
-            timeseries['hosts'] = dict((str(idx), name) for name, idx, _ in self.job.nodearchives())
+            timeseries['hosts'] = dict((str(jobnode.nodeindex), node) for node, jobnode in self.job.nodes.items())
             timeseries['version'] = TIMESERIES_VERSION
             output['timeseries'] = timeseries
 
