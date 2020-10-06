@@ -18,7 +18,50 @@ class XDMoDAcct(Accounting):
 
         xdmod_schema_version = self.detectXdmodSchema()
 
-        if xdmod_schema_version == 8:
+        if xdmod_schema_version == 9:
+            jobfacttable = 'job_tasks'
+
+            self._query = """
+                SELECT
+                    jf.`job_id` AS `job_id`,
+                    jf.`resource_id` AS `resource_id`,
+                    COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) AS `local_job_id`,
+                    jf.`start_time_ts` AS `start_time`,
+                    jf.`end_time_ts` AS `end_time`,
+                    jf.`submit_time_ts` AS `submit`,
+                    jf.`eligible_time_ts` AS `eligible`,
+                    jr.`queue` AS `partition`,
+                    jf.`uid_number` AS `uid`,
+                    aa.`charge_number` AS `account`,
+                    sa.`username` AS `user`,
+                    jf.`name` AS `jobname`,
+                    jf.`node_count` AS `nodes`,
+                    jf.`processor_count` AS `ncpus`,
+                    jf.`gpu_count` AS `gpus`,
+                    jf.`group_name` AS `group`,
+                    jf.`gid_number` AS `gid`,
+                    jf.`exit_code` AS `exit_code`,
+                    jf.`exit_state` AS `exit_status`,
+                    jf.`cpu_req` AS `reqcpus`,
+                    jf.`mem_req` AS `reqmem`,
+                    jf.`timelimit` AS `timelimit`,
+                    sj.`source_format` AS `resource_manager`
+                FROM
+                    modw.job_tasks jf
+                        INNER JOIN
+                    modw.job_records jr ON jf.job_record_id = jr.job_record_id
+                        INNER JOIN
+                    modw.systemaccount sa ON jf.systemaccount_id = sa.id
+                        INNER JOIN
+                    modw.account aa ON jr.account_id = aa.id
+                        LEFT JOIN
+                    modw_supremm.`process` p ON jf.job_id = p.jobid
+                        LEFT JOIN
+                    mod_shredder.`shredded_job` sj ON jf.job_id = sj.shredded_job_id
+                WHERE
+                    jf.resource_id = %s
+            """
+        elif xdmod_schema_version == 8:
             jobfacttable = 'job_tasks'
 
             self._query = """
@@ -170,9 +213,17 @@ class XDMoDAcct(Accounting):
         testconnection = getdbconnection(self.dbsettings, True)
         curs = testconnection.cursor()
         try:
+            curs.execute('SELECT gpu_count FROM `modw`.`job_tasks` LIMIT 1')
+            curs.close()
+            testconnection.close()
+            return 9
+        except ProgrammingError:
+            pass
+        try:
             curs.execute('SELECT 1 FROM `modw`.`job_tasks` LIMIT 1')
             curs.close()
-            xdmod_schema_version = 8
+            testconnection.close()
+            return 8
         except ProgrammingError:
             pass
 
