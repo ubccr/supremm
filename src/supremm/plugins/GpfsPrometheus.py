@@ -11,19 +11,19 @@ class GpfsPrometheus(PrometheusPlugin):
     requiredMetrics = property(lambda x: {
         "read": {
             'metric': 'rate(gpfs_perf_operations{{instance=~"^{node}.+",operation="reads"}}[{rate}])',
-            'indom': 'fs',
+            'indom': '{fs}',
         },
         "read_bytes": {
             'metric': 'rate(gpfs_perf_read_bytes{{instance=~"^{node}.+"}}[{rate}])',
-            'indom': 'fs',
+            'indom': '{fs}',
         },
         "write": {
             'metric': 'rate(gpfs_perf_operations{{instance=~"^{node}.+",operation="writes"}}[{rate}])',
-            'indom': 'fs',
+            'indom': '{fs}',
         },
         "write_bytes": {
             'metric': 'rate(gpfs_perf_write_bytes{{instance=~"^{node}.+"}}[{rate}])',
-            'indom': 'fs',
+            'indom': '{fs}',
         }
     })
     optionalMetrics = property(lambda x: {})

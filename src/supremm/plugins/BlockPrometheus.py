@@ -12,19 +12,19 @@ class BlockPrometheus(PrometheusPlugin):
     requiredMetrics = property(lambda x: {
         "read": {
             'metric': 'rate(node_disk_reads_completed_total{{instance=~"^{node}.+"}}[{rate}])',
-            'indom': 'device',
+            'indom': '{device}',
         },
         "read_bytes": {
             'metric': 'rate(node_disk_read_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
-            'indom': 'device',
+            'indom': '{device}',
         },
         "write": {
             'metric': 'rate(node_disk_writes_completed_total{{instance=~"^{node}.+"}}[{rate}])',
-            'indom': 'device',
+            'indom': '{device}',
         },
         "write_bytes": {
             'metric': 'rate(node_disk_written_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
-            'indom': 'device',
+            'indom': '{device}',
         }
     })
     optionalMetrics = property(lambda x: {})

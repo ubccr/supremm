@@ -459,10 +459,11 @@ class PrometheusPlugin(Plugin):
                 return None
             for r in data.get('data', {}).get('result', []):
                 if indom_label:
-                    indom = r.get('metric', {}).get(indom_label, None)
+                    m = r.get('metric', {})
+                    indom = indom_label.format(**m)
                 else:
                     indom = 'NA'
-                if indom is None:
+                if not indom:
                     logging.error("Unable to find Prometheus label to match requested indom=%s", metric.indom)
                     continue
                 if indom_label and indom not in self._data:
