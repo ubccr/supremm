@@ -12,12 +12,10 @@ class BlockTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
     requiredMetrics = property(lambda x: {
         "read_bytes": {
             'metric': 'rate(node_disk_read_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
-            'indom': 'device',
             'timeseries_name': 'read'
         },
         "write_bytes": {
             'metric': 'rate(node_disk_written_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
-            'indom': 'device',
             'timeseries_name': 'write',
         }
     })
