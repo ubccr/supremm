@@ -13,7 +13,7 @@ try:
     import urlparse as urlparse
 except LoadError:
     import urllib.parse as urlparse
-from collections import Counter
+from collections import Counter, OrderedDict
 import logging
 
 def loadplugins(plugindir=None, namespace="plugins"):
@@ -569,6 +569,119 @@ class PrometheusTimeseriesPlugin(PrometheusPlugin):
         for hostidx in includelist:
             retdata['hosts'][str(hostidx)] = {}
             retdata['hosts'][str(hostidx)]['all'] = values[hostidx, :, 1].tolist()
+
+        return retdata
+
+    @staticmethod
+    def collatedata(args, rates):
+        """ build output data """
+        result = []
+        for timepoint, hostidx in enumerate(args):
+            try:
+                result.append([rates[hostidx, timepoint], int(hostidx)])
+            except IndexError:
+                pass
+
+        return result
+
+class PrometheusTimeseriesNamePlugin(PrometheusPlugin):
+    """
+    A base abstract class for summarising the data from Prometheus
+    """
+    __metaclass__ = ABCMeta
+
+    mode = property(lambda x: "timeseries")
+
+    def __init__(self, job, config):
+        super(PrometheusTimeseriesNamePlugin, self).__init__(job, config)
+        self._data = TimeseriesAccumulator(self._job.nodecount, self._job.walltime)
+        self._devicedata = {}
+        self._names = {}
+        self._hostdata = {}
+
+    def process(self, mdata):
+        timeseries = OrderedDict()
+        idx = 0
+        if mdata.nodeindex not in self._hostdata:
+            self._hostdata[mdata.nodeindex] = 1
+        for metricname, metric in self.allmetrics.items():
+            timeseries_name = metric['timeseries_name']
+            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate='5m')
+            data = self.query(query, mdata.start, mdata.end)
+            if data is None:
+                self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
+                return None
+            for r in data.get('data', {}).get('result', []):
+                if str(idx) not in self._devicedata:
+                    self._devicedata[str(idx)] = TimeseriesAccumulator(self._job.nodecount, self._job.walltime)
+                if timeseries_name not in self._names.values():
+                    self._names[str(idx)] = timeseries_name
+                for v in r.get('values', []):
+                    value = float(v[1])
+                    if v[0] not in timeseries:
+                        timeseries[v[0]] = 0
+                    timeseries[v[0]] += value
+                    self._devicedata[str(idx)].adddata(mdata.nodeindex, v[0], value)
+                idx += 1
+        for t, v in timeseries.items():
+            self._data.adddata(mdata.nodeindex, t, v)
+        return True
+
+    def results(self):
+        if self._error != None:
+            return {"error": self._error}
+        if len(self._hostdata) != self._job.nodecount:
+            return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
+        if len(self._names) == 0:
+            return {"error": ProcessingError.INSUFFICIENT_DATA}
+        if self._names.keys() != self._devicedata.keys():
+            return {"error": ProcessingError.INSUFFICIENT_DATA}
+
+        values = self._data.get()
+
+        if len(values[0, :, 0]) < 3:
+            return {"error": ProcessingError.JOB_TOO_SHORT}
+
+        data = values[:, :, 1]
+
+        if len(self._hostdata) > 64:
+
+            # Compute min, max & median data and only save the host data
+            # for these hosts
+
+            sortarr = numpy.argsort(data.T, axis=1)
+
+            retdata = {
+                "min": self.collatedata(sortarr[:, 0], data),
+                "max": self.collatedata(sortarr[:, -1], data),
+                "med": self.collatedata(sortarr[:, sortarr.shape[1] / 2], data),
+                "times": values[:, :, 0].tolist(),
+                "hosts": {}
+            }
+
+            uniqhosts = Counter(sortarr[:, 0])
+            uniqhosts.update(sortarr[:, -1])
+            uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
+            includelist = uniqhosts.keys()
+        else:
+            # Save data for all hosts
+            retdata = {
+                "times": values[:, :, 0].tolist(),
+                "hosts": {}
+            }
+            includelist = self._hostdata.keys()
+
+
+        for hostidx in includelist:
+            retdata['hosts'][str(hostidx)] = {}
+            retdata['hosts'][str(hostidx)]['dev'] = {}
+            retdata['hosts'][str(hostidx)]['names'] = self._names
+            retdata['hosts'][str(hostidx)]['all'] = values[hostidx, :, 1].tolist()
+
+        for hostidx in retdata['hosts'].keys():
+            for idx in self._names.keys():
+                values = self._devicedata[idx].get()
+                retdata['hosts'][hostidx]['dev'][idx] = values[int(hostidx), :, 1].tolist()
 
         return retdata
 
