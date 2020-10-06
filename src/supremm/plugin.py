@@ -485,7 +485,7 @@ class PrometheusPlugin(Plugin):
                 if indom_label and indom not in self._data:
                     self._data[indom] = {}
                 if not indom_label and metricname not in self._data:
-                    self._data[metricname] = {}
+                    self._data[metricname] = []
                 if indom_label and metricname not in self._data[indom]:
                     self._data[indom][metricname] = []
                 for v in r.get('values', []):
@@ -508,6 +508,9 @@ class PrometheusPlugin(Plugin):
 
         for devicename, device in self._data.iteritems():
             cleandevname = devicename.replace(".", "-")
+            if not isinstance(device, dict):
+                output[cleandevname] = calculate_stats(device)
+                continue
             output[cleandevname] = {}
             for metricname, metric in device.iteritems():
                 output[cleandevname][metricname] = calculate_stats(metric)
