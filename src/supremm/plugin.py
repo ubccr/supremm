@@ -431,7 +431,7 @@ class PrometheusPlugin(Plugin):
         self.step = self.metric_configs.get('step', '1m')
         self.rate = rate = self.metric_configs.get('rates', {}).get(self.name, '5m')
 
-    def query(self, query, start, end):
+    def query_range(self, query, start, end):
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded',
         }
@@ -442,6 +442,22 @@ class PrometheusPlugin(Plugin):
             'step': self.step,
         }
         url = urlparse.urljoin(self.prometheus_url, "/api/v1/query_range")
+        logging.debug('Prometheus QUERY RANGE, url="%s" params="%s"', url, params)
+        r = requests.post(url, data=params, headers=headers)
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        return data
+
+    def query(self, query, ts):
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+        params = {
+            'query': query,
+            'time': str(ts),
+        }
+        url = urlparse.urljoin(self.prometheus_url, "/api/v1/query")
         logging.debug('Prometheus QUERY, url="%s" params="%s"', url, params)
         r = requests.post(url, data=params, headers=headers)
         if r.status_code != 200:
@@ -453,7 +469,7 @@ class PrometheusPlugin(Plugin):
         for metricname, metric in self.allmetrics.items():
             indom_label = metric.get('indom', None)
             query = metric['metric'].format(node=mdata.nodename, rate=self.rate)
-            data = self.query(query, mdata.start, mdata.end)
+            data = self.query_range(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None
@@ -514,7 +530,7 @@ class PrometheusTimeseriesPlugin(PrometheusPlugin):
     def process(self, mdata):
         for metricname, metric in self.allmetrics.items():
             query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
-            data = self.query(query, mdata.start, mdata.end)
+            data = self.query_range(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None
@@ -608,7 +624,7 @@ class PrometheusTimeseriesNamePlugin(PrometheusPlugin):
         for metricname, metric in self.allmetrics.items():
             timeseries_name = metric['timeseries_name']
             query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
-            data = self.query(query, mdata.start, mdata.end)
+            data = self.query_range(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None

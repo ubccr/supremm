@@ -58,21 +58,25 @@ class ProcPrometheus(PrometheusPlugin):
     def process(self, mdata):
         for metricname, metric in self.allmetrics.items():
             query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
-            data = self.query(query, mdata.start, mdata.end)
+            if metricname == 'hostcpus':
+                data = self.query(query, mdata.start)
+            else:
+                data = self.query_range(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None
             for r in data.get('data', {}).get('result', []):
-                values = r.get('values', [])
                 m = r.get('metric', {})
-                if len(values) == 0:
-                    continue
                 if metricname == 'cpusallowed':
                     value = m.get('cpus', "").split(",")
-                    self.cpusallowed = value
+                    if value:
+                        self.cpusallowed = value
+                        break
                 elif metricname == 'hostcpus':
-                    value = float(values[0][1])
-                    self.hostcpus = value
+                    value = r.get('value', [None, None])[1]
+                    if value is not None:
+                        self.hostcpus = float(value)
+                        break
                 elif metricname == 'processes':
                     execname = m.get('exec', None)
                     if execname is None:

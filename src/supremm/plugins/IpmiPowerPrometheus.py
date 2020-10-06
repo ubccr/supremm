@@ -26,7 +26,7 @@ class IpmiPowerPrometheus(PrometheusPlugin):
         }
         for metricname, metric in self.allmetrics.items():
             query = metric['metric'].format(node=mdata.nodename, rate=self.rate)
-            data = self.query(query, mdata.start, mdata.end)
+            data = self.query_range(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None

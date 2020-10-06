@@ -32,7 +32,7 @@ class GpfsTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
         for metricname, metric in self.allmetrics.items():
             timeseries_name = metric['timeseries_name']
             query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
-            data = self.query(query, mdata.start, mdata.end)
+            data = self.query_range(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None

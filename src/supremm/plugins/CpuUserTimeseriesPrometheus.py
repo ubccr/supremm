@@ -33,7 +33,7 @@ class CpuUserTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
                 return False
             cpus_query = "^(%s)$" % '|'.join(usercpus)
             query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate, cpus=cpus_query)
-            data = self.query(query, mdata.start, mdata.end)
+            data = self.query_range(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None
