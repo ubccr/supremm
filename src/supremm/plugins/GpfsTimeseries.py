@@ -7,7 +7,7 @@ import numpy
 class GpfsTimeseries(RateConvertingTimeseriesPlugin):
     """ Generate the GPFS usage as a timeseries data """
 
-    name = property(lambda x: "lnet")
+    name = property(lambda x: "gpfs")
     metric_system = property(lambda x: "pcp")
     requiredMetrics = property(lambda x: ["gpfs.fsios.read_bytes", "gpfs.fsios.write_bytes"])
     optionalMetrics = property(lambda x: [])

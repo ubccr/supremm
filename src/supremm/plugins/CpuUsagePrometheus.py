@@ -21,9 +21,8 @@ class CpuUsagePrometheus(PrometheusPlugin):
 
     def process(self, mdata):
         self._data[mdata.nodename] = {}
-        rate = self.metric_configs.get('rates', {}).get(self.name, '5m')
         for metricname, metric in self.allmetrics.items():
-            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=rate)
+            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
             data = self.query(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR

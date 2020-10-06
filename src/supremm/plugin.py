@@ -429,6 +429,7 @@ class PrometheusPlugin(Plugin):
         self.metric_configs = config.metric_configs()
         self.prometheus_url = self.metric_configs.get('prometheus_url', None)
         self.step = self.metric_configs.get('step', '1m')
+        self.rate = rate = self.metric_configs.get('rates', {}).get(self.name, '5m')
 
     def query(self, query, start, end):
         headers = {
@@ -449,10 +450,9 @@ class PrometheusPlugin(Plugin):
         return data
 
     def process(self, mdata):
-        rate = self.metric_configs.get('rates', {}).get(self.name, '5m')
         for metricname, metric in self.allmetrics.items():
             indom_label = metric.get('indom', None)
-            query = metric['metric'].format(node=mdata.nodename, rate=rate)
+            query = metric['metric'].format(node=mdata.nodename, rate=self.rate)
             data = self.query(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
@@ -512,7 +512,7 @@ class PrometheusTimeseriesPlugin(PrometheusPlugin):
 
     def process(self, mdata):
         for metricname, metric in self.allmetrics.items():
-            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate='5m')
+            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
             data = self.query(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
@@ -606,7 +606,7 @@ class PrometheusTimeseriesNamePlugin(PrometheusPlugin):
             self._hostdata[mdata.nodeindex] = 1
         for metricname, metric in self.allmetrics.items():
             timeseries_name = metric['timeseries_name']
-            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate='5m')
+            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
             data = self.query(query, mdata.start, mdata.end)
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
