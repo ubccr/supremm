@@ -49,17 +49,17 @@ class MemoryUsagePrometheus(PrometheusPlugin):
         return True
 
     def results(self):
-        hostcpus = self._job.getdata('proc')['hostcpus']
+        hinv = self._job.getdata('hinv')
         memused = []
         memusedminus = []
 
         for nodename, memdata in self._data.iteritems():
-            if nodename not in hostcpus:
+            if nodename not in hinv:
                 return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
             if memdata['used'].count() > 0:
-                memused.append(memdata['used'].mean() / hostcpus[nodename])
+                memused.append(memdata['used'].mean() / hinv[nodename]['cores'])
             if memdata['used_minus_cache'].count() > 0:
-                memusedminus.append(memdata['used_minus_cache'].mean() / hostcpus[nodename])
+                memusedminus.append(memdata['used_minus_cache'].mean() / hinv[nodename]['cores'])
 
         if len(memused) == 0:
             return {"error": ProcessingError.INSUFFICIENT_DATA}

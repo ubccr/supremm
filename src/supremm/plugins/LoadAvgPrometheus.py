@@ -42,16 +42,16 @@ class LoadAvgPrometheus(PrometheusPlugin):
         meanvalpercore = []
         maxvalpercore = []
 
-        hostcpus = self._job.getdata('proc')['hostcpus']
+        hinv = self._job.getdata('hinv')
 
         for nodename, loaddata in self._data.iteritems():
             if loaddata.count() > 0:
                 meanval.append(loaddata.mean())
                 maxval.append(loaddata.max)
 
-                if hostcpus is not None and nodename in hostcpus:
-                    meanvalpercore.append(loaddata.mean() / hostcpus[nodename])
-                    maxvalpercore.append(loaddata.max / hostcpus[nodename])
+                if nodename in hinv:
+                    meanvalpercore.append(loaddata.mean() / hinv[nodename]['cores'])
+                    maxvalpercore.append(loaddata.max / hinv[nodename]['cores'])
 
         if len(meanval) == 0:
             return {"error": ProcessingError.INSUFFICIENT_DATA}

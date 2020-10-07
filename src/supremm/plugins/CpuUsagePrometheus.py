@@ -49,7 +49,7 @@ class CpuUsagePrometheus(PrometheusPlugin):
             return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
 
         cpusallowed = self._job.getdata('proc')['cpusallowed']
-        hostcpus = self._job.getdata('proc')['hostcpus']
+        hinv = self._job.getdata('hinv')
 
         stats = {'jobcpus': {'all': {'cnt': 0}}, 'nodecpus': {'all': {'cnt': 0}}}
         results = {'nodecpus': {}, 'jobcpus': {}}
@@ -59,13 +59,13 @@ class CpuUsagePrometheus(PrometheusPlugin):
             if 'error' in usercpus:
                 results['jobcpus'] = usercpus
                 error = True
-            if isinstance(hostcpus[host], dict):
-                results['nodecpus'] = hostcpus[host]
+            if 'error' in hinv[host]:
+                results['nodecpus'] = hinv[host]
                 error = True
             if error:
                 continue
             stats['jobcpus']['all']['cnt'] += len(usercpus)
-            stats['nodecpus']['all']['cnt'] += hostcpus[host]
+            stats['nodecpus']['all']['cnt'] += hinv[host]['cores']
             for mode, cpus in modes.items():
                 if mode not in stats['jobcpus']:
                     stats['jobcpus'][mode] = []
