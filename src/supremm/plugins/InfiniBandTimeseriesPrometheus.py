@@ -10,11 +10,11 @@ class InfiniBandTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
     metric_system = property(lambda x: "prometheus")
     requiredMetrics = property(lambda x: {
         "switch-in-bytes": {
-            'metric': 'rate(node_infiniband_port_data_received_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
+            'metric': 'sum(rate(node_infiniband_port_data_received_bytes_total{{instance=~"^{node}.+"}}[{rate}]))',
             'timeseries_name': 'receive'
         },
         "switch-out-bytes": {
-            'metric': 'rate(node_infiniband_port_data_transmitted_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
+            'metric': 'sum(rate(node_infiniband_port_data_transmitted_bytes_total{{instance=~"^{node}.+"}}[{rate}]))',
             'timeseries_name': 'transmit'
         },
     })
