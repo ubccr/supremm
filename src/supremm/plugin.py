@@ -632,10 +632,12 @@ class PrometheusTimeseriesNamePlugin(PrometheusPlugin):
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None
             for r in data.get('data', {}).get('result', []):
+                labels = r.get('metric', {})
+                name = timeseries_name.format(**labels)
                 if str(idx) not in self._devicedata:
                     self._devicedata[str(idx)] = TimeseriesAccumulator(self._job.nodecount, self._job.walltime)
-                if timeseries_name not in self._names.values():
-                    self._names[str(idx)] = timeseries_name
+                if name not in self._names.values():
+                    self._names[str(idx)] = name
                 for v in r.get('values', []):
                     value = float(v[1])
                     if v[0] not in timeseries:

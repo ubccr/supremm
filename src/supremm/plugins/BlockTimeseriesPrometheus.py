@@ -8,7 +8,6 @@ class BlockTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
 
     name = property(lambda x: "block")
     metric_system = property(lambda x: "prometheus")
-    timeseries = property(lambda x: True)
     requiredMetrics = property(lambda x: {
         "read_bytes": {
             'metric': 'rate(node_disk_read_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
