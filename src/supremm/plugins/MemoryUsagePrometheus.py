@@ -15,7 +15,7 @@ class MemoryUsagePrometheus(PrometheusPlugin):
             'metric': 'node_memory_MemTotal_bytes{{instance=~"^{node}.+"}} - node_memory_MemFree_bytes{{instance=~"^{node}.+"}}',
         },
         'used_minus_cache': {
-            'metric': """(node_memory_MemTotal_bytes{{instance=~"^{node}.+"}}
+            'metric': """node_memory_MemTotal_bytes{{instance=~"^{node}.+"}}
                 - node_memory_MemFree_bytes{{instance=~"^{node}.+"}}
                 - node_memory_Cached_bytes{{instance=~"^{node}.+"}}
                 - node_memory_Slab_bytes{{instance=~"^{node}.+"}}""",
