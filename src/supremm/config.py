@@ -121,10 +121,6 @@ class Config(object):
             resdata['name'] = resname
             yield (resname, resdata)
 
-    def metric_configs(self):
-        metrics = self._config.get('metrics', {})
-        return metrics
-
 def test():
     """ test """
     conf = Config()

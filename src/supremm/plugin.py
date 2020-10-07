@@ -426,10 +426,10 @@ class PrometheusPlugin(Plugin):
         for k,v in self.optionalMetrics.items():
             self.allmetrics[k] = v
 
-        self.metric_configs = config.metric_configs()
-        self.prometheus_url = self.metric_configs.get('prometheus_url', None)
-        self.step = self.metric_configs.get('step', '1m')
-        self.rate = rate = self.metric_configs.get('rates', {}).get(self.name, '5m')
+        summaryconf = config.getsection("summary")
+        self.prometheus_url = summaryconf.get('prometheus_url', None)
+        self.step = summaryconf.get('step', '1m')
+        self.rate = summaryconf.get('rates', {}).get(self.name, '5m')
 
     def query_range(self, query, start, end):
         headers = {
