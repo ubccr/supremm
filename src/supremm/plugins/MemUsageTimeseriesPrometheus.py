@@ -2,9 +2,6 @@
 """ Timeseries generator module - https://github.com/prometheus/node_exporter"""
 
 from supremm.plugin import PrometheusTimeseriesPlugin
-from supremm.subsample import TimeseriesAccumulator
-import numpy
-from collections import Counter
 
 class MemUsageTimeseriesPrometheus(PrometheusTimeseriesPlugin):
     """ Generate the CPU usage as a timeseries data """
