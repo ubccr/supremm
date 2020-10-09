@@ -47,8 +47,7 @@ class DbHelper(object):
                             `modw`.`job_tasks`
                         WHERE
                             resource_id = %s 
-                            AND local_job_id_raw = %s
-                        ON DUPLICATE KEY UPDATE script = script"""
+                            AND local_job_id_raw = %s"""
 
             if self.timestamp_mode == 'start':
                 self.query += ' AND ABS(DATEDIFF(DATE(FROM_UNIXTIME(start_time_ts)), %s)) < 2'
@@ -58,6 +57,8 @@ class DbHelper(object):
                 self.query += ' AND ABS(DATEDIFF(DATE(FROM_UNIXTIME(end_time_ts)), %s)) < 2'
             #else
                 # self.timestamp_mode == 'None' which means no date restrictions
+
+            self.query += " ON DUPLICATE KEY UPDATE resource_id = VALUES(resource_id), start_date = VALUES(start_date), script = VALUES(script)"
 
         self.buffered = 0
 
