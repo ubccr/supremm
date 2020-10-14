@@ -41,14 +41,14 @@ class TaccCatastrophe(Plugin):
 
         vals = None
 
-        for host, data in self._data.iteritems():
+        for host, data in self._data.items():
             x = data['x']
             t = data['t']
 
             start = 2
             end = len(data['x'])-2
 
-            for i in xrange(start+1, end-1):
+            for i in range(start+1, end-1):
 
                 a = (data['x'][i] - data['x'][start]) / (data['t'][i] - data['t'][start])
                 b = (data['x'][end] - data['x'][i]) / (data['t'][end] - data['t'][i])

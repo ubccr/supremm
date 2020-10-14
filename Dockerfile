@@ -1,25 +1,21 @@
-FROM       tas-tools-ext-01.ccr.xdmod.org/centos7_6-open-job_performance-8.1.0:latest
+FROM       tas-tools-ext-01.ccr.xdmod.org/centos8-xdmod-bootstrap:latest
 MAINTAINER Joseph P. White <jpwhite4@buffalo.edu>
 
 RUN yum install -y \
     gcc \
-    numpy \
-    scipy \
-    python-devel \
-    python2-pip \
-    python2-mock \
-    python-ctypes \
-    python-pymongo \
-    MySQL-python \
-    Cython \
-    python-pcp \
+    python3-numpy \
+    python3-scipy \
+    python36-devel \
+    python3-Cython \
+    python3-pymongo \
+    python3-PyMySQL \
+    python3-pytest \
+    python3-pytest-cov \
+    python3-mock \
+    python3-pexpect \
+    python3-pylint \
+    python3-pcp \
     pcp-devel
-
-RUN pip install --upgrade pip
-
-RUN pip install zipp==1.2.0 pylint==1.8.3 coverage pytest==4.6.3 pytest-cov==2.7.1 setuptools==36.4.0 pexpect==4.4.0 configparser==3.5.0
-
-RUN pip install --ignore-installed six>=1.10.0
 
 ADD . /root/supremm
 

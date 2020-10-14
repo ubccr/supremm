@@ -26,9 +26,9 @@ def parsecpusallowed(cpusallowed):
 
 
 if __name__ == "__main__":
-    print parsecpusallowed("0-7")
-    print parsecpusallowed("1")
-    print parsecpusallowed("1,2")
-    print parsecpusallowed("1,2,4-6,15")
-    print parsecpusallowed("1,6-7")
-    print parsecpusallowed("6-7,9")
+    print(parsecpusallowed("0-7"))
+    print(parsecpusallowed("1"))
+    print(parsecpusallowed("1,2"))
+    print(parsecpusallowed("1,2,4-6,15"))
+    print(parsecpusallowed("1,6-7"))
+    print(parsecpusallowed("6-7,9"))

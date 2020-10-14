@@ -1,6 +1,6 @@
 """ Implementation for account reader that gets data from the XDMoD datawarehouse """
 
-from MySQLdb import OperationalError, ProgrammingError
+from pymysql import OperationalError, ProgrammingError
 from supremm.config import Config
 from supremm.accounting import Accounting, ArchiveCache
 from supremm.scripthelpers import getdbconnection
@@ -479,7 +479,7 @@ def test():
     config = Config()
     xdm = XDMoDAcct(13, config)
     for job in xdm.get(1444151688, None):
-        print job
+        print(job)
 
 
 if __name__ == "__main__":

@@ -53,7 +53,7 @@ class ProcessingError(object):
     def doc():
         """ Returns a dict containing the documentation for all supported errors """
         docs = {}
-        for i in xrange(1, ProcessingError.MAX_ERROR):
+        for i in range(1, ProcessingError.MAX_ERROR):
             docs[i] = str(ProcessingError(i))
 
         return docs
@@ -69,4 +69,4 @@ class NotApplicableError(Exception):
     pass
 
 if __name__ == "__main__":
-    print ProcessingError.doc()
+    print(ProcessingError.doc())

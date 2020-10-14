@@ -3,9 +3,8 @@
 
 from abc import ABCMeta, abstractmethod
 
-class Accounting(object):
+class Accounting(object, metaclass=ABCMeta):
     """ abstract base class describing the job accounting interface """
-    __metaclass__ = ABCMeta
 
     PROCESS_VERSION = 1
 
@@ -34,9 +33,8 @@ class Accounting(object):
         """ log a job as being processed (either successfully or not) """
         pass
 
-class ArchiveCache(object):
+class ArchiveCache(object, metaclass=ABCMeta):
     """ abstract base class describing the job archive cache interface """
-    __metaclass__ = ABCMeta
 
     def __init__(self, config):
         self._config = config

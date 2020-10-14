@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-from __future__ import print_function, division
+
 
 from datetime import datetime
 import logging
 
 import numpy as np
-from six import iteritems
-from six.moves import range
 
 from supremm.errors import ProcessingError
 from supremm.plugin import Plugin
@@ -49,7 +47,7 @@ class TimeseriesPatterns(Plugin):
         self.section_len = (self.end_time - self.start_time) / self.SECTIONS
 
         self.nodes = {}
-        self.section_start_timestamps = [[] for _ in xrange(self.SECTIONS)]
+        self.section_start_timestamps = [[] for _ in range(self.SECTIONS)]
         self.metricNames = [str.replace(metric, '.', '-') for metric in self.requiredMetrics]
 
         self.resource = job.acct['partition']
@@ -62,7 +60,7 @@ class TimeseriesPatterns(Plugin):
 
         # associate each metric with its data point, as tuples of (metric, data)
         # sum across the mountpoints to get one total data point
-        metrics = zip(self.metricNames, (np.sum(x) for x in data))
+        metrics = list(zip(self.metricNames, (np.sum(x) for x in data)))
 
         nodename = nodemeta.nodename
         if nodename not in self.nodes:
@@ -126,7 +124,7 @@ class TimeseriesPatterns(Plugin):
             for metric in self.metricNames
         }
 
-        for nodename, node in iteritems(self.nodes):
+        for nodename, node in self.nodes.items():
             if not len(node['all_times']) > self.DATAPOINT_THRESHOLD:
                 node['data_error'] = True
                 continue
@@ -145,7 +143,7 @@ class TimeseriesPatterns(Plugin):
                     for i in range(self.SECTIONS):
                         metric_data[metric]['sections'][i].append(node['section_avgs'][metric][i])
 
-        for metric_name, metric in iteritems(metric_data):
+        for metric_name, metric in metric_data.items():
 
             # If a metric didn't have enough viable nodes, report error due to insufficient data
             if metric['nodes_used'] < self.MIN_NODES:
@@ -167,7 +165,7 @@ def _calculate_autoperiod(nodes, metric, resource, jobid):
     summed_values = None
 
     # Interpolate times and values so sampling interval is constant, and sum nodes
-    for nodename, node in iteritems(nodes):
+    for nodename, node in nodes.items():
         if node['data_error']:
             continue
 

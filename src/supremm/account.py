@@ -4,7 +4,7 @@ Abstraction of the job accouting data
 """
 
 from supremm.accounting import Accounting, ArchiveCache
-import MySQLdb as mdb
+import pymysql as mdb
 from supremm import batch_acct
 from supremm.Job import Job
 from supremm.config import Config
@@ -54,7 +54,7 @@ class DbInsert(object):
 
             cur.execute("INSERT INTO process (jobid, ingest_version) VALUES ( (SELECT id FROM job WHERE resource_id = %s AND local_job_id = %s AND end_time_ts = %s), %s)", [data[0], data[1], data[3], INGEST_VERSION])
         except mdb.IntegrityError as e:
-            if e[0] != 1062:
+            if e.args[0] != 1062:
                 raise e
             # else:
                 # Todo - check that the blobs match on duplicate records
@@ -296,7 +296,7 @@ class DbAcct(Accounting):
             for h in hostcur:
                 hostarchives[h[0]] = h[1].split(chr(0x1e))
 
-            yield self.recordtojob(r, hostarchives.keys(), hostarchives)
+            yield self.recordtojob(r, list(hostarchives.keys()), hostarchives)
 
     def get(self, start_time=None, end_time=None):
         """ 
@@ -337,7 +337,7 @@ class DbAcct(Accounting):
             for h in hostcur:
                 hostarchives[h[0]] = h[1].split(chr(0x1e))
 
-            yield self.recordtojob(r, hostarchives.keys(), hostarchives)
+            yield self.recordtojob(r, list(hostarchives.keys()), hostarchives)
 
     def markasdone(self, job, success, elapsedtime):
         if success:
@@ -351,7 +351,7 @@ def ingestall(config):
     """ 
     Run account data ingest for all records
     """
-    ingest(config, 9223372036854775807L, 0)
+    ingest(config, 9223372036854775807, 0)
 
 
 def ingest(config, end_time, start_time=None):
@@ -421,7 +421,7 @@ def runingest():
     if len(sys.argv) > 2:
         end_time = sys.argv[2]
     else:
-        end_time = 9223372036854775807L
+        end_time = 9223372036854775807
 
     #ingest(config, end_time)
     ingestall(config)

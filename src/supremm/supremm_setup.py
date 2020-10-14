@@ -6,7 +6,7 @@ import copy
 from supremm.scripthelpers import getdbconnection
 from supremm.config import Config
 from supremm.xdmodstylesetupmenu import XDMoDStyleSetupMenu
-import ConfigParser
+import configparser
 import socket
 import subprocess
 import sys
@@ -118,11 +118,11 @@ def default_settings(confpath):
             defaults['mycnffilename'] = dwconfig['defaultsfile']
 
             try:
-                mycnf = ConfigParser.RawConfigParser()
+                mycnf = configparser.RawConfigParser()
                 mycnf.read(os.path.expanduser(dwconfig['defaultsfile']))
                 if mycnf.has_section('client'):
                     defaults['mysqlusername'] = mycnf.get('client', 'user')
-            except ConfigParser.Error:
+            except configparser.Error:
                 pass
 
             outputconfig = existingconf.getsection('outputdatabase')

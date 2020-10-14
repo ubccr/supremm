@@ -30,4 +30,4 @@ EOF
 
 [[ $count -eq 6 ]]
 
-pytest tests/integration_tests/integration_plugin_api.py
+pytest-3 tests/integration_tests/integration_plugin_api.py

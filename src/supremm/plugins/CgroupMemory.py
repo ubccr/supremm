@@ -38,7 +38,7 @@ class CgroupMemory(Plugin):
             return True
 
         if nodemeta.nodeindex not in self._data:
-            self._data[nodemeta.nodeindex] = [RollingStats() for i in xrange(len(self.requiredMetrics) + 1)]
+            self._data[nodemeta.nodeindex] = [RollingStats() for i in range(len(self.requiredMetrics) + 1)]
             self._hostcounts[nodemeta.nodeindex] = {"present": 0, "missing": 0}
             # First data point for the node is ignored
             return True
@@ -52,7 +52,7 @@ class CgroupMemory(Plugin):
             # No cgroup info at this datapoint
             if dataidx is None:
                 return True
-            for i in xrange(len(self.requiredMetrics)):
+            for i in range(len(self.requiredMetrics)):
                 if len(data[i]) < dataidx:
                     # Skip timesteps with incomplete information
                     raise ValueError
@@ -65,7 +65,7 @@ class CgroupMemory(Plugin):
 
         hdata = self._data[nodemeta.nodeindex]
 
-        for i in xrange(len(self.requiredMetrics)):
+        for i in range(len(self.requiredMetrics)):
             hdata[i].append(data[i][dataidx])
 
         if data[1][dataidx] > 0.0:
@@ -80,7 +80,7 @@ class CgroupMemory(Plugin):
         if len(self._data) != self._job.nodecount:
             return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
 
-        for hoststat in self._hostcounts.itervalues():
+        for hoststat in self._hostcounts.values():
             if hoststat['missing'] > hoststat['present']:
                 return {"error": ProcessingError.CPUSET_UNKNOWN}
 
@@ -88,7 +88,7 @@ class CgroupMemory(Plugin):
 
         datapoints = 0
 
-        for memdata in self._data.itervalues():
+        for memdata in self._data.values():
             if memdata[0].count() > 0:
                 datapoints += 1
                 stats["usage"]["avg"].append(memdata[0].mean())

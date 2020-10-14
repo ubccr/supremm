@@ -2,7 +2,7 @@
 """ Configuration data management """
 import os
 import json
-import ConfigParser
+import configparser
 import re
 import glob
 import pkg_resources
@@ -31,7 +31,7 @@ class Config(object):
 
         conffile = os.path.join(confpath, "config.json")
         logging.debug("Using config file %s", conffile)
-        with open(conffile, "rb") as conffp:
+        with open(conffile, "r") as conffp:
             confdata = ""
             for line in conffp:
                 if not iscomment(line):
@@ -74,7 +74,7 @@ class Config(object):
 
     def parsexdmod(self):
         """ locate and parse the XDMoD portal settings file """
-        self._xdmodconfig = ConfigParser.RawConfigParser()
+        self._xdmodconfig = configparser.RawConfigParser()
 
         xdmodconfs = glob.glob(os.path.join(self._config['xdmodroot'], "portal_settings.d/*.ini"))
         xdmodconfs.sort()
@@ -113,7 +113,7 @@ class Config(object):
 
     def resourceconfigs(self):
         """ Iterator over enabled resources """
-        for resname, resdata in self._config['resources'].iteritems():
+        for resname, resdata in self._config['resources'].items():
             if "enabled" in resdata and resdata['enabled'] == False:
                 continue
             resdata['name'] = resname
@@ -122,7 +122,7 @@ class Config(object):
 def test():
     """ test """
     conf = Config()
-    print conf.getsection("datawarehouse")
+    print(conf.getsection("datawarehouse"))
     # for r, d in c.resourceconfigs():
     #    print r, d
 

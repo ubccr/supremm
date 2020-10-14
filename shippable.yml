@@ -15,9 +15,9 @@ build:
         - indexarchives.py -h > /dev/null
         - ingest_jobscripts.py -d
         - yum remove -y supremm
-        - python setup.py install
-        - pylint --errors-only --disable=E0611 supremm
-        - pytest --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
+        - python3 setup.py install --user --prefix=
+        - pylint-3 --errors-only supremm
+        - pytest-3 --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
         - summarize_jobs.py -h > /dev/null
         - indexarchives.py -h > /dev/null
 

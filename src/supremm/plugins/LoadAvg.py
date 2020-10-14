@@ -43,7 +43,7 @@ class LoadAvg(Plugin):
 
         hinv = self._job.getdata('hinv')
 
-        for nodename, loaddata in self._data.iteritems():
+        for nodename, loaddata in self._data.items():
             if loaddata.count() > 0:
                 meanval.append(loaddata.mean())
                 maxval.append(loaddata.max)

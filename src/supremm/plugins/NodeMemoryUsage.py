@@ -64,7 +64,7 @@ class NodeMemoryUsage(Plugin):
         maxmemfree = []
         physmem = []
 
-        for hostidx, memdata in self._data.iteritems():
+        for hostidx, memdata in self._data.items():
             if memdata['free'].count() > 0:
                 memfree.append(memdata['free'].mean())
                 maxmemfree.append(memdata['free'].max)

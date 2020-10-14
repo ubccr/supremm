@@ -6,7 +6,6 @@ import logging
 import math
 
 import pytz
-import tzlocal
 from pcp import pmapi
 import cpmapi as c_pmapi
 import time
@@ -18,7 +17,7 @@ from supremm.account import DbArchiveCache
 from supremm.xdmodaccount import XDMoDArchiveCache
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 from multiprocessing import Pool
 import functools
@@ -39,7 +38,7 @@ JOB_ID_REGEX = re.compile(r"^(?:(\d+)(?:[_\[](\d+)?\]?)?).*$")
 
 class TimezoneAdjuster(object):
     def __init__(self, timezone_name, guess_early=True):
-        self.timezone = pytz.timezone(timezone_name) if timezone_name is not None else tzlocal.get_localzone()
+        self.timezone = pytz.timezone(timezone_name) if timezone_name is not None else datetime.now(timezone(timedelta(0))).astimezone().tzinfo
         self.guess_early = guess_early
 
     def adjust(self, dt):
@@ -94,7 +93,7 @@ class PcpArchiveProcessor(object):
             try:
                 context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
                 mdata = context.pmGetArchiveLabel()
-                hostname = mdata.hostname
+                hostname = str(mdata.hostname, 'ascii')
                 start_timestamp = float(mdata.start)
                 end_timestamp = float(context.pmGetArchiveEnd())
             except pmapi.pmErr as exc:
@@ -122,7 +121,7 @@ class PcpArchiveProcessor(object):
         if not match:
             return None
 
-        date_dict = {k: int(v) for k, v in match.groupdict().iteritems()}
+        date_dict = {k: int(v) for k, v in match.groupdict().items()}
         start_datetime = datetime(**date_dict)
         return self.tz_adjuster.adjust(start_datetime)
 
@@ -347,11 +346,11 @@ class LoadFileIndexUpdater(object):
         self.dry_run = dry_run
 
     def __enter__(self):
-        self.paths_file = tempfile.NamedTemporaryFile('wb', delete=not self.keep_csv, suffix=".csv", prefix="archive_paths")
+        self.paths_file = tempfile.NamedTemporaryFile('w', delete=not self.keep_csv, suffix=".csv", prefix="archive_paths")
         self.paths_csv = csv.writer(self.paths_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
-        self.joblevel_file = tempfile.NamedTemporaryFile('wb', delete=not self.keep_csv, suffix=".csv", prefix="archives_joblevel")
+        self.joblevel_file = tempfile.NamedTemporaryFile('w', delete=not self.keep_csv, suffix=".csv", prefix="archives_joblevel")
         self.joblevel_csv = csv.writer(self.joblevel_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
-        self.nodelevel_file = tempfile.NamedTemporaryFile('wb', delete=not self.keep_csv, suffix=".csv", prefix="archives_nodelevel")
+        self.nodelevel_file = tempfile.NamedTemporaryFile('w', delete=not self.keep_csv, suffix=".csv", prefix="archives_nodelevel")
         self.nodelevel_csv = csv.writer(self.nodelevel_file, lineterminator="\n", quoting=csv.QUOTE_MINIMAL, escapechar='\\')
         return self
 

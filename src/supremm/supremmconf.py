@@ -10,10 +10,10 @@ from supremm.config import Config
 
 def usage():
     """ print usage """
-    print "usage: {0} [OPTS]".format(os.path.basename(__file__))
-    print "  -s --section SECTION  output the configuration data from the specified section"
-    print "  -i --item ITEM        output the configuration data for the specified item"
-    print "  -h --help             print this help message"
+    print("usage: {0} [OPTS]".format(os.path.basename(__file__)))
+    print("  -s --section SECTION  output the configuration data from the specified section")
+    print("  -i --item ITEM        output the configuration data for the specified item")
+    print("  -h --help             print this help message")
 
 
 def getoptions():
@@ -46,9 +46,9 @@ def main():
     try:
         section = conf.getsection(opts['section'])
         if opts['item'] != None:
-            print section[opts['item']]
+            print(section[opts['item']])
         else:
-            print json.dumps(section, indent=4)
+            print(json.dumps(section, indent=4))
 
     except KeyError:
         sys.stderr.write("Error section \"%s\" not defined in configuration file.\n" % (opts['section']))

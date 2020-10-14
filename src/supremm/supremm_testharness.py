@@ -23,7 +23,7 @@ from supremm.proc_common import filter_plugins
 
 def usage():
     """ print usage """
-    print "usage: {0} /full/path/to/pcp/archive"
+    print("usage: {0} /full/path/to/pcp/archive")
 
 def getoptions():
     """ process comandline options """
@@ -148,7 +148,7 @@ def main():
     s = Summarize(preprocessors, analytics, job, config)
     s.process()
     result = s.get()
-    print json.dumps(result, indent=4, default=str)
+    print(json.dumps(result, indent=4, default=str))
 
 
 if __name__ == "__main__":

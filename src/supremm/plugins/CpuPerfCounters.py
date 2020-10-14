@@ -97,7 +97,7 @@ class CpuPerfCounters(Plugin):
         cpldref = numpy.zeros(self._totalcores)
 
         coreindex = 0
-        for _, data in self._data.iteritems():
+        for _, data in self._data.items():
             if len(data) == len(NHM_METRICS): # also covers the AMD_INTERLAGOS
                 flops[coreindex:coreindex + len(data[0])] = 1.0 * data[3]
                 cpiref[coreindex:coreindex + len(data[0])] = 1.0 * data[0] / data[1]

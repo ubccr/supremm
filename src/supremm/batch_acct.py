@@ -27,7 +27,7 @@ class BatchAcct(object):
         self.name_ext = ""
     self.delimiter = delimiter 
 
-  def reader(self,start_time=0, end_time=9223372036854775807L, seek=0):
+  def reader(self,start_time=0, end_time=9223372036854775807, seek=0):
     """reader(start_time=0, end_time=9223372036854775807L, seek=0)
     Return an iterator for all jobs that finished between start_time and end_time.
     """
@@ -273,7 +273,7 @@ class SLURMNativeAcct(BatchAcct):
 
     return host_list_expanded
 
-  def reader(self,start_time=0, end_time=9223372036854775807L, seek=0):
+  def reader(self,start_time=0, end_time=9223372036854775807, seek=0):
       for a in super(SLURMNativeAcct,self).reader(start_time, end_time, seek):
           a['host_list'] = self.get_host_list(a['node_list'])
           if len(a['host_list']) > 0:

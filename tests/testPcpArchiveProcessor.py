@@ -27,7 +27,7 @@ class TestPcpArchiveProcessor(unittest.TestCase):
             'job-123423.server.net-end-20181004.04.05.41.index': 1538625941.0
         }
 
-        for archiveName, expected in testCases.iteritems():
+        for archiveName, expected in testCases.items():
             assert self.inst.get_archive_data_fast('/some/path/to/data/' + archiveName) == expected
 
     def test_jobidparser(self):
@@ -60,5 +60,5 @@ class TestPcpArchiveProcessor(unittest.TestCase):
             'job-123423.server.net-end-20181004.04.05.41.index': (-1, -1, 123423)
         }
 
-        for archiveName, expected in testCases.iteritems():
+        for archiveName, expected in testCases.items():
             assert self.inst.parsejobid(archiveName) == expected

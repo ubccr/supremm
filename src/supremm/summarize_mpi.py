@@ -112,7 +112,7 @@ def processjobs(config, opts, procid, comm):
                     logging.debug("Getting leftovers. %d sent, %d received", numsent, numreceived)
 
                 # Shut them down
-                for worker in xrange(numworkers):
+                for worker in range(numworkers):
                     logging.debug("Shutting down: %d", worker+1)
                     comm.send(None, dest=worker+1, tag=1)
 
