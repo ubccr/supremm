@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1] - 2020-10-14
+
+### Fixed
+- Fix edge case where one type of corrupt performance counter value was not handled
+  by the hardware performance counter plugin.
+- Fix bug in the job script ingestor that caused the script data in the database to 
+  be set to the string "0" if a script data was ingested more than once.
+
 ## [1.4.0] - 2020-08-17
 
 ### Added

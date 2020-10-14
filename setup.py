@@ -23,7 +23,7 @@ else:
 
 setup(
     name='supremm',
-    version='1.4.0',
+    version='1.4.1',
     description='SUPReMM Job Summarization Utilities',
     long_description='Utilities for generating job-level summary data from host level PCP archives.\nAlso includes template configuration files for running PCP on an HPC system.',
     license='LGPLv3',
