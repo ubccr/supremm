@@ -80,5 +80,6 @@ def setuplogger(consolelevel, filename=None, filelevel=None):
     consolehandler.setLevel(consolelevel)
     consolehandler.setFormatter(formatter)
     rootlogger.addHandler(consolehandler)
-    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
+    logging.getLogger('requests').setLevel(logging.ERROR)
 
