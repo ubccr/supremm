@@ -123,7 +123,6 @@ class Summarize(object):
             for analytic in self.alltimestamps:
                 try:
                     success = analytic.process(mdata)
-                    self.archives_processed += 1
                     analytic.status = "complete"
                 except Exception as exc:
                     success -= 1
@@ -132,6 +131,7 @@ class Summarize(object):
                     analytic.status = "failed"
                     if self.fail_fast:
                         raise
+            self.archives_processed += 1
                 
 
         return success == 0
