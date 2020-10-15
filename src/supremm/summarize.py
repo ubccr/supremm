@@ -99,7 +99,7 @@ class Summarize(object):
         """ Main entry point for Prometheus."""
         success = 0
         self.archives_processed = 0
-        print self.job.nodes
+
         for node, jobnode in self.job.nodes.items():
             nodeidx = jobnode.nodeindex
             start_time = self.job.start_datetime

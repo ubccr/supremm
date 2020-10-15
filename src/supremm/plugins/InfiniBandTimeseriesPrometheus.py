@@ -6,15 +6,15 @@ from supremm.plugin import PrometheusTimeseriesNamePlugin
 class InfiniBandTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
     """ This plugin processes lots of metric that are all interested in the difference over the process """
 
-    name = property(lambda x: "infiniband")
+    name = property(lambda x: "ib_lnet")
     metric_system = property(lambda x: "prometheus")
     requiredMetrics = property(lambda x: {
         "switch-in-bytes": {
-            'metric': 'sum(rate(node_infiniband_port_data_received_bytes_total{{instance=~"^{node}.+"}}[{rate}]))',
+            'metric': 'sum(rate(node_infiniband_port_data_received_bytes_total{{instance=~"^{node}.+"}}[{rate}])) / 1024^2',
             'timeseries_name': 'receive'
         },
         "switch-out-bytes": {
-            'metric': 'sum(rate(node_infiniband_port_data_transmitted_bytes_total{{instance=~"^{node}.+"}}[{rate}]))',
+            'metric': 'sum(rate(node_infiniband_port_data_transmitted_bytes_total{{instance=~"^{node}.+"}}[{rate}])) / 1024^2',
             'timeseries_name': 'transmit'
         },
     })

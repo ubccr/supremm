@@ -10,11 +10,11 @@ class BlockTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
     metric_system = property(lambda x: "prometheus")
     requiredMetrics = property(lambda x: {
         "read_bytes": {
-            'metric': 'rate(node_disk_read_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
+            'metric': 'rate(node_disk_read_bytes_total{{instance=~"^{node}.+"}}[{rate}]) / 1024^3',
             'timeseries_name': 'read'
         },
         "write_bytes": {
-            'metric': 'rate(node_disk_written_bytes_total{{instance=~"^{node}.+"}}[{rate}])',
+            'metric': 'rate(node_disk_written_bytes_total{{instance=~"^{node}.+"}}[{rate}]) / 1024^3',
             'timeseries_name': 'write',
         }
     })

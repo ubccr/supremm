@@ -569,7 +569,7 @@ class PrometheusTimeseriesPlugin(PrometheusPlugin):
                 "min": self.collatedata(sortarr[:, 0], data),
                 "max": self.collatedata(sortarr[:, -1], data),
                 "med": self.collatedata(sortarr[:, sortarr.shape[1] / 2], data),
-                "times": values[:, :, 0].tolist(),
+                "times": values[0, :, 0].tolist(),
                 "hosts": {}
             }
 
@@ -580,7 +580,7 @@ class PrometheusTimeseriesPlugin(PrometheusPlugin):
         else:
             # Save data for all hosts
             retdata = {
-                "times": values[:, :, 0].tolist(),
+                "times": values[0, :, 0].tolist(),
                 "hosts": {}
             }
             includelist = self._hostdata.keys()
@@ -677,7 +677,7 @@ class PrometheusTimeseriesNamePlugin(PrometheusPlugin):
                 "min": self.collatedata(sortarr[:, 0], data),
                 "max": self.collatedata(sortarr[:, -1], data),
                 "med": self.collatedata(sortarr[:, sortarr.shape[1] / 2], data),
-                "times": values[:, :, 0].tolist(),
+                "times": values[0, :, 0].tolist(),
                 "hosts": {}
             }
 
@@ -688,7 +688,7 @@ class PrometheusTimeseriesNamePlugin(PrometheusPlugin):
         else:
             # Save data for all hosts
             retdata = {
-                "times": values[:, :, 0].tolist(),
+                "times": values[0, :, 0].tolist(),
                 "hosts": {}
             }
             includelist = self._hostdata.keys()

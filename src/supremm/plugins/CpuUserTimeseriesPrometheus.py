@@ -14,7 +14,7 @@ class CpuUserTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
     metric_system = property(lambda x: "prometheus")
     requiredMetrics = property(lambda x: {
         'cpu': {
-            'metric': 'rate(node_cpu_seconds_total{{instance=~"^{node}.+",mode="user",cpu=~"{cpus}"}}[{rate}])'
+            'metric': 'rate(node_cpu_seconds_total{{instance=~"^{node}.+",mode="user",cpu=~"{cpus}"}}[{rate}]) * 100'
         }
     })
     optionalMetrics = property(lambda x: {})

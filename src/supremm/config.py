@@ -61,7 +61,6 @@ class Config(object):
 
         for path in searchpaths:
             if os.path.exists(os.path.join(path, "config.json")):
-                print path
                 return os.path.abspath(path)
 
         return None
