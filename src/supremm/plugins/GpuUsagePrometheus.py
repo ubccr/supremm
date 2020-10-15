@@ -9,8 +9,8 @@ class GpuUsagePrometheus(PrometheusPlugin):
     name = property(lambda x: "gpu")
     metric_system = property(lambda x: "prometheus")
     requiredMetrics = property(lambda x: {
-        'memutil': {
-            'metric': 'DCGM_FI_DEV_MEM_COPY_UTIL{{instance=~"^{node}.+"}}',
+        'memused': {
+            'metric': 'DCGM_FI_DEV_FB_USED{{instance=~"^{node}.+"}} * 1024^2',
             'indom': 'gpu{gpu}',
         },
         'util': {
