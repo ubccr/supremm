@@ -1,5 +1,9 @@
 #!/usr/bin/env python
-""" CPU Usage metrics - https://github.com/prometheus/node_exporter"""
+""" CPU Usage metrics
+
+https://github.com/prometheus/node_exporter
+https://github.com/treydock/cgroup_exporter
+"""
 
 from supremm.plugin import PrometheusPlugin
 from supremm.statistics import calculate_stats
@@ -13,14 +17,28 @@ class CpuUsagePrometheus(PrometheusPlugin):
     requiredMetrics = property(lambda x: {
         'cpu': {
             'metric': 'rate(node_cpu_seconds_total{{instance=~"^{node}.+"}}[{rate}])'
+        },
+        'user': {
+            'metric': '(rate(cgroup_cpu_user_seconds{{instance=~"^{node}.+"}}[{rate}]) / cgroup_cpus{{instance=~"^{node}.+"}}) * on(cgroup, instance) group_left(jobid) cgroup_info{{instance=~"^{node}.+",jobid="{jobid}"}}'
+        },
+        'system': {
+            'metric': '(rate(cgroup_cpu_system_seconds{{instance=~"^{node}.+"}}[{rate}]) / cgroup_cpus{{instance=~"^{node}.+"}}) * on(cgroup, instance) group_left(jobid) cgroup_info{{instance=~"^{node}.+",jobid="{jobid}"}}'
+        },
+        'idle': {
+            'metric': '1.0 - (rate(cgroup_cpu_total_seconds{{instance=~"^{node}.+"}}[{rate}]) / cgroup_cpus{{instance=~"^{node}.+"}}) * on(cgroup, instance) group_left(jobid) cgroup_info{{instance=~"^{node}.+",jobid="{jobid}"}}'
         }
     })
 
     optionalMetrics = property(lambda x: {})
     derivedMetrics = property(lambda x: {})
 
+    def __init__(self, job, config):
+        super(CpuUsagePrometheus, self).__init__(job, config)
+        self._cgroupdata = {}
+
     def process(self, mdata):
         self._data[mdata.nodename] = {}
+        self._cgroupdata[mdata.nodename] = {}
         for metricname, metric in self.allmetrics.items():
             query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
             data = self.query_range(query, mdata.start, mdata.end)
@@ -31,14 +49,23 @@ class CpuUsagePrometheus(PrometheusPlugin):
                 m = r.get('metric', {})
                 mode = m.get('mode', None)
                 cpu = m.get('cpu', None)
+                if metricname != 'cpu':
+                    mode = metricname
+                    cpu = 'all'
                 if mode is None or cpu is None:
                     continue
-                self._data[mdata.nodename][mode] = {}
-                self._data[mdata.nodename][mode][cpu] = []
+                if metricname == 'cpu':
+                    self._data[mdata.nodename][mode] = {}
+                    self._data[mdata.nodename][mode][cpu] = []
+                else:
+                    self._cgroupdata[mdata.nodename][mode] = []
                 values = r.get('values', [])
                 for v in values:
                     value = float(v[1])
-                    self._data[mdata.nodename][mode][cpu].append(value)
+                    if metricname == 'cpu':
+                        self._data[mdata.nodename][mode][cpu].append(value)
+                    else:
+                        self._cgroupdata[mdata.nodename][mode].append(value)
         return True
 
     def results(self):
@@ -47,12 +74,14 @@ class CpuUsagePrometheus(PrometheusPlugin):
             return {"error": self._error}
         if len(self._data) != self._job.nodecount:
             return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
+        if len(self._cgroupdata) != self._job.nodecount:
+            return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
 
         cpusallowed = self._job.getdata('proc')['cpusallowed']
         hinv = self._job.getdata('hinv')
 
-        stats = {'jobcpus': {'all': {'cnt': 0}}, 'nodecpus': {'all': {'cnt': 0}}}
-        results = {'nodecpus': {}, 'jobcpus': {}}
+        stats = {'jobcpus': {'all': {'cnt': 0}}, 'nodecpus': {'all': {'cnt': 0}}, 'cgroup': {}}
+        results = {'nodecpus': {}, 'jobcpus': {}, 'cgroup': {}}
 
         for host, modes in self._data.items():
             usercpus = cpusallowed[host]
@@ -76,6 +105,12 @@ class CpuUsagePrometheus(PrometheusPlugin):
                     if cpu not in usercpus:
                         continue
                     stats['jobcpus'][mode] = stats['jobcpus'][mode] + values
+
+        for host, modes in self._cgroupdata.items():
+            for mode, values in modes.items():
+                if mode not in stats['cgroup']:
+                    stats['cgroup'][mode] = []
+                stats['cgroup'][mode] = stats['cgroup'][mode] + values
 
         if error:
             return results
