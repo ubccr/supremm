@@ -115,6 +115,8 @@ class Summarize(object):
                 try:
                     preproc.process(mdata)
                 except Exception as exp:
+                    #pylint: disable=not-callable
+                    self.adderror("preprocessor", "{0}: Exception: {1}. {2}".format(preproc.name, str(exc), traceback.format_exc()))
                     preproc.status = "failure"
                     preproc.hostend()
                     raise exp

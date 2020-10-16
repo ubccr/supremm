@@ -63,7 +63,6 @@ class ProcPrometheus(PrometheusPlugin):
                 elif metricname == 'processes':
                     execname = m.get('exec', None)
                     if execname is None:
-                        self.output['procDump']['constrained'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
                         continue
                     if execname not in self.output['procDump']['constrained']:
                         self.output['procDump']['constrained'].append(execname)
