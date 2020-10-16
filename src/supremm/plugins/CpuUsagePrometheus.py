@@ -69,7 +69,6 @@ class CpuUsagePrometheus(PrometheusPlugin):
         return True
 
     def results(self):
-        error = False
         if self._error != None:
             return {"error": self._error}
         if len(self._data) != self._job.nodecount:
@@ -80,21 +79,21 @@ class CpuUsagePrometheus(PrometheusPlugin):
         cpusallowed = self._job.getdata('proc')['cpusallowed']
         hinv = self._job.getdata('hinv')
 
-        stats = {'jobcpus': {'all': {'cnt': 0}}, 'nodecpus': {'all': {'cnt': 0}}, 'cgroup': {}}
+        stats = {'jobcpus': {}, 'nodecpus': {}, 'cgroup': {}}
         results = {'nodecpus': {}, 'jobcpus': {}, 'cgroup': {}}
 
         for host, modes in self._data.items():
             usercpus = cpusallowed[host]
             if 'error' in usercpus:
                 results['jobcpus'] = usercpus
-                error = True
+            else:
+                results['jobcpus']['all'] = {'cnt': 0}
+                results['jobcpus']['all']['cnt'] += len(usercpus)
             if 'error' in hinv[host]:
                 results['nodecpus'] = hinv[host]
-                error = True
-            if error:
-                continue
-            stats['jobcpus']['all']['cnt'] += len(usercpus)
-            stats['nodecpus']['all']['cnt'] += hinv[host]['cores']
+            else:
+                results['nodecpus']['all'] = {'cnt': 0}
+                results['nodecpus']['all']['cnt'] += hinv[host]['cores']
             for mode, cpus in modes.items():
                 if mode not in stats['jobcpus']:
                     stats['jobcpus'][mode] = []
@@ -112,14 +111,11 @@ class CpuUsagePrometheus(PrometheusPlugin):
                     stats['cgroup'][mode] = []
                 stats['cgroup'][mode] = stats['cgroup'][mode] + values
 
-        if error:
+        if 'error' in results['nodecpus'] or 'error' in results['jobcpus']:
             return results
 
         for _type, modes in stats.items():
             for mode, values in modes.items():
-                if mode == 'all':
-                    results[_type][mode] = values
-                    continue
                 results[_type][mode] = calculate_stats(values)
 
         return results

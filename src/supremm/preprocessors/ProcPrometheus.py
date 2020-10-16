@@ -51,8 +51,7 @@ class ProcPrometheus(PrometheusPlugin):
             query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
             data = self.query_range(query, mdata.start, mdata.end)
             if data is None:
-                self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
-                return None
+                continue
             for r in data.get('data', {}).get('result', []):
                 m = r.get('metric', {})
                 if metricname == 'cpusallowed':
@@ -70,9 +69,6 @@ class ProcPrometheus(PrometheusPlugin):
         return True
 
     def results(self):
-        if self._error != None:
-            return {"error": self._error}
-
         result = {
             "constrained": [],
             "unconstrained": [],
@@ -80,7 +76,10 @@ class ProcPrometheus(PrometheusPlugin):
         }
 
         for hostname, value in self.output['cpusallowed'].items():
-            result['cpusallowed'][hostname] = ','.join(value)
+            if 'error' in value:
+                result['cpusallowed'][hostname] = value
+            else:
+                result['cpusallowed'][hostname] = ','.join(value)
         result['constrained'] = self.output['procDump']['constrained']
             
         return {'procDump': result}
