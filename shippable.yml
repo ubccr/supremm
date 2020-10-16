@@ -18,6 +18,6 @@ build:
         - python3 setup.py install --user --prefix=
         - pylint-3 --errors-only supremm
         - pytest-3 --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
-        - summarize_jobs.py -h > /dev/null
-        - indexarchives.py -h > /dev/null
+        - /root/.local/bin/summarize_jobs.py -h > /dev/null
+        - /root/.local/bin/indexarchives.py -h > /dev/null
 
