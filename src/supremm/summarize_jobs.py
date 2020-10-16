@@ -114,9 +114,9 @@ def process_resource(resconf, preprocs, plugins, config, opts):
 def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, pool):
     with outputter.factory(config, resconf, dry_run=opts['dry_run']) as m:
         if resconf['batch_system'] == "XDMoD":
-            dbif = XDMoDAcct(resconf['resource_id'], config)
+            dbif = XDMoDAcct(resconf['resource_id'], config, resconf)
         else:
-            dbif = DbAcct(resconf['resource_id'], config)
+            dbif = DbAcct(resconf['resource_id'], config, resconf)
 
         jobs = get_jobs(opts, dbif)
 
