@@ -130,12 +130,12 @@ class CpuPerfCounters(Plugin):
         if hasFlops:
             results['flops'] = calculate_stats(flops)
 
-        if numpy.isfinite(cpiref).any():
+        if numpy.isfinite(cpiref).all():
             results['cpiref'] = calculate_stats(cpiref)
         else:
             results['cpiref'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
 
-        if hasCpld and numpy.isfinite(cpldref).any():
+        if hasCpld and numpy.isfinite(cpldref).all():
             results['cpldref'] = calculate_stats(cpldref)
         else:
             results['cpldref'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
