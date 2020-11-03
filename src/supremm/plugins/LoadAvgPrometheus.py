@@ -50,6 +50,8 @@ class LoadAvgPrometheus(PrometheusPlugin):
                 maxval.append(loaddata.max)
 
                 if nodename in hinv:
+                    if 'error' in hinv[nodename]:
+                        continue
                     meanvalpercore.append(loaddata.mean() / hinv[nodename]['cores'])
                     maxvalpercore.append(loaddata.max / hinv[nodename]['cores'])
 

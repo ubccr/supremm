@@ -57,6 +57,8 @@ class HardwareInventoryPrometheus(PrometheusPlugin):
     def results(self):
         if self._error != None:
             return {"error": self._error}
+        if len(self.cores) != self._job.nodecount:
+            return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
 
         return {"cores": calculate_stats(self.cores)}
 

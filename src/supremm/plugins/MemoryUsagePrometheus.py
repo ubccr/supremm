@@ -56,6 +56,8 @@ class MemoryUsagePrometheus(PrometheusPlugin):
         for nodename, memdata in self._data.iteritems():
             if nodename not in hinv:
                 return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
+            if 'error' in hinv[nodename]:
+                return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
             if memdata['used'].count() > 0:
                 memused.append(memdata['used'].mean() / hinv[nodename]['cores'])
             if memdata['used_minus_cache'].count() > 0:
