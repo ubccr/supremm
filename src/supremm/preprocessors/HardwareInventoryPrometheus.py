@@ -38,9 +38,22 @@ class HardwareInventoryPrometheus(PrometheusPlugin):
             if data is None:
                 self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
                 return None
-            for r in data.get('data', {}).get('result', []):
+            result = data.get('data', {}).get('result', [])
+            if not result:
+                data = self.query_range(query, mdata.start, mdata.end)
+                if data is None:
+                    self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
+                    return None
+                result = data.get('data', {}).get('result', [])
+                if not result:
+                    self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
+                    return None
                 if metricname == 'ncpus':
-                    value = r.get('value', [None, "0"])[1]
+                    value = result[0].get('values', [[None, "0"]])[0][1]
+                    self.corecount = float(value)
+            else:
+                if metricname == 'ncpus':
+                    value = result[0].get('value', [None, "0"])[1]
                     self.corecount = float(value)
         return True
 
