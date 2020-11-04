@@ -430,6 +430,8 @@ class PrometheusPlugin(Plugin):
         self.prometheus_url = summaryconf.get('prometheus_url', None)
         self.step = summaryconf.get('step', '1m')
         self.rate = summaryconf.get('rates', {}).get(self.name, '5m')
+        self.start_trim = int(summaryconf.get('start_trim', 30))
+        self.end_trim = int(summaryconf.get('end_trim', 30))
 
     def query_range(self, query, start, end):
         headers = {
@@ -489,6 +491,9 @@ class PrometheusPlugin(Plugin):
                 if indom_label and metricname not in self._data[indom]:
                     self._data[indom][metricname] = []
                 for v in r.get('values', []):
+                    ts = int(v[0])
+                    if ts <= (mdata.start + self.start_trim) or ts >= (mdata.end - self.end_trim):
+                        continue
                     value = float(v[1])
                     if indom == 'NA':
                         self._data[metricname].append(value)
@@ -541,6 +546,9 @@ class PrometheusTimeseriesPlugin(PrometheusPlugin):
                 if mdata.nodeindex not in self._hostdata:
                     self._hostdata[mdata.nodeindex] = 1
                 for v in r.get('values', []):
+                    ts = int(v[0])
+                    if ts <= (mdata.start + self.start_trim) or ts >= (mdata.end - self.end_trim):
+                        continue
                     value = float(v[1])
                     self._data.adddata(mdata.nodeindex, v[0], value)
         return True
@@ -639,6 +647,9 @@ class PrometheusTimeseriesNamePlugin(PrometheusPlugin):
                 if name not in self._names.values():
                     self._names[str(idx)] = name
                 for v in r.get('values', []):
+                    ts = int(v[0])
+                    if ts <= (mdata.start + self.start_trim) or ts >= (mdata.end - self.end_trim):
+                        continue
                     value = float(v[1])
                     if v[0] not in timeseries:
                         timeseries[v[0]] = 0

@@ -41,7 +41,9 @@ class GpuPowerPrometheus(PrometheusPlugin):
                         'energy': Integrator(mdata.start),
                     }
                 for v in r.get('values', []):
-                    ts = v[0]
+                    ts = int(v[0])
+                    if ts <= (mdata.start + self.start_trim) or ts >= (mdata.end - self.end_trim):
+                        continue
                     value = float(v[1])
                     self._data[mdata.nodename][name]['power'].append(value)
                     self._data[mdata.nodename][name]['energy'].add(ts, value)

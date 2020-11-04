@@ -38,6 +38,9 @@ class CgroupMemoryPrometheus(PrometheusPlugin):
                 return None
             for r in data.get('data', {}).get('result', []):
                 for v in r.get('values', []):
+                    ts = int(v[0])
+                    if ts <= (mdata.start + self.start_trim) or ts >= (mdata.end - self.end_trim):
+                        continue
                     value = float(v[1])
                     if metricname not in self._data[mdata.nodeindex]:
                         self._data[mdata.nodeindex][metricname] = RollingStats()

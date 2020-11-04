@@ -61,6 +61,9 @@ class CpuUsagePrometheus(PrometheusPlugin):
                     self._cgroupdata[mdata.nodename][mode] = []
                 values = r.get('values', [])
                 for v in values:
+                    ts = int(v[0])
+                    if ts <= (mdata.start + self.start_trim) or ts >= (mdata.end - self.end_trim):
+                        continue
                     value = float(v[1])
                     if metricname == 'cpu':
                         self._data[mdata.nodename][mode][cpu].append(value)
