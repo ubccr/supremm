@@ -54,8 +54,7 @@ class Config(object):
             @returns Directory name or None if no suitable directory found
         """
         searchpaths = [
-            os.getenv('SUPREMM_CONFIG_DIR', '/etc/supremm'),
-            os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm",
+            os.getenv('SUPREMM_CONFIG_DIR', os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm"),
             "/etc/supremm",
             pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
         ]
