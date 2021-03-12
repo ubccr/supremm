@@ -47,13 +47,14 @@ class Config(object):
     def autodetectconfpath():
         """ search known paths for the configuration directory
             List of paths support the three typical install locations
-            1) source install with pip
-            2) rpm based install
-            3) source install with python setup.py install
+            1) Environment variable SUPREMM_CONFIG_DIR
+            2) source install with pip
+            3) rpm based install
+            4) source install with python setup.py install
             @returns Directory name or None if no suitable directory found
         """
         searchpaths = [
-            os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm",
+            os.getenv('SUPREMM_CONFIG_DIR', os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm"),
             "/etc/supremm",
             pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
         ]
