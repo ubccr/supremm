@@ -158,20 +158,19 @@ class XDMoDAcct(Accounting):
         testconnection = getdbconnection(self.dbsettings, True)
         curs = testconnection.cursor()
         try:
-            curs.execute('SELECT gpu_count FROM `modw`.`job_tasks` LIMIT 1')
-            curs.close()
-            testconnection.close()
-            return 9
-        except ProgrammingError:
-            pass
-        try:
             curs.execute('SELECT 1 FROM `modw`.`job_tasks` LIMIT 1')
-            curs.close()
-            testconnection.close()
-            return 8
+            xdmod_schema_version = 8
+            try:
+                curs.execute('SELECT gpu_count FROM `modw`.`job_tasks` LIMIT 1')
+                xdmod_schema_version = 9
+            except OperationalError:
+                # Operational Error is set if the column does not exist
+                pass
         except ProgrammingError:
+            # Programming Error is thrown if the job_tasks table does not exist
             pass
 
+        curs.close()
         testconnection.close()
 
         return xdmod_schema_version
