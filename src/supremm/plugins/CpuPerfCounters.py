@@ -35,6 +35,8 @@ GENERIC_INTEL_ALT_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.val
 GENERIC_INTEL_ALT2_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
                               "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value"]
 
+ARM64_METRICS = ["perfevent.hwcounters.perf__instructions.value",
+         "perfevent.hwcounters.perf__cycles.value"]
 
 AMD_INTERLAGOS_METRICS = ["perfevent.hwcounters.CPU_CLK_UNHALTED.value",
                           "perfevent.hwcounters.RETIRED_INSTRUCTIONS.value",
@@ -46,7 +48,7 @@ class CpuPerfCounters(Plugin):
 
     name = property(lambda x: "cpuperf")
     mode = property(lambda x: "firstlast")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, GENERIC_INTEL_METRICS, AMD_INTERLAGOS_METRICS, GENERIC_INTEL_ALT_METRICS, GENERIC_INTEL_ALT2_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, GENERIC_INTEL_METRICS, ARM64_METRICS, AMD_INTERLAGOS_METRICS, GENERIC_INTEL_ALT_METRICS, GENERIC_INTEL_ALT2_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
