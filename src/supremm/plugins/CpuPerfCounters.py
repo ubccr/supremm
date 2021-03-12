@@ -35,6 +35,8 @@ GENERIC_INTEL_ALT_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.val
 GENERIC_INTEL_ALT2_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
                               "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value"]
 
+ARM64_METRICS = ["perfevent.hwcounters.perf__instructions.value",
+         "perfevent.hwcounters.perf__cycles.value"]
 
 AMD_INTERLAGOS_METRICS = ["perfevent.hwcounters.CPU_CLK_UNHALTED.value",
                           "perfevent.hwcounters.RETIRED_INSTRUCTIONS.value",
@@ -46,7 +48,7 @@ class CpuPerfCounters(Plugin):
 
     name = property(lambda x: "cpuperf")
     mode = property(lambda x: "firstlast")
-    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, GENERIC_INTEL_METRICS, AMD_INTERLAGOS_METRICS, GENERIC_INTEL_ALT_METRICS, GENERIC_INTEL_ALT2_METRICS])
+    requiredMetrics = property(lambda x: [SNB_METRICS, NHM_METRICS, NHM_ALT_METRICS, GENERIC_INTEL_METRICS, ARM64_METRICS, AMD_INTERLAGOS_METRICS, GENERIC_INTEL_ALT_METRICS, GENERIC_INTEL_ALT2_METRICS])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -130,12 +132,12 @@ class CpuPerfCounters(Plugin):
         if hasFlops:
             results['flops'] = calculate_stats(flops)
 
-        if numpy.isfinite(cpiref).any():
+        if numpy.isfinite(cpiref).all():
             results['cpiref'] = calculate_stats(cpiref)
         else:
             results['cpiref'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
 
-        if hasCpld and numpy.isfinite(cpldref).any():
+        if hasCpld and numpy.isfinite(cpldref).all():
             results['cpldref'] = calculate_stats(cpldref)
         else:
             results['cpldref'] = {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
