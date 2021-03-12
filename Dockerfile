@@ -15,7 +15,7 @@ RUN yum install -y \
     python-pcp \
     pcp-devel
 
-RUN pip install --upgrade pip
+RUN pip install --upgrade pip==20.3.4
 
 RUN pip install zipp==1.2.0 pylint==1.8.3 coverage pytest==4.6.3 pytest-cov==2.7.1 setuptools==36.4.0 pexpect==4.4.0 configparser==3.5.0
 
