@@ -17,7 +17,7 @@ class XDMoDAcct(Accounting):
 
         xdmod_schema_version = self.detectXdmodSchema()
 
-        if xdmod_schema_version == 8:
+        if xdmod_schema_version == 9 or xdmod_schema_version == 8:
             jobfacttable = 'job_tasks'
 
             self._query = """
@@ -36,6 +36,10 @@ class XDMoDAcct(Accounting):
                     jf.`name` AS `jobname`,
                     jf.`node_count` AS `nodes`,
                     jf.`processor_count` AS `ncpus`,
+            """
+            if xdmod_schema_version == 9:
+                self._query += "    jf.`gpu_count` AS `gpus`,"
+            self._query += """
                     jf.`group_name` AS `group`,
                     jf.`gid_number` AS `gid`,
                     jf.`exit_code` AS `exit_code`,
@@ -155,11 +159,18 @@ class XDMoDAcct(Accounting):
         curs = testconnection.cursor()
         try:
             curs.execute('SELECT 1 FROM `modw`.`job_tasks` LIMIT 1')
-            curs.close()
             xdmod_schema_version = 8
+            try:
+                curs.execute('SELECT gpu_count FROM `modw`.`job_tasks` LIMIT 1')
+                xdmod_schema_version = 9
+            except OperationalError:
+                # Operational Error is set if the column does not exist
+                pass
         except ProgrammingError:
+            # Programming Error is thrown if the job_tasks table does not exist
             pass
 
+        curs.close()
         testconnection.close()
 
         return xdmod_schema_version
