@@ -1,0 +1,84 @@
+version: 2.1
+jobs:
+  build:
+    parameters:
+      install-type:
+        type: string
+    docker:
+      # The first image entry here will be used as the image for the parent container.
+      - image: tools-ext-01.ccr.xdmod.org/centos7_6-open-job_performance-8.1.0:latest
+    environment:
+      COMPOSER_ALLOW_SUPERUSER: 1
+      XDMOD_REALMS: 'jobs,storage,cloud'
+      XDMOD_IS_CORE: yes
+      XDMOD_INSTALL_DIR: /xdmod
+      XDMOD_TEST_MODE: << parameters.install-type >>
+    steps:
+      - run:
+          name: Install System Dependencies
+          command: |
+              yum install -y gcc numpy scipy python-devel python2-pip python2-mock python-ctypes python-pymongo MySQL-python Cython python-pcp pcp-devel
+      - run:
+          name: Upgrade PIP
+          command: pip install --upgrade pip==20.3.4
+      - run:
+          name: Install Dependencies via PIP
+          command: |
+            pip install zipp==1.2.0 pylint==1.8.3 coverage pytest==4.6.3 pytest-cov==2.7.1 setuptools==36.4.0 pexpect==4.4.0 configparser==3.5.0
+            pip install --ignore-installed six>=1.10.0
+      - checkout
+      - run:
+          name: Create Test Result Directories
+          command: |
+            mkdir -p shippable/testresults
+            mkdir -p shippable/codecoverage
+      - run:
+          name: Run Bootstrap
+          command: ./tests/integration_tests/bootstrap.sh
+      - run:
+          name: Run Integration Tests
+          command: ./tests/integration_tests/integration_test.bash
+      - run:
+          name: Run Component Tests
+          command: ./tests/component/runtests.sh
+      - run:
+          name: Summarize Jobs
+          command: summarize_jobs.py -h > /dev/null
+      - run:
+          name: Index Archives
+          command: indexarchives.py -h > /dev/null
+      - run:
+          name: Ingest Jobs
+          command: ingest_jobscripts.py -d
+      - run:
+          name: Remove Currently Installed SUPREMM
+          command: yum remove -y supremm
+      - run:
+          name: Install SUPREMM
+          command: python setup.py install
+      - run:
+          name: Pylint
+          command: pylint --errors-only --disable=E0611 supremm
+      - run:
+          name: Pytest
+          command: pytest --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
+      - run:
+          name: Summarize Jobs
+          command: summarize_jobs.py -h > /dev/null
+      - run:
+          name: Index Archives
+          command: indexarchives.py -h > /dev/null
+      - store_test_results:
+          path: shippable/testresults
+      - store_artifacts:
+          path: shippable/codecoverage
+      - store_artifacts:
+          path: /var/log/xdmod
+
+workflows:
+  full-build:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              install-type: ["fresh_install", "upgrade"]
