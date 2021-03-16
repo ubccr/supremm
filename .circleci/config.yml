@@ -1,12 +1,21 @@
 version: 2.1
+
+executors:
+  xdmod8:
+    docker:
+      - image: tools-ext-01.ccr.xdmod.org/centos7_6-open-job_performance-8.1.0:latest
+  xdmod9:
+    docker:
+      - image: tools-ext-01.ccr.xdmod.org/xdmod-job_performance-9.0.0:centos7.8-0.1
+
 jobs:
   build:
     parameters:
+      os:
+        type: executor
       install-type:
         type: string
-    docker:
-      # The first image entry here will be used as the image for the parent container.
-      - image: tools-ext-01.ccr.xdmod.org/centos7_6-open-job_performance-8.1.0:latest
+    executor: << parameters.os >>
     environment:
       TERM: xterm
       COMPOSER_ALLOW_SUPERUSER: 1
@@ -82,4 +91,5 @@ workflows:
       - build:
           matrix:
             parameters:
+              os: [xdmod8, xdmod9]
               install-type: ["fresh_install", "upgrade"]
