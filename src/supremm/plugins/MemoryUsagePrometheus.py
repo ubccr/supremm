@@ -12,13 +12,13 @@ class MemoryUsagePrometheus(PrometheusPlugin):
     metric_system = property(lambda x: "prometheus")
     requiredMetrics = property(lambda x: {
         'used': {
-            'metric': 'node_memory_MemTotal_bytes{{instance=~"^{node}.+"}} - node_memory_MemFree_bytes{{instance=~"^{node}.+"}}',
+            'metric': '(node_memory_MemTotal_bytes{{instance=~"^{node}.+"}} - node_memory_MemFree_bytes{{instance=~"^{node}.+"}}) / 1024',
         },
         'used_minus_cache': {
-            'metric': """node_memory_MemTotal_bytes{{instance=~"^{node}.+"}}
+            'metric': """(node_memory_MemTotal_bytes{{instance=~"^{node}.+"}}
                 - node_memory_MemFree_bytes{{instance=~"^{node}.+"}}
                 - node_memory_Cached_bytes{{instance=~"^{node}.+"}}
-                - node_memory_Slab_bytes{{instance=~"^{node}.+"}}""",
+                - node_memory_Slab_bytes{{instance=~"^{node}.+"}}) / 1024""",
         }
     })
     optionalMetrics = property(lambda x: {})
