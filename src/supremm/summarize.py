@@ -8,6 +8,7 @@ from pcp import pmapi
 import cpmapi as c_pmapi
 import time
 import logging
+import requests
 import traceback
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
@@ -99,6 +100,7 @@ class Summarize(object):
         """ Main entry point for Prometheus."""
         success = 0
         self.archives_processed = 0
+        session = requests.Session()
 
         for node, jobnode in self.job.nodes.items():
             nodeidx = jobnode.nodeindex
@@ -111,6 +113,7 @@ class Summarize(object):
             mdata = PrometheusMeta(node, nodeidx, start, end)
 
             for preproc in self.preprocs:
+                preproc.session = session
                 preproc.hoststart(mdata.nodename)
                 try:
                     preproc.process(mdata)
@@ -119,10 +122,12 @@ class Summarize(object):
                     self.adderror("preprocessor", "{0}: Exception: {1}. {2}".format(preproc.name, str(exp), traceback.format_exc()))
                     preproc.status = "failure"
                     preproc.hostend()
+                    session.close()
                     raise exp
                 preproc.status = "complete"
                 preproc.hostend()
             for analytic in self.alltimestamps:
+                analytic.session = session
                 try:
                     success = analytic.process(mdata)
                     analytic.status = "complete"
@@ -132,10 +137,11 @@ class Summarize(object):
                     self.adderror("plugin", "{0}: Exception: {1}. {2}".format(analytic.name, str(exc), traceback.format_exc()))
                     analytic.status = "failed"
                     if self.fail_fast:
+                        session.close()
                         raise
             self.archives_processed += 1
                 
-
+        session.close()
         return success == 0
 
     def complete(self):

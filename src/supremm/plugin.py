@@ -444,8 +444,12 @@ class PrometheusPlugin(Plugin):
             'step': self.step,
         }
         url = urlparse.urljoin(self.prometheus_url, "/api/v1/query_range")
-        logging.debug('Prometheus QUERY RANGE, url="%s" params="%s"', url, params)
-        r = requests.post(url, data=params, headers=headers)
+        if self.session is None:
+            logging.debug('Prometheus QUERY RANGE, url="%s" params="%s"', url, params)
+            r = requests.post(url, data=params, headers=headers)
+        else:
+            logging.debug('Prometheus QUERY RANGE (session), url="%s" params="%s"', url, params)
+            r = self.session.post(url, data=params, headers=headers)
         if r.status_code != 200:
             return None
         data = r.json()
@@ -460,8 +464,12 @@ class PrometheusPlugin(Plugin):
             'time': str(ts),
         }
         url = urlparse.urljoin(self.prometheus_url, "/api/v1/query")
-        logging.debug('Prometheus QUERY, url="%s" params="%s"', url, params)
-        r = requests.post(url, data=params, headers=headers)
+        if self.session is None:
+            logging.debug('Prometheus QUERY, url="%s" params="%s"', url, params)
+            r = requests.post(url, data=params, headers=headers)
+        else:
+            logging.debug('Prometheus QUERY (session), url="%s" params="%s"', url, params)
+            r = self.session.post(url, data=params, headers=headers)
         if r.status_code != 200:
             return None
         data = r.json()
