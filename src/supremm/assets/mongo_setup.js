@@ -23,6 +23,11 @@ var sdef = {
             "description": "GPU utilization %",
             "help": "The average percentage of time spent with the GPU active. The average is computed over each time interval."
         },
+        "gpu_mem_usage": {
+            "units": "GB",
+            "description": "GPU memory usage",
+            "help": "The average memory usage per GPU. The average is computed over each time interval."
+        },
         "clktks": {
             "units": "insts/s",
             "description": "Clock Ticks",
