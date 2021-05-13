@@ -14,7 +14,11 @@ class GpuUsageTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
     metric_system = property(lambda x: "prometheus")
     requiredMetrics = property(lambda x: {
         'util': {
-            'metric': 'DCGM_FI_DEV_GPU_UTIL{{instance=~"^{node}.+"}}',
+            'metrics': [
+                'DCGM_FI_DEV_GPU_UTIL{{instance=~"^{node}.+"}} * ON({host_label},gpu) {job_gpu_info}{{instance=~"^{node}.+",jobid="{jobid}"}}',
+                'DCGM_FI_DEV_GPU_UTIL{{instance=~"^{node}.+"}} * ON(gpu) {job_gpu_info}{{instance=~"^{node}.+",jobid="{jobid}"}}',
+                'DCGM_FI_DEV_GPU_UTIL{{instance=~"^{node}.+"}}',
+            ],
             'timeseries_name': 'gpu{gpu}',
         }
     })
@@ -28,12 +32,17 @@ class GpuUsageTimeseriesPrometheus(PrometheusTimeseriesNamePlugin):
             self._hostdata[mdata.nodeindex] = 1
         for metricname, metric in self.allmetrics.items():
             timeseries_name = metric['timeseries_name']
-            query = metric['metric'].format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate)
-            data = self.query_range(query, mdata.start, mdata.end)
-            if data is None:
-                self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
-                return None
-            for r in data.get('data', {}).get('result', []):
+            results = []
+            for query_metric in metric['metrics']:
+                if len(results) > 0:
+                    continue
+                query = query_metric.format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate, host_label=self.host_label, job_gpu_info=self.job_gpu_info)
+                data = self.query_range(query, mdata.start, mdata.end)
+                if data is None:
+                    self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
+                    return None
+                results = data.get('data', {}).get('result', [])
+            for r in results:
                 labels = r.get('metric', {})
                 name = timeseries_name.format(**labels)
                 if str(idx) not in self._devicedata:

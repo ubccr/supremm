@@ -12,7 +12,11 @@ class GpuPowerPrometheus(PrometheusPlugin):
     metric_system = property(lambda x: "prometheus")
     requiredMetrics = property(lambda x: {
         'power': {
-            'metric': 'DCGM_FI_DEV_POWER_USAGE{{instance=~"^{node}.+"}}',
+            'metrics': [
+                'DCGM_FI_DEV_POWER_USAGE{{instance=~"^{node}.+"}} * ON({host_label},gpu) {job_gpu_info}{{instance=~"^{node}.+",jobid="{jobid}"}}',
+                'DCGM_FI_DEV_POWER_USAGE{{instance=~"^{node}.+"}} * ON(gpu) {job_gpu_info}{{instance=~"^{node}.+",jobid="{jobid}"}}',
+                'DCGM_FI_DEV_POWER_USAGE{{instance=~"^{node}.+"}}',
+            ],
         }
     })
     optionalMetrics = property(lambda x: {})
@@ -24,12 +28,17 @@ class GpuPowerPrometheus(PrometheusPlugin):
         """
         self._data[mdata.nodename] = {}
         for metricname, metric in self.allmetrics.items():
-            query = metric['metric'].format(node=mdata.nodename, rate=self.rate)
-            data = self.query_range(query, mdata.start, mdata.end)
-            if data is None:
-                self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
-                return None
-            for r in data.get('data', {}).get('result', []):
+            results = []
+            for query_metric in metric['metrics']:
+                if len(results) > 0:
+                    continue
+                query = query_metric.format(node=mdata.nodename, jobid=self._job.job_id, rate=self.rate, host_label=self.host_label, job_gpu_info=self.job_gpu_info)
+                data = self.query_range(query, mdata.start, mdata.end)
+                if data is None:
+                    self._error = ProcessingError.PROMETHEUS_QUERY_ERROR
+                    return None
+                results = data.get('data', {}).get('result', [])
+            for r in results:
                 gpu = r.get('metric', {}).get('gpu', None)
                 if gpu is None:
                     self._error = ProcessingError.INSUFFICIENT_DATA

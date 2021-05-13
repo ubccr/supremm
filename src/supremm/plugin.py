@@ -432,6 +432,8 @@ class PrometheusPlugin(Plugin):
         self.rate = summaryconf.get('rates', {}).get(self.name, '5m')
         self.start_trim = int(summaryconf.get('start_trim', 30))
         self.end_trim = int(summaryconf.get('end_trim', 30))
+        self.host_label = summaryconf.get('host_label', 'host')
+        self.job_gpu_info = summaryconf.get('job_gpu_info', 'slurm_job_gpu_info')
 
     def query_range(self, query, start, end):
         headers = {
