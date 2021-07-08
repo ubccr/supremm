@@ -30,6 +30,8 @@ class CpuCategories(Plugin):
     DELTA_THRESHOLD = 0.5
     MIN_DELTAS = 5
     MAX_DIFFERENCE = 0.1
+    MIN_HIGH_SIZE = 1
+    MIN_HIGH_VALUE = 0.5
 
     def __init__(self, job):
         super(CpuCategories, self).__init__(job)
@@ -107,13 +109,13 @@ class CpuCategories(Plugin):
             category = "LOW"
         else:
             high = np.sort(duty_list[duty_list >= self.LOW_THRESHOLD])
-            if high.size > 1:
+            if high.size > self.MIN_HIGH_SIZE:
                 if high[-1] - high[0] < self.MAX_DIFFERENCE:
                     category = "PINNED"
                 else:
                     category = "UNPINNED"
             else:
-                if high[0] >= 0.5:
+                if high[0] >= self.MIN_HIGH_VALUE:
                     category = "PINNED"
                 else:
                     category = "UNPINNED"
