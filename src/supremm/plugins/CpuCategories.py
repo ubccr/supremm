@@ -51,7 +51,7 @@ class CpuCategories(Plugin):
             self._deltas[node] = {}
             self._maxcores[node] = 0
 
-            if proc is None and 'cpusallowed' not in proc and node not in proc['cpusallowed']:
+            if proc is None or 'cpusallowed' not in proc or node not in proc['cpusallowed']:
                 for i in range(length):
                     self._timeabove[node][i] = 0
                     self._timebelow[node][i] = 0
