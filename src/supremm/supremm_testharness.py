@@ -28,13 +28,15 @@ def usage():
 def getoptions():
     """ process comandline options """
 
-    opts, args = getopt(sys.argv[1:], "dqhi:e:c:", [
+    opts, args = getopt(sys.argv[1:], "dqhi:e:c:j:a:", [
         "debug",
         "quiet",
         "help",
         "plugin-include",
         "plugin-exclude",
-        "config="
+        "config=",
+        "job-id=",
+        "acct-uid="
     ])
 
     retdata = {
@@ -58,19 +60,23 @@ def getoptions():
         if opt in ("-h", "--help"):
             usage()
             sys.exit(0)
+        if opt in ("-j", "--job-id"):
+            retdata['job_id'] = arg
+        if opt in ("-a", "--acct-uid"):
+            retdata['acct_uid'] = arg
 
     return (retdata, args)
 
 class MockJob(object):
     """ Object that has the same external API as the Job object """
-    def __init__(self, archivelist):
+    def __init__(self, archivelist, opts=None):
         self.node_archives = archivelist
         self.jobdir = os.path.dirname(archivelist[0])
-        self.job_id = "1"
+        self.job_id = opts['job_id'] if 'job_id' in opts else "1"
         self.end_str = "end"
         self.walltime = 9751
         self.nodecount = len(archivelist)
-        self.acct = {"end_time": 12312, "id": 1, "uid": "sdf", "user": "werqw", "partition": "test", "local_job_id": "1234", "resource_manager": "slurm"}
+        self.acct = {"end_time": 12312, "id": 1, "uid": opts['acct_uid'] if 'acct_uid' in opts else "sdf", "user": "werqw", "partition": "test", "local_job_id": "1234", "resource_manager": "slurm"}
         self.nodes = [os.path.basename(x) for x in archivelist]
         self._data = {}
         self._errors = []
@@ -139,7 +145,7 @@ def main():
 
     archivelist = args
 
-    job = MockJob(archivelist)
+    job = MockJob(archivelist, opts)
     config = Config(confpath=opts['config'])
 
     preprocessors = [x(job) for x in preprocs]
