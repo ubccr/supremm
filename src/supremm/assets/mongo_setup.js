@@ -425,6 +425,11 @@ var summarydef = {
                     "unit": "byte"
                 }
             }
+        },
+        "cgroupmemcategories": {
+            "documentation": "Categorization of the cgroup memory usage of the job as constant, increasing, decreasing, or inconsistent. A job is constant if the memory usage stays approximately the same, increasing if the memory usage increases overall, decreasing if the memory usage decreases overall, or inconsistent if the memory usage does not fall under the previous three categories.",
+            "type": "",
+            "unit": ""
         }
     } 
 };
