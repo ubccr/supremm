@@ -73,7 +73,7 @@ class CgroupMemCategories(Plugin):
                 return {"error": ProcessingError.CPUSET_UNKNOWN}
 
         if len(self._data[0]) < self.MIN_DATAPOINTS:
-            return {"error": ProcessingError.INSUFFICIENT_DATA, "length": len(self._data[0])}
+            return {"error": ProcessingError.INSUFFICIENT_DATA}
 
         # Classify the job's memory usage
         total = np.sum(list(self._data.itervalues()), 0)
