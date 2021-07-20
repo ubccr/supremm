@@ -77,7 +77,7 @@ class CgroupMemCategories(Plugin):
 
         # Classify the job's memory usage
         total = np.sum(list(self._data.itervalues()), 0)
-        first, middle, last = np.array_split(total, 3)
+        first, middle, last = np.array_split(total, 3) # pylint: disable=unbalanced-tuple-unpacking
         first, middle, last = np.median(first), np.median(middle), np.median(last)
 
         # Number of zeroes used for threshold. -1 for the leading digit, -2 for the .0
