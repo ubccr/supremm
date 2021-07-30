@@ -425,6 +425,11 @@ var summarydef = {
                     "unit": "byte"
                 }
             }
+        },
+        "cpucategories": {
+            "documentation": "Categorization of the CPU utilization of the job as good, pinned, unpinned, or low. A job is good if every core is heavily utilized, and a job is low if the cores are barely utilized or not at all. A pinned job consists of a scenario where a subset of the cores does most of the work, while an unpinned job is when the work is spread unevenly across many cores.",
+            "type": "",
+            "unit": ""
         }
     } 
 };
