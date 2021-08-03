@@ -60,6 +60,12 @@ class NodeMetadata(object):
         """ returns a unique numerical identifier for the node """
         pass
 
+    @property
+    @abstractmethod
+    def hyperthreadedratio(self):
+        """ returns a numerical value indicating the virtual-to-physical ratio for hyperthreaded cores """
+        pass
+
 class Plugin(object):
     """ abstract base class describing the plugin interface """
     __metaclass__ = ABCMeta

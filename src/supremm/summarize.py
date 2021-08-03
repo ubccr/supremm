@@ -22,14 +22,16 @@ TIMESERIES_VERSION = 4
 
 class ArchiveMeta(NodeMetadata):
     """ container for achive metadata """
-    def __init__(self, nodename, nodeidx, archivedata):
+    def __init__(self, nodename, nodeidx, archivedata, hyperthreadedratio):
         self._nodename = nodename
         self._nodeidx = nodeidx
         self._archivedata = archivedata
+        self._hyperthreadedratio = hyperthreadedratio
 
     nodename = property(lambda self: self._nodename)
     nodeindex = property(lambda self: self._nodeidx)
     archive = property(lambda self: self._archivedata)
+    hyperthreadedratio = property(lambda self: self._hyperthreadedratio)
 
 class Summarize(object):
     """
@@ -37,7 +39,7 @@ class Summarize(object):
     and managing the calls to the various analytics to process the data
     """
 
-    def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
+    def __init__(self, preprocessors, analytics, job, config, resconfig, fail_fast=False):
 
         self.preprocs = preprocessors
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
@@ -47,6 +49,10 @@ class Summarize(object):
         self.start = time.time()
         self.archives_processed = 0
         self.fail_fast = fail_fast
+        if 'hyperthreaded_ratio' in config._config['resources'][resconfig['name']]:
+            self.hyperthreadedratio = config._config['resources'][resconfig['name']]['hyperthreaded_ratio']
+        else:
+            self.hyperthreadedratio = None
 
         self.rangechange = RangeChange(config)
 
@@ -362,7 +368,7 @@ class Summarize(object):
         # pmFetch for the different contexts. This version runs all the pmFetches for each analytic
         # in turn.
         context = pmapi.pmContext(c_pmapi.PM_CONTEXT_ARCHIVE, archive)
-        mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel())
+        mdata = ArchiveMeta(nodename, nodeidx, context.pmGetArchiveLabel(), self.hyperthreadedratio)
 
         for preproc in self.preprocs:
             context.pmSetMode(c_pmapi.PM_MODE_FORW, mdata.archive.start, 0)
