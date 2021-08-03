@@ -39,7 +39,7 @@ class Summarize(object):
     and managing the calls to the various analytics to process the data
     """
 
-    def __init__(self, preprocessors, analytics, job, config, resconfig, fail_fast=False):
+    def __init__(self, preprocessors, analytics, job, config, resconfig=None, fail_fast=False):
 
         self.preprocs = preprocessors
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
@@ -49,7 +49,7 @@ class Summarize(object):
         self.start = time.time()
         self.archives_processed = 0
         self.fail_fast = fail_fast
-        if 'hyperthreaded_ratio' in config._config['resources'][resconfig['name']]:
+        if resconfig is not None and 'hyperthreaded_ratio' in config._config['resources'][resconfig['name']]:
             self.hyperthreadedratio = config._config['resources'][resconfig['name']]['hyperthreaded_ratio']
         else:
             self.hyperthreadedratio = None
