@@ -49,8 +49,8 @@ class Summarize(object):
         self.start = time.time()
         self.archives_processed = 0
         self.fail_fast = fail_fast
-        if resconfig is not None and 'hyperthreaded_ratio' in config._config['resources'][resconfig['name']]:
-            self.hyperthreadedratio = config._config['resources'][resconfig['name']]['hyperthreaded_ratio']
+        if resconfig is not None and 'hyperthreaded_ratio' in resconfig:
+            self.hyperthreadedratio = resconfig['hyperthreaded_ratio']
         else:
             self.hyperthreadedratio = None
 
