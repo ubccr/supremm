@@ -35,3 +35,7 @@ pytest tests/integration_tests/integration_plugin_api.py
 match=$(python src/supremm/supremm_testharness.py -i CpuCategories tests/integration_tests/5894431-1622570028/ | grep -q "GOOD"; echo $?)
 
 [[ $match -eq 0 ]]
+
+match=$(python src/supremm/supremm_testharness.py -i CpuUsage -c tests/integration_tests/config tests/integration_tests/5894431-1622570028/ | jq -e '.cpu.physcpus.physall.cnt | tostring | test("4")' > /dev/null; echo $?)
+
+[[ $match -eq 0 ]]

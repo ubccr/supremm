@@ -1,0 +1,37 @@
+{
+    // Configuration settings for job data input
+    "xdmodroot": "/etc/xdmod",
+    "datawarehouse": {
+        "include": "xdmod://datawarehouse"
+    },
+    // Configuration setting for summary document output
+    "outputdatabase": {
+        "db_engine": "mongodb",
+        "uri": "mongodb://localhost:27017/supremm",
+        "dbname": "supremm"
+    },
+    "summary": {
+        // The archive out directory should be writable by the process that runs
+        // the summaries.
+        "archive_out_dir": "/dev/shm/supremm_test",
+        // The following substitutions are defined for the job archive subdirectory:
+        //  %r means the resource name
+        //  %j the local job id
+        //  the rest is sent to strftime with the end time of the job
+        //  Common examples:
+        //  %Y-%m-%d/%r/%j  includes the date/resource/jobid in the path
+        "subdir_out_format": "%r/%j"
+    },
+    "resources": {
+        "my_cluster_name": {
+            "enabled": true,
+            "resource_id": 1,
+            "batch_system": "XDMoD",
+            "hostname_mode": "hostname",
+            "pcp_log_dir": "/data/pcp-logs/my_cluster_name",
+            "script_dir": "/data/jobscripts/my_cluster_name",
+            "fast_index": true,
+            "hyperthreaded_ratio": 2
+        }
+    }
+}
