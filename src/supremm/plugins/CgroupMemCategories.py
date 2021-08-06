@@ -80,9 +80,8 @@ class CgroupMemCategories(Plugin):
         first, middle, last = np.array_split(total, 3) # pylint: disable=unbalanced-tuple-unpacking
         first, middle, last = np.median(first), np.median(middle), np.median(last)
 
-        # Number of zeroes used for threshold. -1 for the leading digit, -2 for the .0
-        zeroes = len(str(middle)) - 3
-        threshold = int('1'+'0'*zeroes) / 2
+        # Threshold used to determine if the job is constant
+        threshold = middle / 2
 
         if abs(middle - first) <= threshold and abs(last - middle) <= threshold:
             category = "CONSTANT"
