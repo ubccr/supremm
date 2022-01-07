@@ -302,20 +302,20 @@ class XDMoDAcct(Accounting):
         data = (job.job_pk_id, version, elapsedtime, version, elapsedtime)
 
         if self.madcon == None:
-            self.madcon = getdbconnection(self.dbsettings, False)
+            self.madcon = getdbconnection(self.dbsettings, False, {'autocommit': True})
 
         cur = self.madcon.cursor()
 
         try:
             cur.execute(query, data)
-        except OperationalError:
-            logging.warning("Lost MySQL Connection. Attempting single reconnect")
-            self.madcon = getdbconnection(self.dbsettings, False)
+        except OperationalError as e:
+            logging.warning("Lost MySQL Connection. " + str(e))
+            cur.close()
+            self.madcon.close()
+            logging.warning("Attempting reconnect")
+            self.madcon = getdbconnection(self.dbsettings, False, {'autocommit': True})
             cur = self.madcon.cursor()
             cur.execute(query, data)
-
-        self.madcon.commit()
-
 
 class XDMoDArchiveCache(ArchiveCache):
     """ Helper class that adds job accounting records to the database """
