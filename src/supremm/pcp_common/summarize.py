@@ -11,7 +11,7 @@ import logging
 import traceback
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
-from supremm.pcp_common.pcpcinterface import pcpcinterface
+import supremm.pcp_common.pcpcinterface as pcpcinterface
 
 import numpy
 import copy
