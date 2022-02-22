@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 """ CPU categorization plugin """
 
+from collections import OrderedDict
+import numpy as np
+
 from supremm.plugin import Plugin
 from supremm.errors import ProcessingError
-import numpy as np
-from collections import OrderedDict
 
 class CpuCategories(Plugin):
     """ Categorize a job based on its CPU utilization """
@@ -91,7 +92,7 @@ class CpuCategories(Plugin):
     def results(self):
         duty_cycles = OrderedDict()
         for node in self._timeabove:
-            if len(list(self._deltas[node].itervalues())[0]) < self.MIN_DELTAS:
+            if len(list(self._deltas[node].values())[0]) < self.MIN_DELTAS:
                 return {"error": ProcessingError.INSUFFICIENT_DATA}
 
             duty_cycles[node] = OrderedDict()
@@ -101,7 +102,7 @@ class CpuCategories(Plugin):
                 duty_cycles[node]["cpu{}".format(i)] = ratio
 
         # Categorize the job's performance
-        duty_list = np.array([value for node in duty_cycles.itervalues() for value in node.itervalues()])
+        duty_list = np.array([value for node in duty_cycles.values() for value in node.values()])
 
         if not any(value < self.GOOD_THRESHOLD for value in duty_list):
             category = "GOOD"
@@ -120,4 +121,4 @@ class CpuCategories(Plugin):
                 else:
                     category = "UNPINNED"
 
-        return {"dutycycles": duty_cycles, "category": category, "maxcores": sum(self._maxcores.itervalues())}
+        return {"dutycycles": duty_cycles, "category": category, "maxcores": sum(self._maxcores.values())}

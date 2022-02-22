@@ -6,7 +6,7 @@ jobs:
         type: string
     docker:
       # The first image entry here will be used as the image for the parent container.
-      - image: tas-tools-ext-01.ccr.xdmod.org/centos8-xdmod-bootstrap:latest
+      - image: tools-ext-01.ccr.xdmod.org/xdmod-job_performance-10.0.0:rockylinux8-0.1
     environment:
       TERM: xterm
       COMPOSER_ALLOW_SUPERUSER: 1
@@ -18,8 +18,7 @@ jobs:
       - checkout
       - run:
           name: Install System Dependencies
-          command: |
-              yum install -y gcc python3-numpy python3-scipy python36-devel python3-Cython python3-pymongo python3-PyMySQL python3-pytest python3-pytest-cov python3-mock python3-pexpect python3-pylint python3-pcp pcp-devel
+          command: ./tests/ci/setup.sh
       - run:
           name: Create Test Result Directories
           command: |
