@@ -36,7 +36,7 @@ setup(
     packages=find_packages(where='src'),
     package_data={
         'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
-        'supremm.pcpcinterface': ['*.pxd', '*.pyx'],
+        'supremm.pcp_common.pcpcinterface': ['*.pxd', '*.pyx'],
         'supremm.pypmlogextract': ['*.pxd', '*.pyx']
     },
     data_files=[
@@ -53,7 +53,7 @@ setup(
             'gen-pmlogger-control.py = supremm.gen_pmlogger_control:main',
             'summarize_jobs.py = supremm.summarize_jobs:main',
             'summarize_mpi.py = supremm.summarize_mpi:main',
-            'indexarchives.py = supremm.indexarchives:runindexing',
+            'indexarchives.py = supremm.pcp_common.indexarchives:runindexing',
             'account.py = supremm.account:runingest',
             'supremmconf.py = supremm.supremmconf:main',
             'supremm-setup = supremm.supremm_setup:main',

@@ -10,8 +10,8 @@ import datetime
 import logging
 
 from supremm.scripthelpers import parsetime
-from supremm.pcparchive import extract_and_merge_logs
-from supremm.summarize import Summarize
+from supremm.pcp_common.pcparchive import extract_and_merge_logs
+from supremm.pcp_common.summarize import Summarize
 from supremm.errors import ProcessingError, NotApplicableError
 
 def usage(has_mpi):
