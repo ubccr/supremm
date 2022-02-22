@@ -18,6 +18,11 @@ var sdef = {
             "description": "SIMD instructions",
             "help": "The total rate of floating point SIMD instructions reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
         },
+        "sveins": {
+            "units": "insts/s",
+            "description": "SVE instructions",
+            "help": "The total rate of SVE instructions reported by the hardware performance counters on the CPU cores on which the job ran. The number of floating point operations per SVE instruction retired can vary."
+        },
         "gpu_usage": {
             "units": "GPU %",
             "description": "GPU utilization %",
@@ -32,6 +37,11 @@ var sdef = {
             "units": "GB",
             "description": "Node Memory RSS",
             "help": "The total physical memory used by the operating system excluding memory used for caches. This value includes the contribution for <em>all</em> processes including system daemons and all running HPC jobs but does not include the physical memory used by the kernel page and SLAB caches. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)"
+        },
+        "corepower": {
+            "units": "Watts",
+            "help": "The power consumption obtained from hardware measurements built into the CPU or motherboard. This will not include the contribution from other hardware components on the compue node such as periperal cards and power supplies.",
+            "description": "CPU Power"
         },
         "power": {
             "units": "Watts",
@@ -420,6 +430,11 @@ var summarydef = {
                     "unit": "byte"
                 }
             }
+        },
+        "cpucategories": {
+            "documentation": "Categorization of the CPU utilization of the job as good, pinned, unpinned, or low. A job is good if every core is heavily utilized, and a job is low if the cores are barely utilized or not at all. A pinned job consists of a scenario where a subset of the cores does most of the work, while an unpinned job is when the work is spread unevenly across many cores.",
+            "type": "",
+            "unit": ""
         }
     } 
 };
