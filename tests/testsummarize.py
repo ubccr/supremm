@@ -123,8 +123,8 @@ class TestSummarizeJob(unittest.TestCase):
 
         self.verify_errors(ProcessingError.JOB_TOO_MANY_NODEHOURS, 'skipped_job_nodehours', error, mdata)
 
-    @patch('supremm.pcparchive.adjust_job_start_end')
-    @patch('supremm.pcparchive.pmlogextract')
+    @patch('supremm.pcp_common.pcparchive.adjust_job_start_end')
+    @patch('supremm.pcp_common.pcparchive.pmlogextract')
     def test_pmlogextract(self, pmlogextracnfn, adjustjobfn):
         
         pmlogextracnfn.return_value = -10
@@ -133,8 +133,8 @@ class TestSummarizeJob(unittest.TestCase):
 
         self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
-    @patch('supremm.pcparchive.adjust_job_start_end')
-    @patch('supremm.pcparchive.getextractcmdline')
+    @patch('supremm.pcp_common.pcparchive.adjust_job_start_end')
+    @patch('supremm.pcp_common.pcparchive.getextractcmdline')
     @patch('subprocess.Popen')
     def test_pmlogextractfail0(self, popen, getextractcmdline, adjustjobfn):
         
@@ -151,8 +151,8 @@ class TestSummarizeJob(unittest.TestCase):
 
         self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
-    @patch('supremm.pcparchive.adjust_job_start_end')
-    @patch('supremm.pcparchive.getextractcmdline')
+    @patch('supremm.pcp_common.pcparchive.adjust_job_start_end')
+    @patch('supremm.pcp_common.pcparchive.getextractcmdline')
     @patch('subprocess.Popen')
     def test_pmlogextractfail1(self, popen, getextractcmdline, adjustjobfn):
         
@@ -169,8 +169,8 @@ class TestSummarizeJob(unittest.TestCase):
 
         self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
-    @patch('supremm.pcparchive.adjust_job_start_end')
-    @patch('supremm.pcparchive.getextractcmdline')
+    @patch('supremm.pcp_common.pcparchive.adjust_job_start_end')
+    @patch('supremm.pcp_common.pcparchive.getextractcmdline')
     @patch('subprocess.Popen')
     def test_pmlogextractfail2(self, popen, getextractcmdline, adjustjobfn):
         
