@@ -12,7 +12,7 @@ import traceback
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
 from supremm.pcp_common.pcpcinterface import pcpcinterface
-
+from supremm.summarize import Summarize
 
 
 import numpy
@@ -33,7 +33,7 @@ class ArchiveMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
     archive = property(lambda self: self._archivedata)
 
-class Summarize(object):
+class PCPSummarize(Summarize):
     """
     Summarize class is responsible for iteracting with the pmapi python code
     and managing the calls to the various analytics to process the data

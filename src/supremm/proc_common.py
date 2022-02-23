@@ -11,7 +11,7 @@ import logging
 
 from supremm.scripthelpers import parsetime
 from supremm.pcp_common.pcparchive import extract_and_merge_logs
-from supremm.pcp_common.summarize import Summarize
+from supremm.pcp_common.pcpsummarize import PCPSummarize
 from supremm.errors import ProcessingError, NotApplicableError
 
 def usage(has_mpi):
@@ -320,7 +320,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
 
     preprocessors = instantiatePlugins(preprocs, job)
     analytics = instantiatePlugins(plugins, job)
-    s = Summarize(preprocessors, analytics, job, conf, opts["fail_fast"])
+    s = PCPSummarize(preprocessors, analytics, job, conf, opts["fail_fast"])
 
     enough_nodes = False
 

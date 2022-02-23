@@ -9,7 +9,7 @@ import logging
 import datetime
 import tempfile
 
-class TestSummarizeJob(unittest.TestCase):
+class TestPCPSummarizeJob(unittest.TestCase):
 
     def setUp(self):
         confattrs = {'getsection.return_value': {}}
@@ -65,7 +65,7 @@ class TestSummarizeJob(unittest.TestCase):
         assert actual_mdata[expectedMdata]
 
     @patch('supremm.proc_common.extract_and_merge_logs')
-    @patch('supremm.proc_common.Summarize')
+    @patch('supremm.proc_common.PCPSummarize')
     def test_job_too_short(self, summaryclass, extract):
         extract.return_value = 0
 
@@ -77,7 +77,7 @@ class TestSummarizeJob(unittest.TestCase):
         self.verify_errors(ProcessingError.TIME_TOO_SHORT, 'skipped_too_short', error, mdata)
 
     @patch('supremm.proc_common.extract_and_merge_logs')
-    @patch('supremm.proc_common.Summarize')
+    @patch('supremm.proc_common.PCPSummarize')
     def test_parallel_too_short(self, summaryclass, extract):
         extract.return_value = 0
 
@@ -89,7 +89,7 @@ class TestSummarizeJob(unittest.TestCase):
         self.verify_errors(ProcessingError.PARALLEL_TOO_SHORT, 'skipped_parallel_too_short', error, mdata)
 
     @patch('supremm.proc_common.extract_and_merge_logs')
-    @patch('supremm.proc_common.Summarize')
+    @patch('supremm.proc_common.PCPSummarize')
     def test_invlid_nodecount(self, summaryclass, extract):
         extract.return_value = 0
 
@@ -100,7 +100,7 @@ class TestSummarizeJob(unittest.TestCase):
         self.verify_errors(ProcessingError.INVALID_NODECOUNT, 'skipped_invalid_nodecount', error, mdata)
 
     @patch('supremm.proc_common.extract_and_merge_logs')
-    @patch('supremm.proc_common.Summarize')
+    @patch('supremm.proc_common.PCPSummarize')
     def test_jobtoolong(self, summaryclass, extract):
         extract.return_value = 0
 
@@ -111,7 +111,7 @@ class TestSummarizeJob(unittest.TestCase):
         self.verify_errors(ProcessingError.TIME_TOO_LONG, 'skipped_too_long', error, mdata)
 
     @patch('supremm.proc_common.extract_and_merge_logs')
-    @patch('supremm.proc_common.Summarize')
+    @patch('supremm.proc_common.PCPSummarize')
     def test_jobtoonodehours(self, summaryclass, extract):
         """ test the too many nodehours error """
         extract.return_value = 0
