@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """ setup script for SUPReMM job summarization utilities """
-from setuptools import setup, find_packages, Extension
 import sys
 import os
+from setuptools import setup, find_packages, Extension
 import numpy
 
 from Cython.Build import cythonize
@@ -23,7 +23,7 @@ else:
 
 setup(
     name='supremm',
-    version='1.4.1',
+    version='2.0.0',
     description='SUPReMM Job Summarization Utilities',
     long_description='Utilities for generating job-level summary data from host level PCP archives.\nAlso includes template configuration files for running PCP on an HPC system.',
     license='LGPLv3',
