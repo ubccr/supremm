@@ -36,8 +36,7 @@ setup(
     packages=find_packages(where='src'),
     package_data={
         'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
-        'supremm.pcpcinterface': ['*.pxd', '*.pyx'],
-        'supremm.pypmlogextract': ['*.pxd', '*.pyx']
+        'supremm.pcpcinterface': ['*.pxd', '*.pyx']
     },
     data_files=[
         (confpath,                         ['config/config.json']),
@@ -64,17 +63,15 @@ setup(
     },
     install_requires=[
         'numpy',
-        'MySQL-python',
+        'PyMySQL',
         'pcp',
         'Cython',
         'scipy',
         'pymongo',
-        'pytz',
-        'tzlocal'
+        'pytz'
     ],
     ext_modules=cythonize([
-        Extension("supremm.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
-        Extension("supremm.pypmlogextract.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
+        Extension("supremm.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
     ])
 )
 

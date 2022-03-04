@@ -13,7 +13,7 @@ pmlogger_config = 'pmlogger-config.ubccr'
 def main():
     for host in fileinput.input():
         host = host.rstrip()
-        print "%s          n   n   %s/%s               -c ./%s" % (host,pcp_archive_dir,host,pmlogger_config)
+        print("%s          n   n   %s/%s               -c ./%s" % (host,pcp_archive_dir,host,pmlogger_config))
 
 if __name__ == '__main__':
     main()

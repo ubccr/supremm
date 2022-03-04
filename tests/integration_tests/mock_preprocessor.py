@@ -17,9 +17,9 @@ class MockPreprocessor(PreProcessor):
 
     def process(self, timestamp, data, description):
         self.process_called = True
-        print timestamp
-        print data
-        print description
+        print(timestamp)
+        print(data)
+        print(description)
         assert len(data) == 2
         assert len(description) == 2
         assert description[0] == {}  # hinv.ncpu has no instances but we should get an empty dict

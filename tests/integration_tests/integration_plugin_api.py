@@ -3,7 +3,7 @@ from mock import patch
 import pytest
 
 from supremm import summarize_jobs
-from mock_preprocessor import MockPreprocessor
+from tests.integration_tests.mock_preprocessor import MockPreprocessor
 from tests.integration_tests.throwing_plugin import InitThrowingPlugin, ProcessThrowingPlugin, ResultsThrowingPlugin
 
 

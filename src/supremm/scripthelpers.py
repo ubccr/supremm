@@ -3,8 +3,8 @@
 
 import re
 import datetime
-import MySQLdb
-import MySQLdb.cursors
+import pymysql
+import pymysql.cursors
 import sys
 import logging
 
@@ -41,16 +41,16 @@ def getdbconnection(configsection, as_dict=False, defaultargs={}):
                      "pass": "passwd",
                      "port": "port"}
 
-        for confval, myval in translate.iteritems():
+        for confval, myval in translate.items():
             if confval in configsection:
                 dbargs[myval] = configsection[confval]
 
         if as_dict:
-            dbargs['cursorclass'] = MySQLdb.cursors.DictCursor
+            dbargs['cursorclass'] = pymysql.cursors.DictCursor
 
         dbargs['local_infile'] = 1
 
-        return MySQLdb.connect(**dbargs)
+        return pymysql.connect(**dbargs)
     else:
         raise Exception("Unsupported database engine %s" % (dbengine))
 

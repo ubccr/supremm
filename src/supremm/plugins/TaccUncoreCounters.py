@@ -53,7 +53,7 @@ class TaccUncoreCounters(Plugin):
             return {"error": ProcessingError.INSUFFICIENT_DATA}
 
         membw = numpy.zeros(nhosts)
-        for hostindex, data in enumerate(self._data.itervalues()):
+        for hostindex, data in enumerate(self._data.values()):
             membw[hostindex] = data * 64.0
 
         results = {"membw": calculate_stats(membw)}

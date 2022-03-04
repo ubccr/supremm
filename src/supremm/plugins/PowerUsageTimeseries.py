@@ -75,14 +75,14 @@ class PowerUsageTimeseries(Plugin):
             uniqhosts = Counter(sortarr[:, 0])
             uniqhosts.update(sortarr[:, -1])
             uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
-            includelist = uniqhosts.keys()
+            includelist = list(uniqhosts.keys())
         else:
             # Save data for all hosts
             retdata = {
                 "times": values[0, :, 0].tolist(),
                 "hosts": {}
             }
-            includelist = self._hostdata.keys()
+            includelist = list(self._hostdata.keys())
 
 
         for hostidx in includelist:

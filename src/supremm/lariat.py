@@ -17,7 +17,7 @@ class LariatManager(object):
         """ returns a dict containing the lariat data for a job """
 
         if jobid in self.lariatdata:
-            print "Lariat cache size is ", len(self.lariatdata)
+            print("Lariat cache size is ", len(self.lariatdata))
             return self.lariatdata.pop(jobid)
 
         for days in (0, -1, 1):
@@ -40,7 +40,7 @@ class LariatManager(object):
     @staticmethod
     def removeDotKey(obj):
         """ replace . with - in the keys for the json object """
-        for key in obj.keys():
+        for key in list(obj.keys()):
             new_key = key.replace(".", "-")
             if new_key != key:
                 obj[new_key] = obj[key]
@@ -63,7 +63,7 @@ class LariatManager(object):
                 content = fp.read().replace("\\'", "'")
                 lariatJson = json.loads(content, object_hook=LariatManager.removeDotKey)
 
-                for k, v in lariatJson.iteritems():
+                for k, v in lariatJson.items():
                     if k not in self.lariatdata:
                         self.lariatdata[k] = v[0]
                     else:

@@ -86,7 +86,7 @@ class RangeChange(object):
                 self.accumulator[i] = numpy.array(datum)
                 self.last[i] = numpy.array(datum)
             else:
-                self.accumulator[i] += (datum - self.last[i]) % numpy.uint64(1L << self.needsfixup[i]['range'])
+                self.accumulator[i] += (datum - self.last[i]) % numpy.uint64(1 << self.needsfixup[i]['range'])
                 numpy.copyto(self.last[i], datum)
                 numpy.copyto(datum, self.accumulator[i])
 

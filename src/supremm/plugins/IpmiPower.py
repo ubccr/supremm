@@ -54,7 +54,7 @@ class IpmiPower(Plugin):
         energy = []
         time_covered = 0
 
-        for pdata in self._data.itervalues():
+        for pdata in self._data.values():
             if pdata['power'].count() > 0:
                 meanpower.append(pdata['power'].mean())
                 maxpower.append(pdata['power'].max)

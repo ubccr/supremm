@@ -7,7 +7,7 @@ import sys
 import logging
 import glob
 from getopt import getopt
-from MySQLdb import ProgrammingError
+from pymysql import ProgrammingError
 from supremm.config import Config
 from supremm.scripthelpers import getdbconnection
 
@@ -179,14 +179,14 @@ DAY_DELTA = 2
 
 def usage():
     """ print usage """
-    print "usage: {0} [OPTS]".format(os.path.basename(__file__))
-    print "  -r --resource=RES    process only archive files for the specified resource, if absent then all resources are processed"
-    print "  -c --config=PATH     specify the path to the configuration directory"
-    print "  -D --daydelta=DAYS   specify the number of days overlap from the last ingest (default", DAY_DELTA, "days ago)"
-    print "  -a --all             process all scripts regardless of age"
-    print "  -d --debug           set log level to debug"
-    print "  -q --quiet           only log errors"
-    print "  -h --help            print this help message"
+    print("usage: {0} [OPTS]".format(os.path.basename(__file__)))
+    print("  -r --resource=RES    process only archive files for the specified resource, if absent then all resources are processed")
+    print("  -c --config=PATH     specify the path to the configuration directory")
+    print("  -D --daydelta=DAYS   specify the number of days overlap from the last ingest (default", DAY_DELTA, "days ago)")
+    print("  -a --all             process all scripts regardless of age")
+    print("  -d --debug           set log level to debug")
+    print("  -q --quiet           only log errors")
+    print("  -h --help            print this help message")
 
 
 def getoptions():

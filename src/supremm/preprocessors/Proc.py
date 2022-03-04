@@ -111,12 +111,12 @@ class Proc(PreProcessor):
                 pid = int(unamepid[1])
                 currentpids[pid] = idx
 
-        for pid, idx in currentpids.iteritems():
+        for pid, idx in currentpids.items():
             if pid not in description[1]:
                 self.logerror("missing process name")
                 continue
 
-            s = unicode(description[1][pid], errors='replace')
+            s = str(description[1][pid], errors='replace')
             command = s[s.find(" ") + 1:]
 
             if self.cgroupparser is not None:
@@ -133,8 +133,8 @@ class Proc(PreProcessor):
                 unconstrainedprocs[pid] = command
 
         if len(data) > 3 and self.cgrouppath is not None and self.cgroupcpuset is None:
-            for cpuset in itertools.ifilter(lambda x: x[1] == self.cgrouppath, description[3].iteritems()):
-                for content in itertools.ifilter(lambda x: int(x[1]) == cpuset[0], data[3]):
+            for cpuset in filter(lambda x: x[1] == self.cgrouppath, iter(description[3].items())):
+                for content in filter(lambda x: int(x[1]) == cpuset[0], data[3]):
                     self.cgroupcpuset = parsecpusallowed(content[0])
                     break
 
@@ -150,10 +150,10 @@ class Proc(PreProcessor):
                 # next timestep
                 pass
 
-        for procname in containedprocs.itervalues():
+        for procname in containedprocs.values():
             self.output['procDump']['constrained'][procname] += 1
 
-        for procname in unconstrainedprocs.itervalues():
+        for procname in unconstrainedprocs.values():
             self.output['procDump']['unconstrained'][procname] += 1
 
         return True
@@ -189,7 +189,7 @@ class Proc(PreProcessor):
             result["error"] = "process list limited to {0} procs".format(sizelimit)
 
         i = 0
-        for nodename, cpulist in self.output['cpusallowed'].iteritems():
+        for nodename, cpulist in self.output['cpusallowed'].items():
             if 'error' in cpulist:
                 result['cpusallowed']['node{0}'.format(i)] = {'node': nodename, 'error': cpulist['error']}
             else:

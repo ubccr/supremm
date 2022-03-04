@@ -126,8 +126,8 @@ def test():
     for i in indata:
         stats.append(i)
 
-    print stats.get()
-    print calculate_stats(indata)
+    print(stats.get())
+    print(calculate_stats(indata))
 
 if __name__ == "__main__":
     test()

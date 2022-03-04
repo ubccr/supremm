@@ -47,7 +47,7 @@ class GpuPower(Plugin):
     def results(self):
 
         result = {}
-        for data in self._data.itervalues():
+        for data in self._data.values():
 
             if data['power'].count() < 1:
                 continue
@@ -64,7 +64,7 @@ class GpuPower(Plugin):
             return {"error": ProcessingError.INSUFFICIENT_DATA}
 
         output = {}
-        for device, data in result.iteritems():
+        for device, data in result.items():
             output[device] = {
                 "power": {
                     "mean": calculate_stats(data['meanpower']),

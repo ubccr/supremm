@@ -56,7 +56,7 @@ class Catastrophe(Plugin):
 
         vals = None
 
-        for _, data in self._data.iteritems():
+        for _, data in self._data.items():
 
             if data['x'][-1] - data['x'][0] == 0.0:
                 return {"error": ProcessingError.RAW_COUNTER_UNAVAILABLE}
@@ -64,7 +64,7 @@ class Catastrophe(Plugin):
             start = 2
             end = len(data['x'])-2
 
-            for i in xrange(start+1, end-1):
+            for i in range(start+1, end-1):
 
                 a = (data['x'][i] - data['x'][start]) / (data['t'][i] - data['t'][start])
                 b = (data['x'][end] - data['x'][i]) / (data['t'][end] - data['t'][i])

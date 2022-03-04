@@ -53,7 +53,7 @@ class MemoryUsage(Plugin):
         memused = []
         memusedminus = []
 
-        for hostidx, memdata in self._data.iteritems():
+        for hostidx, memdata in self._data.items():
             if hostidx not in self._hostcpucounts:
                 return {"error": ProcessingError.INSUFFICIENT_HOSTDATA}
             if memdata['used'].count() > 0:

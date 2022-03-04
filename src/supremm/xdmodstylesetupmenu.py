@@ -71,7 +71,7 @@ class XDMoDStyleSetupMenu(object):
         answer = None
         while answer not in options:
             curses.echo()
-            answer = self.stdscr.getstr()
+            answer = str(self.stdscr.getstr(), 'ascii')
             curses.noecho()
             
             if answer == "" and default != None:
@@ -94,7 +94,7 @@ class XDMoDStyleSetupMenu(object):
         self.nextrow()
 
         curses.echo()
-        answer = self.stdscr.getstr()
+        answer = str(self.stdscr.getstr(), 'ascii')
         curses.noecho()
 
         if answer == "":
@@ -116,7 +116,7 @@ class XDMoDStyleSetupMenu(object):
 
         curses.echo()
 
-        answer = self.stdscr.getstr()
+        answer = str(self.stdscr.getstr(), 'ascii')
         if answer == "" and default != None:
             answer = default
 
@@ -170,7 +170,7 @@ class XDMoDStyleSetupMenu(object):
             self.stdscr.addstr(self.row, 0, "Select an option (" + ", ".join(options) + "): ")
 
             curses.echo()
-            answer = self.stdscr.getstr()
+            answer = str(self.stdscr.getstr(), 'ascii')
             curses.noecho()
 
             for item in items:

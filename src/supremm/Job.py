@@ -61,7 +61,7 @@ def datetimeconvert(intime):
     """ allow some flexibility in specifying the time: either a unixtimestamp
         or a string """
 
-    if isinstance(intime, long) or isinstance(intime, int):
+    if isinstance(intime, int):
         return datetime.datetime.utcfromtimestamp(intime)
     else:
         return safe_strptime(intime, "%Y-%m-%dT%H:%M:%S")
@@ -114,7 +114,7 @@ class Job(object):
         """
         Store the list of raw archives that comprise the node
         """
-        for nodename, archivelist in node_ar_map.iteritems():
+        for nodename, archivelist in node_ar_map.items():
             self._nodes[nodename].set_rawarchives(archivelist)
 
     def mark_bad_rawarchive(self, nodename, archive_path, reason):
@@ -126,20 +126,20 @@ class Job(object):
 
     def rawarchives(self):
         """ iterator for the raw archives for the nodes in the job """
-        for nodename, nodedata in self._nodes.iteritems():
+        for nodename, nodedata in self._nodes.items():
             if len(nodedata.rawarchives) > 0:
                 yield nodename, nodedata.rawarchives
 
     def nodearchives(self):
         """ iterator for the combined archives for the nodes in the job """
-        for nodename, nodedata in self._nodes.iteritems():
+        for nodename, nodedata in self._nodes.items():
             if nodedata.archive != None:
                 yield nodename, nodedata.nodeindex, nodedata.archive
 
     def has_any_archives(self):
         """ are there any archives for this job """
 
-        for _, nodedata in self._nodes.iteritems():
+        for _, nodedata in self._nodes.items():
             if len(nodedata.rawarchives) > 0:
                 return True
 
@@ -150,7 +150,7 @@ class Job(object):
 
         num_archives = 0
 
-        for _, nodedata in self._nodes.iteritems():
+        for _, nodedata in self._nodes.items():
             if len(nodedata.rawarchives) > 0:
                 num_archives += 1
 
@@ -164,7 +164,7 @@ class Job(object):
 
         num_archives = 0
 
-        for _, nodedata in self._nodes.iteritems():
+        for _, nodedata in self._nodes.items():
             if nodedata.archive != None:
                 num_archives += 1
 
@@ -239,7 +239,7 @@ class Job(object):
 
     def get_errors(self):
         """ Return the list of processing errors """
-        return self._errors.keys()
+        return list(self._errors.keys())
 
     def record_error(self, msg):
         """ record a processing error for the job """
