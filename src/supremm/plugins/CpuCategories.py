@@ -64,10 +64,12 @@ class CpuCategories(Plugin):
                     self._timeabove[node][i] = 0
                     self._timebelow[node][i] = 0
                     self._deltas[node][i] = []
-            self._last[node] = np.array(data)[:, self._timeabove[node].keys()]
+            timeabove = [x for x in self._timeabove[node].keys()]
+            self._last[node] = np.array(data)[:, timeabove]
             return True
 
-        nodedata = np.array(data)[:, self._timeabove[node].keys()]
+        timeabove = [x for x in self._timeabove[node].keys()]
+        nodedata = np.array(data)[:, timeabove]
         difference = nodedata - self._last[node]
         total = np.sum(difference, 0)
         self._last[node] = nodedata
