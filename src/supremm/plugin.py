@@ -43,10 +43,9 @@ def loadpreprocessors(preprocdir=None):
 
     return loadplugins(preprocdir, "preprocessors")
 
-class NodeMetadata(object):
+class NodeMetadata(object, metaclass=ABCMeta):
     """ Wrapper class that contains info about a job node. This is passed to
         the process function of the plugin. """
-    __metaclass__ = ABCMeta
 
     @property
     @abstractmethod
@@ -60,9 +59,8 @@ class NodeMetadata(object):
         """ returns a unique numerical identifier for the node """
         pass
 
-class Plugin(object):
+class Plugin(object, metaclass=ABCMeta):
     """ abstract base class describing the plugin interface """
-    __metaclass__ = ABCMeta
 
     def __init__(self, job):
         self._job = job
@@ -110,14 +108,13 @@ class Plugin(object):
         pass
 
 
-class PreProcessor(object):
+class PreProcessor(object, metaclass=ABCMeta):
     """
     Preprocessors are called on each archive before all of the plugins are
     run. The results of the preprocessor are therefore available to the plugins.
     The preprocessor results should be added to the job object by the preprocessor
     using the job.addata() function.
     """
-    __metaclass__ = ABCMeta
 
     def __init__(self, job):
         self._job = job
@@ -182,12 +179,11 @@ class PreProcessor(object):
         pass
 
 
-class DeviceBasedPlugin(Plugin):
+class DeviceBasedPlugin(Plugin, metaclass=ABCMeta):
     """
     A base abstract class for summarising the job-delta for device-based metrics
     The plugin name and list of required metrics must be provided by the implementation
     """
-    __metaclass__ = ABCMeta
 
     mode = property(lambda x: "firstlast")
 
@@ -216,7 +212,7 @@ class DeviceBasedPlugin(Plugin):
         hostdata = ndata - self._first[nodemeta.nodename]
 
         for mindex, i in enumerate(description):
-            for index in xrange(len(hostdata[mindex, :])):
+            for index in range(len(hostdata[mindex, :])):
                 indom = i[1][index]
                 metricname = self.allmetrics[mindex]
 
@@ -238,22 +234,21 @@ class DeviceBasedPlugin(Plugin):
 
         output = {}
 
-        for devicename, device in self._data.iteritems():
+        for devicename, device in self._data.items():
             cleandevname = devicename.replace(".", "-")
             output[cleandevname] = {}
-            for metricname, metric in device.iteritems():
+            for metricname, metric in device.items():
                 prettyname = "-".join(metricname.split(".")[2:])
                 output[cleandevname][prettyname] = calculate_stats(metric)
 
         return output
 
-class DeviceInstanceBasedPlugin(Plugin):
+class DeviceInstanceBasedPlugin(Plugin, metaclass=ABCMeta):
     """
     A base abstract class for summarising the job-delta for device-based metrics
     that only have a singe instance.
     The plugin name and list of required metrics must be provided by the implementation
     """
-    __metaclass__ = ABCMeta
 
     mode = property(lambda x: "firstlast")
 
@@ -289,20 +284,19 @@ class DeviceInstanceBasedPlugin(Plugin):
 
         output = {}
 
-        for metricname, metric in self._data.iteritems():
+        for metricname, metric in self._data.items():
             prettyname = "-".join(metricname.split(".")[1:])
             output[prettyname] = calculate_stats(metric)
 
         return output
 
 
-class RateConvertingTimeseriesPlugin(Plugin):
+class RateConvertingTimeseriesPlugin(Plugin, metaclass=ABCMeta):
     """ 
     A base abstract class for generating a timeseries summary for values that should
     be converted to rates, one per node.
     The plugin name,  list of required metrics and generator function must be provided by the implementation
     """
-    __metaclass__ = ABCMeta
 
     mode = property(lambda x: "timeseries")
 
@@ -355,14 +349,14 @@ class RateConvertingTimeseriesPlugin(Plugin):
             uniqhosts = Counter(sortarr[:, 0])
             uniqhosts.update(sortarr[:, -1])
             uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
-            includelist = uniqhosts.keys()
+            includelist = list(uniqhosts.keys())
         else:
             # Save data for all hosts
             retdata = {
                 "times": values[0, 1:, 0].tolist(),
                 "hosts": {}
             }
-            includelist = self._hostdata.keys()
+            includelist = list(self._hostdata.keys())
 
 
         for hostidx in includelist:

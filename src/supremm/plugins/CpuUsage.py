@@ -67,7 +67,7 @@ class CpuUsage(Plugin):
         ratios = numpy.empty((self._ncpumetrics, self._totalcores), numpy.double)
 
         coreindex = 0
-        for host, last in self._last.iteritems():
+        for host, last in self._last.items():
             try:
                 elapsed = last - self._first[host]
 
@@ -104,7 +104,7 @@ class CpuUsage(Plugin):
         ratios = numpy.empty((self._ncpumetrics, self._totalcores), numpy.double)
 
         coreindex = 0
-        for host, last in self._last.iteritems():
+        for host, last in self._last.items():
             elapsed = last - self._first[host]
             if host in cpusallowed and 'error' not in cpusallowed[host]:
                 elapsed = elapsed[:, cpusallowed[host]]

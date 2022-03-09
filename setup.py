@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """ setup script for SUPReMM job summarization utilities """
-from setuptools import setup, find_packages, Extension
 import sys
 import os
+from setuptools import setup, find_packages, Extension
 import numpy
 
 from Cython.Build import cythonize
@@ -23,7 +23,7 @@ else:
 
 setup(
     name='supremm',
-    version='1.4.1',
+    version='2.0.0',
     description='SUPReMM Job Summarization Utilities',
     long_description='Utilities for generating job-level summary data from host level PCP archives.\nAlso includes template configuration files for running PCP on an HPC system.',
     license='LGPLv3',
@@ -36,8 +36,7 @@ setup(
     packages=find_packages(where='src'),
     package_data={
         'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
-        'supremm.pcp_common.pcpcinterface': ['*.pxd', '*.pyx'],
-        'supremm.pypmlogextract': ['*.pxd', '*.pyx']
+        'supremm.pcp_common.pcpcinterface': ['*.pxd', '*.pyx']
     },
     data_files=[
         (confpath,                         ['config/config.json']),
@@ -64,17 +63,20 @@ setup(
     },
     install_requires=[
         'numpy',
-        'MySQL-python',
+        'PyMySQL',
         'pcp',
         'Cython',
         'scipy',
         'pymongo',
-        'pytz',
-        'tzlocal'
+        'pytz'
     ],
     ext_modules=cythonize([
+<<<<<<< HEAD
         Extension("supremm.pcp_common.pcpcinterface.pcpcinterface", ["src/supremm/pcp_common/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
         Extension("supremm.pypmlogextract.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
+=======
+        Extension("supremm.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
+>>>>>>> supremm-origin/v2.0
     ])
 )
 

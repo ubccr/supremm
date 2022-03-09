@@ -284,7 +284,7 @@ def extractValues(context, result, py_metric_id_array, mtypes, logerr):
                     if name == NULL:
                         logerr("instance is not pcp archive")
                         continue # Possibly add logging here
-                    tmp_names.append(name)
+                    tmp_names.append(name.decode('utf8'))
                     tmp_idx[j] = res.vset[i].vlist[j].inst
                         
                 description.append([tmp_idx, tmp_names])
@@ -393,8 +393,11 @@ def loadrequiredmetrics(context, requiredMetrics):
     cdef int status
     cdef char** nameofmetrics = <char**>malloc(num_met * sizeof(char*))
     mem.add(nameofmetrics)
+    byte_versions = []
     for i in xrange(num_met):
-        nameofmetrics[i] = requiredMetrics[i]
+        byte_version = requiredMetrics[i].encode()
+        byte_versions.append(byte_version)
+        nameofmetrics[i] = byte_version
     
     cdef c_pcp.pmID* required = <c_pcp.pmID*>malloc(num_met * sizeof(c_pcp.pmID*))
     mem.add(required)

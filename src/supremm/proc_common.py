@@ -16,49 +16,49 @@ from supremm.errors import ProcessingError, NotApplicableError
 
 def usage(has_mpi):
     """ print usage """
-    print "usage: {0} [OPTS]".format(os.path.basename(sys.argv[0]))
-    print "  -j --localjobid JOBID process only the job with the provided local job id"
-    print "                        (resource must also be specified)"
-    print "  -r --resource RES     process only jobs on the specified resource"
+    print("usage: {0} [OPTS]".format(os.path.basename(sys.argv[0])))
+    print("  -j --localjobid JOBID process only the job with the provided local job id")
+    print("                        (resource must also be specified)")
+    print("  -r --resource RES     process only jobs on the specified resource")
     if not has_mpi:
-        print "  -t --threads THEADS   number of concurrent processes to create"
-    print "  -d --debug            set log level to debug"
-    print "  -q --quiet            only log errors"
-    print "  -s --start TIME       process all jobs that ended after the provided start"
-    print "                        time (an end time must also be specified)"
-    print "  -e --end TIME         process all jobs that ended before the provided end"
-    print "                        time (a start time must also be specified)"
-    print "  -A --process-all      when using a timerange, look for all jobs. Combines flags (BONC)"
-    print "  -B --process-bad      when using a timerange, look for jobs that previously failed to process"
-    print "  -O --process-old      when using a timerange, look for jobs that have an old process version"
-    print "  -N --process-notdone  when using a timerange, look for unprocessed jobs"
-    print "  -C --process-current  when using a timerange, look for jobs with the current process version"
-    print "  -b --process-big      when using a timerange, look for jobs that were previously marked as being too big"
-    print "  -P --process-error N  when using a timerange, look for jobs that were previously marked with error N"
-    print "  -T --timeout SECONDS  amount of elapsed time from a job ending to when it"
-    print "                        is marked as process even if the source data is not available"
-    print "  -M --max-nodes NODES  only process jobs with fewer than this many nodes"
-    print "                        can be marked as processed even if the raw data is"
-    print "                        absent"
-    print "     --min-duration SECONDS   only process jobs with a duration longer than SECONDS"
-    print "                              (default no limit)"
-    print "     --min-parallel-duration SECONDS   only process parallel jobs with a"
-    print "                                       duration longer than SECONDS (default no limit)"
-    print "     --max-duration SECONDS   only process jobs with a duration shorter than SECONDS"
-    print "                              (default no limit)"
-    print "     --tag              tag to add to the summarization field in mongo"
+        print("  -t --threads THEADS   number of concurrent processes to create")
+    print("  -d --debug            set log level to debug")
+    print("  -q --quiet            only log errors")
+    print("  -s --start TIME       process all jobs that ended after the provided start")
+    print("                        time (an end time must also be specified)")
+    print("  -e --end TIME         process all jobs that ended before the provided end")
+    print("                        time (a start time must also be specified)")
+    print("  -A --process-all      when using a timerange, look for all jobs. Combines flags (BONC)")
+    print("  -B --process-bad      when using a timerange, look for jobs that previously failed to process")
+    print("  -O --process-old      when using a timerange, look for jobs that have an old process version")
+    print("  -N --process-notdone  when using a timerange, look for unprocessed jobs")
+    print("  -C --process-current  when using a timerange, look for jobs with the current process version")
+    print("  -b --process-big      when using a timerange, look for jobs that were previously marked as being too big")
+    print("  -P --process-error N  when using a timerange, look for jobs that were previously marked with error N")
+    print("  -T --timeout SECONDS  amount of elapsed time from a job ending to when it")
+    print("                        is marked as process even if the source data is not available")
+    print("  -M --max-nodes NODES  only process jobs with fewer than this many nodes")
+    print("                        can be marked as processed even if the raw data is")
+    print("                        absent")
+    print("     --min-duration SECONDS   only process jobs with a duration longer than SECONDS")
+    print("                              (default no limit)")
+    print("     --min-parallel-duration SECONDS   only process parallel jobs with a")
+    print("                                       duration longer than SECONDS (default no limit)")
+    print("     --max-duration SECONDS   only process jobs with a duration shorter than SECONDS")
+    print("                              (default no limit)")
+    print("     --tag              tag to add to the summarization field in mongo")
     if has_mpi:
-        print "     --dump-proclist    whether to output the MPI process information periodically"
-    print "  -D --delete T|F       whether to delete job-level archives after processing."
-    print "  -E --extract-only     only extract the job-level archives (sets delete=False)"
-    print "  -L --use-lib-extract  use libpcp_pmlogextract.so.1 instead of pmlogextract"
-    print "  -o --output DIR       override the output directory for the job archives."
-    print "                        This directory will be emptied before used and no"
-    print "                        subdirectories will be created. This option is ignored "
-    print "                        if multiple jobs are to be processed."
-    print "     --fail-fast        Don't suppress and log unknown exceptions during processing. Mainly used for testing."
-    print "  -n --dry-run          process jobs but do not write to database."
-    print "  -h --help             display this help message and exit."
+        print("     --dump-proclist    whether to output the MPI process information periodically")
+    print("  -D --delete T|F       whether to delete job-level archives after processing.")
+    print("  -E --extract-only     only extract the job-level archives (sets delete=False)")
+    print("  -L --use-lib-extract  use libpcp_pmlogextract.so.1 instead of pmlogextract")
+    print("  -o --output DIR       override the output directory for the job archives.")
+    print("                        This directory will be emptied before used and no")
+    print("                        subdirectories will be created. This option is ignored ")
+    print("                        if multiple jobs are to be processed.")
+    print("     --fail-fast        Don't suppress and log unknown exceptions during processing. Mainly used for testing.")
+    print("  -n --dry-run          process jobs but do not write to database.")
+    print("  -h --help             display this help message and exit.")
 
 
 def getoptions(has_mpi):

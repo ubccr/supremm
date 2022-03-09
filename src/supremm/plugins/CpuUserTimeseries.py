@@ -87,14 +87,14 @@ class CpuUserTimeseries(Plugin):
             uniqhosts = Counter(sortarr[:, 0])
             uniqhosts.update(sortarr[:, -1])
             uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
-            includelist = uniqhosts.keys()
+            includelist = list(uniqhosts.keys())
         else:
             # Save data for all hosts
             retdata = {
                 "times": values[0, 1:, 0].tolist(),
                 "hosts": {}
             }
-            includelist = self._hostdata.keys()
+            includelist = list(self._hostdata.keys())
 
 
         for hostidx in includelist:
@@ -102,7 +102,7 @@ class CpuUserTimeseries(Plugin):
             retdata['hosts'][str(hostidx)]['all'] = rates[hostidx, :].tolist()
             retdata['hosts'][str(hostidx)]['dev'] = {}
 
-            for devid in self._hostdevnames[hostidx].iterkeys():
+            for devid in self._hostdevnames[hostidx].keys():
                 dpnts = len(values[hostidx, :, 0])
                 retdata['hosts'][str(hostidx)]['dev'][devid] = (numpy.diff(self._hostdata[hostidx][:dpnts, numpy.int(devid)]) / numpy.diff(values[hostidx, :, 0])).tolist()
 

@@ -13,7 +13,7 @@ class ArmPowerUsageTimeseries(Plugin):
 
     name = property(lambda x: "corepower")
     mode = property(lambda x: "timeseries")
-    requiredMetrics = property(lambda x: ["perfevent.hwcounters.arm_a64fx__EA_CORE.value", "perfevent.hwcounters.arm_a64fx__EA_L2.value", 
+    requiredMetrics = property(lambda x: ["perfevent.hwcounters.arm_a64fx__EA_CORE.value", "perfevent.hwcounters.arm_a64fx__EA_L2.value",
 "perfevent.hwcounters.arm_a64fx__EA_MEMORY.value"])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
@@ -21,7 +21,7 @@ class ArmPowerUsageTimeseries(Plugin):
     def __init__(self, job):
         super(ArmPowerUsageTimeseries, self).__init__(job)
         self._data = TimeseriesAccumulator(job.nodecount, self._job.walltime)
-	self._error = None
+        self._error = None
         self._hostdata = {}
 
     @staticmethod
@@ -45,11 +45,11 @@ class ArmPowerUsageTimeseries(Plugin):
         if nodemeta.nodeindex not in self._hostdata:
             self._hostdata[nodemeta.nodeindex] = numpy.empty((TimeseriesAccumulator.MAX_DATAPOINTS, 3))
 
-	cpucount = numpy.sum(data[0])
+        cpucount = numpy.sum(data[0])
         l2count = data[1][0] + data[1][12] + data[1][24] + data[1][36]
         memcount = data[2][0] + data[2][12] + data[2][24] + data[2][36]
-	
-	energy = (8.04 * cpucount) + (32.8 * l2count) + (271.0 * memcount)
+
+        energy = (8.04 * cpucount) + (32.8 * l2count) + (271.0 * memcount)
 
         insertat = self._data.adddata(nodemeta.nodeindex, timestamp, energy)
 
@@ -100,8 +100,8 @@ class ArmPowerUsageTimeseries(Plugin):
             }
             includelist = self._hostdata.keys()
 
-	scaling = {
-	    '0': 8.04e-9,
+        scaling = {
+            '0': 8.04e-9,
             '1': 32.8e-9,
             '2': 271.e-9
         }

@@ -4,15 +4,17 @@ set -euxo pipefail
 
 indexarchives.py -da
 summarize_jobs.py -d -r 2 -j 972366 --fail-fast
-aggregate_supremm.sh
 
-count=$(mysql -ss -u root <<EOF
-USE modw_supremm;
-SELECT count(*) FROM job WHERE local_job_id=972366 AND resource_id=2 AND netdrv_gpfs_rx IS NOT NULL;
-EOF
-)
-
-[[ $count -eq 1 ]]
+# DISABLED until XDMoD is ported to Centos 8
+#aggregate_supremm.sh
+#
+#count=$(mysql -ss -u root <<EOF
+#USE modw_supremm;
+#SELECT count(*) FROM job WHERE local_job_id=972366 AND resource_id=2 AND netdrv_gpfs_rx IS NOT NULL;
+#EOF
+#)
+#
+#[[ $count -eq 1 ]]
 
 ingest_jobscripts.py
 
@@ -30,8 +32,8 @@ EOF
 
 [[ $count -eq 6 ]]
 
-pytest tests/integration_tests/integration_plugin_api.py
+pytest-3 tests/integration_tests/integration_plugin_api.py
 
-match=$(python src/supremm/supremm_testharness.py -i CpuCategories tests/integration_tests/5894431-1622570028/ | grep -q "GOOD"; echo $?)
+match=$(python3 src/supremm/supremm_testharness.py -i CpuCategories tests/integration_tests/5894431-1622570028/ | grep -q "GOOD"; echo $?)
 
 [[ $match -eq 0 ]]

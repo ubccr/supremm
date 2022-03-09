@@ -137,13 +137,13 @@ class PCPSummarize(Summarize):
             if result != None:
                 output.update(result)
 
-        for source, data in self.job.data().iteritems():
+        for source, data in self.job.data().items():
             if 'errors' in data:
                 self.adderror(source, str(data['errors']))
 
         if len(self.errors) > 0:
             output['errors'] = {}
-            for k, v in self.errors.iteritems():
+            for k, v in self.errors.items():
                 output['errors'][k] = list(v)
 
         return output

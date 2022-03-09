@@ -1,8 +1,12 @@
 SUPReMM Processing Tools
 ========================
 
-SUPReMM is a comprehensive open-source tool chain that provides resource
-monitoring capabilities to users and managers of HPC systems.
+Our team at the Center for Computational Research University at Buffalo
+develop and support a range of tools for the comprehensive management of
+advanced cyber infrastructure (CI) resources, including high performance
+computing (HPC). Part of comprehensive CI management is the monitoring and analysis
+of user's HPC jobs. The suite of tools to support job-level performance
+analysis was originally developed under a project called "SUPReMM".
 
 The SUPReMM architecture comprises three major components:
 
@@ -32,29 +36,33 @@ This section provides instructions on how to create an RPM or source packages fo
 software development or debugging. The instructions for installing the released
 packages are available on the [main website](https://supremm.xdmod.org/supremm-processing-install.html).
 
-### Centos 7 (7.6 and later)
+### Rocky Linux 8
 
 Install the EPEL repository configuration:
 
     yum install epel-release
 
+Enable the PowerTools repository (for Cython dependencies):
+
+    sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/Rocky-PowerTools.repo
+
 Install the build dependencies:
 
-    yum install rpm-build \
-                gcc \
-                numpy \
-                scipy \
-                python-devel \
-                python2-pip \
-                python2-mock \
-                python-ctypes \
-                python-pymongo \
-                MySQL-python \
-                Cython \
-                python-pcp \
-                pcp-libs-devel
-
-    pip install setuptools==36.4.0
+    yum install -y \
+        gcc \
+        python3-numpy \
+        python3-scipy \
+        python36-devel \
+        python3-Cython \
+        python3-pymongo \
+        python3-PyMySQL \
+        python3-pytest \
+        python3-pytest-cov \
+        python3-mock \
+        python3-pexpect \
+        python3-pylint \
+        python3-pcp \
+        pcp-devel
 
 Installation
 ------------
@@ -63,13 +71,13 @@ This project uses the [python setuptools][pydist] for package creation, and
 the setup script is known to work with setuptools version 36.4.0 or later.
 To install in a conda environment:
 
-    conda create -n supremm python=2.7 cython numpy scipy
+    conda create -n supremm python=3.6 cython numpy scipy
     source activate supremm
-    python setup.py install 
+    python3 setup.py install
 
 RPM packages are created using:
 
-    python setup.py bdist_rpm
+    python3 setup.py bdist_rpm
 
 
 Contributing

@@ -70,7 +70,7 @@ class CgroupMemTimeseries(Plugin):
         if len(self._hostdata) != self._job.nodecount:
             return {'error': ProcessingError.RAW_COUNTER_UNAVAILABLE}
 
-        for hcount in self._hostcounts.itervalues():
+        for hcount in self._hostcounts.values():
             if hcount['missing'] > hcount['present']:
                 return {'error': ProcessingError.CPUSET_UNKNOWN}
 
@@ -95,14 +95,14 @@ class CgroupMemTimeseries(Plugin):
             uniqhosts = Counter(sortarr[:, 0])
             uniqhosts.update(sortarr[:, -1])
             uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
-            includelist = uniqhosts.keys()
+            includelist = list(uniqhosts.keys())
         else:
             # Save data for all hosts
             retdata = {
                 "times": values[0, :, 0].tolist(),
                 "hosts": {}
             }
-            includelist = self._hostdata.keys()
+            includelist = list(self._hostdata.keys())
 
 
         for hostidx in includelist:

@@ -44,7 +44,7 @@ class GpuUsage(Plugin):
     def results(self):
 
         result = {}
-        for data in self._data.itervalues():
+        for data in self._data.values():
             for i, devicename in enumerate(data['names']):
                 if devicename not in result:
                     result[devicename] = {}
@@ -56,9 +56,9 @@ class GpuUsage(Plugin):
                     result[devicename][statname + "max"].append(data[statname].max[i])
             
         output = {}
-        for device, data in result.iteritems():
+        for device, data in result.items():
             output[device] = {}
-            for statname, datalist in data.iteritems():
+            for statname, datalist in data.items():
                 output[device][statname] = calculate_stats(datalist)
 
         if len(output) == 0:
