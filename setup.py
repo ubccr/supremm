@@ -71,12 +71,7 @@ setup(
         'pytz'
     ],
     ext_modules=cythonize([
-<<<<<<< HEAD
-        Extension("supremm.pcp_common.pcpcinterface.pcpcinterface", ["src/supremm/pcp_common/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()]),
-        Extension("supremm.pypmlogextract.pypmlogextract", ["src/supremm/pypmlogextract/pypmlogextract.pyx"])
-=======
-        Extension("supremm.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
->>>>>>> supremm-origin/v2.0
+        Extension("supremm.pcp_common.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
     ])
 )
 
