@@ -435,6 +435,42 @@ var summarydef = {
             "documentation": "Categorization of the CPU utilization of the job as good, pinned, unpinned, or low. A job is good if every core is heavily utilized, and a job is low if the cores are barely utilized or not at all. A pinned job consists of a scenario where a subset of the cores does most of the work, while an unpinned job is when the work is spread unevenly across many cores.",
             "type": "",
             "unit": ""
+        },
+        "rapl": {
+            "energy" : {
+                "pkg" : {
+                    "documentation": "",
+                    "type": "",
+                    "unit": "Joules"
+                },
+                "cores" : {
+                    "documentation": "",
+                    "type": "",
+                    "unit": "Joules"
+                },
+                "dram" : {
+                    "documentation": "",
+                    "type": "",
+                    "unit": "Joules"
+                }
+            },
+            "power": {
+                "pkg" : {
+                    "documentation": "",
+                    "type": "",
+                    "unit": "Watts"
+                },
+                "cores" : {
+                    "documentation": "",
+                    "type": "",
+                    "unit": "Watts"
+                },
+                "dram" : {
+                    "documentation": "",
+                    "type": "",
+                    "unit": "Watts"
+                }
+            }
         }
     } 
 };
