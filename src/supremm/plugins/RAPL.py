@@ -16,9 +16,9 @@ class RAPL(Plugin):
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
-    # Scaling factor to convert RAPL energy measurements to Joules 
+    # Scaling factor to convert RAPL energy measurements to Joules
     scaleFactor = 2**(-32)
-   
+
     def __init__(self, job):
         super(RAPL, self).__init__(job)
         self._first = {}
@@ -69,7 +69,7 @@ class RAPL(Plugin):
 
             wallTime = data['time']
 
-        # Return energy in Joules and power in Watts (J/s)  
+        # Return energy in Joules and power in Watts (J/s)
         return {
             "power":{
                 "pkg": calculate_stats(pkgArray)['avg']/wallTime,
