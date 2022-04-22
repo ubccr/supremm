@@ -71,7 +71,7 @@ setup(
         'pytz'
     ],
     ext_modules=cythonize([
-        Extension("supremm.pcp_common.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
+        Extension("supremm.pcp_common.pcpcinterface.pcpcinterface", ["src/supremm/pcp_common/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
     ])
 )
 
