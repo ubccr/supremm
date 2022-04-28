@@ -24,8 +24,8 @@ class MockPromJob():
         self._data = {}
         self._errors = [] 
 
-        self.start_datetime = "2022-04-05T09:30:00.781Z"
-        self.end_datetime = "2022-04-05T09:35:00.781Z" 
+        self.start_datetime = "2022-04-18T12:30:00.781Z"
+        self.end_datetime = "2022-04-18T13:30:00.781Z"
 
     def get_errors(self):
         """ return job errors """
@@ -55,7 +55,7 @@ def main():
     preprocs = loadpreprocessors()
     plugins = loadplugins()
 
-    preprocs, plugins = filter_plugins({"plugin_whitelist": ['CpuUsage', 'CpuPerfCounters']}, preprocs, plugins)
+    preprocs, plugins = filter_plugins({"plugin_whitelist": ['CpuUsage', 'CpuPerfCounters', 'MemoryUsage']}, preprocs, plugins)
 
     logging.debug("Loaded %s preprocessors", len(preprocs))
     logging.debug("Loaded %s plugins", len(plugins))
@@ -65,10 +65,10 @@ def main():
     # Instantiate plugins by job's available metrics (PCP naming) 
     #preprocs = [x(job) for x in preprocs]
     plugins = [x(job) for x in plugins]  
-
+   
     s = PromSummarize(plugins, job)
     s.process()
-    #s.series_meta("2022-04-05T09:30:00.781Z", "2022-04-05T09:35:00.781Z")
+ 
     result = s.get()
     print(json.dumps(result, indent=4))
 
