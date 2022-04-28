@@ -207,7 +207,7 @@ class PromSummarize():
                 try:
                     mapping[k] = self.valid_metrics[k]
                 except KeyError:
-                    print("Mapping unavailable for metric: %s" % k)
+                    logging.debug("Mapping unavailable for metric: %s", k)
                     return False
             return mapping
 
