@@ -24,8 +24,8 @@ class MockPromJob():
         self._data = {}
         self._errors = [] 
 
-        self.start_datetime = "2022-04-18T12:30:00.781Z"
-        self.end_datetime = "2022-04-18T13:30:00.781Z"
+        self.start_datetime = "2022-04-18T12:30:00.000Z"
+        self.end_datetime = "2022-04-28T09:00:00.000Z"
 
     def get_errors(self):
         """ return job errors """
