@@ -3,9 +3,9 @@ import json
 import time
 import logging
 import requests
+import sys
 import urllib.parse as urlparse
 from collections import OrderedDict
-from collections.abc import Iterable
 
 import numpy as np
 import prometheus_api_client as pac
@@ -124,7 +124,7 @@ class PromSummarize():
             logging.info("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
             analytic.status = "failure"
             return
-        
+         
         for dt in [start, end]:
             pdata = []
             time = {'time': dt}
@@ -150,13 +150,11 @@ class PromSummarize():
 
         start = parse_datetime(start)
         end = parse_datetime(end)
-        timestep = "2d"
-        qstart = time.time()
+        timestep = "12h"
         used = self.connect.custom_query_range(query="{__name__='node_memory_MemTotal_bytes'} - {__name__='node_memory_MemFree_bytes'}", start_time=start, end_time=end, step=timestep)
-        logging.debug("Query processed in %s", (time.time() - qstart))
         cached = self.connect.custom_query_range(query="{__name__='node_memory_Cached_bytes'}", start_time=start, end_time=end, step=timestep)
         slab = self.connect.custom_query_range(query="{__name__='node_memory_Slab_bytes'}", start_time=start, end_time=end, step=timestep)
-        cpus = self.connect.custom_query_range(query="{__name__='node_cpu_seconds_total',mode=\"user\"}", start_time=start, end_time=end, step=timestep)
+        cpus = self.connect.custom_query_range(query="{__name__='node_cpu_seconds_total',mode='user'}", start_time=start, end_time=end, step=timestep)
 
         used = [x[1] for x in used[0]["values"]]
         cached = [x[1] for x in cached[0]["values"]]
@@ -173,8 +171,9 @@ class PromSummarize():
         #logging.info("Running callback for %s analytic" % (analytic.name))
         callback_start = time.time()
 
+        # convert each list of values into a numpy array dtype float64
         plugin_data = [np.array(datum, dtype=np.float) for datum in pdata]
-        retval = analytic.process(nodemeta=mdata, data=plugin_data, timestamp=None, description=None)
+        retval = analytic.process(nodemeta=mdata, data=plugin_data, timestamp=None, description=[["",""],["",""]])
 
         callback_time = time.time() - callback_start
         return retval

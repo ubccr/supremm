@@ -1,5 +1,7 @@
-import os
 import json
+from getopt import getopt
+import sys
+import os
 import requests
 import time
 import logging
@@ -11,6 +13,46 @@ from supremm.plugin import loadpreprocessors, loadplugins
 
 from promsummarize import PromSummarize
 
+
+def usage():
+    """ print usage """
+    print("usage: {0} \"<prometheus-ip>:<port>\"")
+
+def getoptions():
+    """ process comandline options """
+
+    opts, args = getopt(sys.argv[1:], "dqhi:e:c:j:a:", [
+        "debug",
+        "quiet",
+        "help",
+        "plugin-include",
+        "plugin-exclude",
+        "config="
+    ])
+
+    retdata = {
+        "log": logging.INFO,
+        "plugin_whitelist": [],
+        "plugin_blacklist": [],
+        "config": None
+    }
+
+    for opt, arg in opts:
+        if opt in ("-d", "--debug"):
+            retdata['log'] = logging.DEBUG
+        if opt in ("-q", "--quiet"):
+            retdata['log'] = logging.ERROR
+        if opt in ("-i", "--plugin-include"):
+            retdata['plugin_whitelist'].append(arg)
+        if opt in ("-e", "--plugin-exclude"):
+            retdata['plugin_blacklist'].append(arg)
+        if opt in ("-c", "--config"):
+            retdata['config'] = arg
+        if opt in ("-h", "--help"):
+            usage()
+            sys.exit(0)
+
+    return (retdata, args)
 
 class MockPromJob():
     def __init__(self):
@@ -24,7 +66,7 @@ class MockPromJob():
         self._data = {}
         self._errors = [] 
 
-        self.start_datetime = "2022-04-18T12:30:00.000Z"
+        self.start_datetime = "2022-04-25T12:30:00.000Z"
         self.end_datetime = "2022-04-28T09:00:00.000Z"
 
     def get_errors(self):
@@ -49,13 +91,22 @@ class MockPromJob():
         return "{} {} {} {}".format(self.job_id, self.walltime, self.nodes, self.node_archives)
 
 def main():
+    """
+    Main entry point for script
+    """
+
+    opts, args = getoptions()
+
     logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%dT%H:%M:%S', level=logging.DEBUG)
     logging.captureWarnings(True)
     
     preprocs = loadpreprocessors()
     plugins = loadplugins()
 
-    preprocs, plugins = filter_plugins({"plugin_whitelist": ['CpuUsage', 'CpuPerfCounters', 'MemoryUsage']}, preprocs, plugins)
+    if opts['plugin_whitelist']:
+        preprocs, plugins = filter_plugins({"plugin_whitelist": opts['plugin_whitelist']}, preprocs, plugins)
+    elif opts['plugin_blacklist']:
+        preprocs, plugins = filter_plugins({"plugin_blacklist": opts['plugin_blacklist']}, preprocs, plugins)    
 
     logging.debug("Loaded %s preprocessors", len(preprocs))
     logging.debug("Loaded %s plugins", len(plugins))
