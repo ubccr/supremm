@@ -20,9 +20,6 @@ def load_translation():
     """
     Update mapping of available Prometheus metrics
     with corresponding PCP metric names.
-
-    This should be called per-node as different nodes
-    could export different metrics.
     """        
     # Load mapping
     prom2pcp = {}
@@ -31,7 +28,7 @@ def load_translation():
     with open(file, "r") as f:
         prom2pcp = json.load(f)
 
-    logging.debug("Available metric mapping(s): \n{}".format(json.dumps(prom2pcp, indent=2)))
+    #logging.debug("Available metric mapping(s): \n{}".format(json.dumps(prom2pcp, indent=2)))
     return prom2pcp        
 
 class NodeMeta(NodeMetadata):
@@ -59,6 +56,7 @@ class PromSummarize():
         self.analytics = analytics
         self.firstlast = [x for x in analytics if x.mode == "firstlast"]
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
+        
         self.job = job
 
     def get(self):
@@ -101,7 +99,7 @@ class PromSummarize():
         for analytic in self.alltimestamps:
             reqMetrics = self.metric_mapping(analytic.requiredMetrics)
             if False == reqMetrics:
-                logging.info("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
+                logging.warning("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
                 continue
             logging.debug("Processing %s for %s.", analytic.name, nodename)
             self.processforanalytic(nodename, analytic, mdata, reqMetrics)
@@ -109,7 +107,7 @@ class PromSummarize():
         for analytic in self.firstlast:
             reqMetrics = self.metric_mapping(analytic.requiredMetrics)
             if False == reqMetrics:
-                logging.info("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
+                logging.warning("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
                 continue
             logging.debug("Processing %s for %s", analytic.name, nodename)
             self.processfirstlast(nodename, analytic, mdata, reqMetrics)
@@ -121,7 +119,7 @@ class PromSummarize():
         available = self.timeseries_meta(start, end, reqMetrics.values())
         # Currently only checks if there is no data, assumes that if there is data then all timeseries are present
         if not available:
-            logging.info("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
+            logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
             analytic.status = "failure"
             return
          
@@ -132,48 +130,36 @@ class PromSummarize():
                 # Reformat query response for plugins
                 qdata = self.connect.custom_query(query=q, params=time)
                 pdata.append([d['value'][1] for d in qdata])
-            self.runcallback(analytic, mdata, pdata)
+            self.runcallback(analytic, mdata, pdata, ts=None)
 
         analytic.status = "complete"
 
     def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
-        # Prepare query
-        matches = ["{__name__=\"node_memory_MemTotal_bytes\"}", "{__name__=\"node_memory_MemFree_bytes\"}", "{__name__=\"node_memory_Cached_bytes\"}", "{__name__=\"node_memory_Slab_bytes\"}", "{__name__=\"node_cpu_seconds_total\",mode=\"user\"}"]
         start, end = self.job.start_datetime, self.job.end_datetime
 
-        available = self.timeseries_meta(start, end, matches)
-        # Currently only checks if there is no data, assumes that if there is data then all timeseries are present
-        if not available:
-            logging.info("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
-            analytic.status = "failure"
-            return
+        #available = self.timeseries_meta(start, end, reqMetrics.values())
+        ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
+        #if not available:
+        #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
+        #    analytic.status = "failure"
+        #    return
 
         start = parse_datetime(start)
         end = parse_datetime(end)
         timestep = "12h"
-        used = self.connect.custom_query_range(query="{__name__='node_memory_MemTotal_bytes'} - {__name__='node_memory_MemFree_bytes'}", start_time=start, end_time=end, step=timestep)
-        cached = self.connect.custom_query_range(query="{__name__='node_memory_Cached_bytes'}", start_time=start, end_time=end, step=timestep)
-        slab = self.connect.custom_query_range(query="{__name__='node_memory_Slab_bytes'}", start_time=start, end_time=end, step=timestep)
-        cpus = self.connect.custom_query_range(query="{__name__='node_cpu_seconds_total',mode='user'}", start_time=start, end_time=end, step=timestep)
-
-        used = [x[1] for x in used[0]["values"]]
-        cached = [x[1] for x in cached[0]["values"]]
-        slab = [x[1] for x in slab[0]["values"]]
-        cpus = [[x[1] for x in d["values"]] for d in cpus]
-        cpus = [cpu for cpu in zip(*cpus)]
+        rdata = [self.connect.custom_query_range(metric, start, end, timestep) for metric in reqMetrics.values()]
+        for ts, d in formatforplugin(rdata):
+            self.runcallback(analytic, mdata, d, ts)
         
-        for u, c, s, cpu in zip(used, cached, slab, cpus):
-            pdata = [[u], [c], [s], cpu]
-            self.runcallback(analytic, mdata, pdata)
         analytic.status = "complete"
 
-    def runcallback(self, analytic, mdata, pdata):
+    def runcallback(self, analytic, mdata, pdata, ts):
         #logging.info("Running callback for %s analytic" % (analytic.name))
         callback_start = time.time()
 
         # convert each list of values into a numpy array dtype float64
         plugin_data = [np.array(datum, dtype=np.float) for datum in pdata]
-        retval = analytic.process(nodemeta=mdata, data=plugin_data, timestamp=None, description=[["",""],["",""]])
+        retval = analytic.process(nodemeta=mdata, data=plugin_data, timestamp=ts, description=[["",""],["",""]])
 
         callback_time = time.time() - callback_start
         return retval
@@ -205,10 +191,7 @@ class PromSummarize():
 
     def timeseries_meta(self, start, end, matches):
         # This is basis for checking if timeseries is available
-        # General form #matches.append("{__name__=%s, instance=%s}" %s (metric_name, nodename))
-        #matches.append("{__name__=\"node_cpu_seconds_total\",instance=\"localhost:9100\",cpu=\"0\"}")
-        #matches.append("{__name__=\"node_cpu_seconds_total\",instance=\"localhost:9100\",cpu=\"1\"}")
-
+        # General form matches.append("{__name__=%s, instance=%s}" %s (metric_name, nodename))
         # http://172.22.0.216:9090/api/v1/series?start=&end=' --data-urlencode 'match[]=prom_metric_name{label="labelname"}'
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -229,3 +212,12 @@ class PromSummarize():
         data = r.json()
         # data is a list of valid queries to pass along elsewhere
         return data["data"]
+
+def formatforplugin(rdata):
+    for idx, val in enumerate(rdata[0][0]['values']):
+        ts = val[0]
+        pdata = []
+        for r in rdata:
+            # Process matrix
+            pdata.append([m['values'][idx][1] for m in r])
+        yield ts, pdata

@@ -116,7 +116,7 @@ def main():
     # Instantiate plugins by job's available metrics (PCP naming) 
     #preprocs = [x(job) for x in preprocs]
     plugins = [x(job) for x in plugins]  
-   
+
     s = PromSummarize(plugins, job)
     s.process()
  
