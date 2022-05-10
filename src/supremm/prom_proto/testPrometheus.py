@@ -7,6 +7,7 @@ import time
 import logging
 
 import prometheus_api_client as pac
+from prometheus_api_client.utils import parse_datetime
 
 from supremm.proc_common import filter_plugins, instantiatePlugins
 from supremm.plugin import loadpreprocessors, loadplugins
@@ -66,8 +67,8 @@ class MockPromJob():
         self._data = {}
         self._errors = [] 
 
-        self.start_datetime = "2022-04-25T12:30:00.000Z"
-        self.end_datetime = "2022-04-28T09:00:00.000Z"
+        self.start_datetime = "2022-05-02T00:30:00.000Z"
+        self.end_datetime = "2022-05-02T09:00:00.000Z"
 
     def get_errors(self):
         """ return job errors """
@@ -114,10 +115,10 @@ def main():
     job = MockPromJob()
     
     # Instantiate plugins by job's available metrics (PCP naming) 
-    #preprocs = [x(job) for x in preprocs]
+    preprocs = [x(job) for x in preprocs]
     plugins = [x(job) for x in plugins]  
 
-    s = PromSummarize(plugins, job)
+    s = PromSummarize(preprocs, plugins, job)
     s.process()
  
     result = s.get()

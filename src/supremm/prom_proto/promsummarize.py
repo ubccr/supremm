@@ -28,7 +28,7 @@ def load_translation():
     with open(file, "r") as f:
         prom2pcp = json.load(f)
 
-    #logging.debug("Available metric mapping(s): \n{}".format(json.dumps(prom2pcp, indent=2)))
+    logging.debug("Available metric mapping(s): \n{}".format(json.dumps(prom2pcp, indent=2)))
     return prom2pcp        
 
 class NodeMeta(NodeMetadata):
@@ -43,7 +43,7 @@ class NodeMeta(NodeMetadata):
     archive = property(lambda self: self._archivedata)
 
 class PromSummarize():
-    def __init__(self, analytics, job):
+    def __init__(self, preprocessors, analytics, job):
         # Establish connection with server:
         self.url = "http://172.22.0.216:9090"
         self.connect = pac.PrometheusConnect(url=self.url, disable_ssl=True)
@@ -53,7 +53,7 @@ class PromSummarize():
         self.valid_metrics = load_translation()
 
         # Standard summarization attributes
-        self.analytics = analytics
+        self.preprocs = preprocessors
         self.firstlast = [x for x in analytics if x.mode == "firstlast"]
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
         
@@ -77,10 +77,14 @@ class PromSummarize():
         if len(timeseries) > 0:
             output['timeseries'] = timeseries
 
+        for preproc in self.preprocs:
+            result = preproc.results()
+            if result != None:
+                output.update(result)
+
         return output
 
     def process(self):
-        # Call equivalent of processarchive for every node in job's nodelist
         # For now just a single node
         nodelist = ["prometheus-dev.ccr.xdmod.org"]
         for nodename in nodelist:
@@ -95,6 +99,14 @@ class PromSummarize():
     def process_node(self, nodename):
         # Create metadata from nodename
         mdata = NodeMeta(nodename)
+
+        for preproc in self.preprocs:
+            reqMetrics = self.metric_mapping(preproc.requiredMetrics)
+            if False == reqMetrics:
+                logging.warning("Skipping %s (%s). No metric mapping available." % (type(preproc).__name__, preproc.name))
+                continue
+            logging.debug("Processing %s for %s.", preproc.name, nodename)
+            self.processforpreproc(mdata, preproc, reqMetrics)
 
         for analytic in self.alltimestamps:
             reqMetrics = self.metric_mapping(analytic.requiredMetrics)
@@ -112,29 +124,31 @@ class PromSummarize():
             logging.debug("Processing %s for %s", analytic.name, nodename)
             self.processfirstlast(nodename, analytic, mdata, reqMetrics)
 
-    def processfirstlast(self, nodename, analytic, mdata, reqMetrics):
-        # Query if timeseries exists at given timestamp
+    def processforpreproc(self, mdata, preproc, reqMetrics):
         start, end = self.job.start_datetime, self.job.end_datetime
 
-        available = self.timeseries_meta(start, end, reqMetrics.values())
-        # Currently only checks if there is no data, assumes that if there is data then all timeseries are present
-        if not available:
-            logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
-            analytic.status = "failure"
-            return
-         
-        for dt in [start, end]:
-            pdata = []
-            time = {'time': dt}
-            for q in reqMetrics.values():
-                # Reformat query response for plugins
-                qdata = self.connect.custom_query(query=q, params=time)
-                pdata.append([d['value'][1] for d in qdata])
-            self.runcallback(analytic, mdata, pdata, ts=None)
+        #available = self.timeseries_meta(start, end, reqMetrics.values())
+        ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
+        #if not available:
+        #    logging.warning("Skipping %s (%s). No data available." % (type(preproc).__name__, preproc.name))
+        #    preproc.status = "failure"
+        #    preproc.hostend()
+        #    return
 
-        analytic.status = "complete"
+        start = parse_datetime(start)
+        end = parse_datetime(end)
+        timestep = "1h"
 
-    def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
+        rdata = [self.connect.custom_query_range(metric, start, end, timestep) for metric in reqMetrics.values()]
+        for ts, d in formatforplugin(rdata, "matrix"):
+            if False == self.runpreproccall(preproc, mdata, d, ts):
+                break
+        
+        preproc.status = "complete"
+        preproc.hostend()
+
+    def processfirstlast(self, nodename, analytic, mdata, reqMetrics):
+        # Query if timeseries exists at given timestamp
         start, end = self.job.start_datetime, self.job.end_datetime
 
         #available = self.timeseries_meta(start, end, reqMetrics.values())
@@ -143,23 +157,77 @@ class PromSummarize():
         #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
         #    analytic.status = "failure"
         #    return
+         
+        #for dt in [start, end]:
+        #    pdata = []
+        #    time = {'time': dt}
+        #    for q in reqMetrics.values():
+        #        # Reformat query response for plugins
+        #        qdata = self.connect.custom_query(query=q, params=time)
+        #        pdata.append([d['value'][1] for d in qdata])
+        #    self.runcallback(analytic, mdata, pdata, ts=None)
+        for t in (start, end):
+            rdata = [self.connect.custom_query(query=m, params={'time':t}) for m in reqMetrics.values()]
+            ts, pdata = formatforplugin(rdata, "vector")
+            self.runcallback(analytic, mdata, pdata, ts)
+
+        analytic.status = "complete"
+
+    def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
+        start, end = self.job.start_datetime, self.job.end_datetime
+
+        #available = self.timeseries_meta(start, end, reqMetrics.values())
+        # Currently only checks if there is no data, assumes that if there is data then all timeseries are present
+        #if not available:
+        #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
+        #    analytic.status = "failure"
+        #    return
 
         start = parse_datetime(start)
         end = parse_datetime(end)
-        timestep = "12h"
+        timestep = "1h"
+        
         rdata = [self.connect.custom_query_range(metric, start, end, timestep) for metric in reqMetrics.values()]
-        for ts, d in formatforplugin(rdata):
+        for ts, d in formatforplugin(rdata, "matrix"):
             self.runcallback(analytic, mdata, d, ts)
         
         analytic.status = "complete"
 
-    def runcallback(self, analytic, mdata, pdata, ts):
-        #logging.info("Running callback for %s analytic" % (analytic.name))
-        callback_start = time.time()
+    def runpreproccall(self, preproc, mdata, pdata, ts):
+        """ Call the pre-processor data processing function 
+            Comment from pcp_common/pcpcinterface/pcpcinterface.pyx
+            function: extractValues
+            data is in format: list (entry for each pmid)
+                        |--> list (entry for each instance)
+                                |--> list (pmid 0, instance 0)
+                                        |--> value
+                                        |--> instance
+                                |--> list (pmid0, instance 1)
+                                        ...
+                                ...
+                        ...
+    
+        """
+        # Format for preproc like above
+        data = []
+        if len(pdata[0]) == 1:
+            data.append([[float(pdata[0][0]),-1]])
+        else:
+            for m in pdata:
+                datum = []
+                for idx, v in enumerate(m):
+                    datum.append((float(v), idx))
+                data = [datum]
 
-        # convert each list of values into a numpy array dtype float64
+        preproc_data = np.array(data)
+        retval = preproc.process(timestamp=ts, data=preproc_data, description=[["",""],["", ""]])
+        return retval
+
+    def runcallback(self, analytic, mdata, pdata, ts):
+        """ Call the plugin data processing function """
+        callback_start = time.time()
         plugin_data = [np.array(datum, dtype=np.float) for datum in pdata]
-        retval = analytic.process(nodemeta=mdata, data=plugin_data, timestamp=ts, description=[["",""],["",""]])
+        retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=[["",""],["", ""]])
 
         callback_time = time.time() - callback_start
         return retval
@@ -178,14 +246,13 @@ class PromSummarize():
                 if mapping:
                     return mapping
             return False
-
         else:
             mapping = OrderedDict.fromkeys(reqMetrics, None)
             for k, v in mapping.items():
                 try:
                     mapping[k] = self.valid_metrics[k]
                 except KeyError:
-                    logging.debug("Mapping unavailable for metric: %s", k)
+                    logging.warning("Mapping unavailable for metric: %s", k)
                     return False
             return mapping
 
@@ -213,11 +280,26 @@ class PromSummarize():
         # data is a list of valid queries to pass along elsewhere
         return data["data"]
 
-def formatforplugin(rdata):
+def formatforplugin(rdata, rtype):
+    if rtype == "vector":
+        return formatvector(rdata)
+
+    # Process matrix
+    elif rtype == "matrix":
+        return formatmatrix(rdata)
+
+def formatvector(rdata):
+    pdata = []
+    ts = rdata[0][0]["value"][0]
+    for m in rdata:
+        pdata.append([m[0]["value"][1]])
+    return ts, pdata
+
+def formatmatrix(rdata):
     for idx, val in enumerate(rdata[0][0]['values']):
         ts = val[0]
         pdata = []
         for r in rdata:
-            # Process matrix
             pdata.append([m['values'][idx][1] for m in r])
         yield ts, pdata
+
