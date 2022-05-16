@@ -134,7 +134,8 @@ class PromSummarize():
         #    preproc.status = "failure"
         #    preproc.hostend()
         #    return
-
+        preproc.hoststart(mdata.nodename)
+        
         start = parse_datetime(start)
         end = parse_datetime(end)
         timestep = "1h"
@@ -157,15 +158,7 @@ class PromSummarize():
         #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
         #    analytic.status = "failure"
         #    return
-         
-        #for dt in [start, end]:
-        #    pdata = []
-        #    time = {'time': dt}
-        #    for q in reqMetrics.values():
-        #        # Reformat query response for plugins
-        #        qdata = self.connect.custom_query(query=q, params=time)
-        #        pdata.append([d['value'][1] for d in qdata])
-        #    self.runcallback(analytic, mdata, pdata, ts=None)
+
         for t in (start, end):
             rdata = [self.connect.custom_query(query=m, params={'time':t}) for m in reqMetrics.values()]
             ts, pdata = formatforplugin(rdata, "vector")
