@@ -273,6 +273,29 @@ class PromSummarize():
         # data is a list of valid queries to pass along elsewhere
         return data["data"]
 
+    def label_val_meta(self, start, end, matches, l):
+        """
+        Queries label values for a given metric.
+        """
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+        params = {
+            'match[]': matches,
+            'start': str(start),
+            'end': str(end)
+        }
+
+        urlparse.urlencode(params, doseq=True)
+        url = urlparse.urljoin(self.url, "/api/v1/label/{}/values".format(l))
+        logging.debug('Prometheus QUERY SERIES META, url="%s" start=%s end=%s', url, start, end)
+        r = requests.post(url, data=params, headers=headers)
+        if r.status_code != 200:
+            return False
+
+        data = r.json()
+        return data["data"]
+
 def formatforplugin(rdata, rtype):
     if rtype == "vector":
         return formatvector(rdata)
