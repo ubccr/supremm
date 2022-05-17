@@ -161,6 +161,7 @@ class PromSummarize():
 
         for t in (start, end):
             rdata = [self.connect.custom_query(query=m, params={'time':t}) for m in reqMetrics.values()]
+            print(rdata)
             ts, pdata = formatforplugin(rdata, "vector")
             self.runcallback(analytic, mdata, pdata, ts)
 
