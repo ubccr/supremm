@@ -3,7 +3,6 @@ import json
 import time
 import logging
 import requests
-import sys
 import urllib.parse as urlparse
 from collections import OrderedDict
 
@@ -23,7 +22,7 @@ def load_translation():
     """        
     # Load mapping
     prom2pcp = {}
-    version = "v3"
+    version = "v4"
     file = "mapping/%s.json" % (version)
     with open(file, "r") as f:
         prom2pcp = json.load(f)
@@ -135,14 +134,18 @@ class PromSummarize():
         #    preproc.hostend()
         #    return
         preproc.hoststart(mdata.nodename)
+
+        matches = [x['metric'].split()[0] for x in reqMetrics.values()]
+        l = set(x['label'] for x in reqMetrics.values()).pop()
+        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
         
         start = parse_datetime(start)
-        end = parse_datetime(end)
-        timestep = "1h"
-
-        rdata = [self.connect.custom_query_range(metric, start, end, timestep) for metric in reqMetrics.values()]
+        end = parse_datetime(end) 
+        timestep = "30s"
+ 
+        rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep) for metric in reqMetrics.values()]
         for ts, d in formatforplugin(rdata, "matrix"):
-            if False == self.runpreproccall(preproc, mdata, d, ts):
+            if False == self.runpreproccall(preproc, mdata, d, ts, description):
                 break
         
         preproc.status = "complete"
@@ -158,12 +161,15 @@ class PromSummarize():
         #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
         #    analytic.status = "failure"
         #    return
+        matches = [x['metric'].split()[0] for x in reqMetrics.values()]
+        l = set(x['label'] for x in reqMetrics.values()).pop()
+        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
 
         for t in (start, end):
-            rdata = [self.connect.custom_query(query=m, params={'time':t}) for m in reqMetrics.values()]
-            print(rdata)
+            rdata = [self.connect.custom_query(query=m, params={'time':t}) for m in matches]
+            assert len(rdata) == len(description)
             ts, pdata = formatforplugin(rdata, "vector")
-            self.runcallback(analytic, mdata, pdata, ts)
+            self.runcallback(analytic, mdata, pdata, ts, description)
 
         analytic.status = "complete"
 
@@ -177,17 +183,21 @@ class PromSummarize():
         #    analytic.status = "failure"
         #    return
 
+        matches = [x['metric'].split()[0] for x in reqMetrics.values()]
+        l = set(x['label'] for x in reqMetrics.values()).pop()
+        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
+
         start = parse_datetime(start)
         end = parse_datetime(end)
-        timestep = "1h"
+        timestep = "30s"
         
-        rdata = [self.connect.custom_query_range(metric, start, end, timestep) for metric in reqMetrics.values()]
+        rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep) for metric in reqMetrics.values()]
         for ts, d in formatforplugin(rdata, "matrix"):
-            self.runcallback(analytic, mdata, d, ts)
+            self.runcallback(analytic, mdata, d, ts, description)
         
         analytic.status = "complete"
 
-    def runpreproccall(self, preproc, mdata, pdata, ts):
+    def runpreproccall(self, preproc, mdata, pdata, ts, description):
         """ Call the pre-processor data processing function 
             Comment from pcp_common/pcpcinterface/pcpcinterface.pyx
             function: extractValues
@@ -214,14 +224,14 @@ class PromSummarize():
                 data = [datum]
 
         preproc_data = np.array(data)
-        retval = preproc.process(timestamp=ts, data=preproc_data, description=[["",""],["", ""]])
+        retval = preproc.process(timestamp=ts, data=preproc_data, description=description)
         return retval
 
-    def runcallback(self, analytic, mdata, pdata, ts):
+    def runcallback(self, analytic, mdata, pdata, ts, description):
         """ Call the plugin data processing function """
         callback_start = time.time()
         plugin_data = [np.array(datum, dtype=np.float) for datum in pdata]
-        retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=[["",""],["", ""]])
+        retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=description)
 
         callback_time = time.time() - callback_start
         return retval
@@ -266,7 +276,7 @@ class PromSummarize():
         urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self.url, "/api/v1/series")
         logging.debug('Prometheus QUERY SERIES META, url="%s" start=%s end=%s', url, start, end)
-        r = requests.post(url, data=params, headers=headers)
+        r = requests.get(url, params=params, headers=headers)
         if r.status_code != 200:
             return False
 
@@ -286,16 +296,22 @@ class PromSummarize():
             'start': str(start),
             'end': str(end)
         }
+        # type(l) == set, len(l) == 1
 
         urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self.url, "/api/v1/label/{}/values".format(l))
-        logging.debug('Prometheus QUERY SERIES META, url="%s" start=%s end=%s', url, start, end)
-        r = requests.post(url, data=params, headers=headers)
-        if r.status_code != 200:
-            return False
+        url = urlparse.urljoin(self.url, "/api/v1/label/%s/values" % l)
+#        logging.debug('Prometheus QUERY LABEL VALUES, url="(%s).20s" start=%s end=%s', url, start, end)
 
+        # Get data
+        r = requests.get(url, params=params, headers=headers)
+        if r.status_code != 200:
+            print(r.content)
+            return False
         data = r.json()
-        return data["data"]
+
+        # Format for plugin
+        label_idx = np.arange(0, len(data["data"]))
+        return [label_idx, data["data"]]
 
 def formatforplugin(rdata, rtype):
     if rtype == "vector":
@@ -309,7 +325,8 @@ def formatvector(rdata):
     pdata = []
     ts = rdata[0][0]["value"][0]
     for m in rdata:
-        pdata.append([m[0]["value"][1]])
+        vector = [m[idx]["value"][1] for idx,_ in enumerate(m)]
+        pdata.append(vector)
     return ts, pdata
 
 def formatmatrix(rdata):
