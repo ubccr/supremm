@@ -81,8 +81,7 @@ class PromClient():
 
         urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self.url, "/api/v1/label/%s/values" % l)
-#        logging.debug('Prometheus QUERY LABEL VALUES, url="(%s).20s" start=%s end=%s', url, start, end
-)
+#        logging.debug('Prometheus QUERY LABEL VALUES, url="(%s).20s" start=%s end=%s', url, start, end)
 
         # Get data
         r = requests.get(url, params=params, headers=headers)
