@@ -86,20 +86,23 @@ class PromClient():
         url = urlparse.urljoin(self.url, "/api/v1/label/%s/values" % l)
         logging.debug('Prometheus QUERY LABEL VALUES, url="(%s).20s" start=%s end=%s', url, start, end)
 
-        # Get data
+        # Query data
         r = requests.get(url, params=params, headers=headers)
         if r.status_code != 200:
-            print(r.content)
+            logging.error("Label Name Query Error: %s", r.content)
             return False
         data = r.json()
+        names = data["data"]
 
         # Format for plugin
-        label_idx = np.arange(0, len(data["data"]))
-        return [label_idx, data["data"]]
+        label_idx = np.arange(0, len(names))
+        return [label_idx, names]
 
 def formatforplugin(rdata):
     rtype = rdata["data"]["resultType"]
-    numtimestamps = len(data["data"]["result"][0]["values"]))
+    numtimestamps = len(rdata["data"]["result"][0]["values"])
+    numlabels = len(rdata["data"]["result"])
+    data = np.empty((numtimestamps, numlabels), dtype=np.uint64)
 
     # Process vector
     if rtype == "vector":
@@ -111,7 +114,8 @@ def formatforplugin(rdata):
 
 def formatvector(rdata):
     pdata = []
-    ts = rdata[0]["value"][0] # (TODO: Ensure timestamps are equivalent)
+    # TODO: Ensure timestamps are equivalent 
+    ts = rdata[0]["value"][0] 
     for m in rdata:
         pdata.append(m["value"][1])
     return ts, pdata
@@ -130,3 +134,4 @@ if __name__=="__main__":
 
     client = PromClient(url)
     data = client.query_range("node_cpu_seconds_total{mode='user'} * 1000", start, end)
+    print([d for d in data])

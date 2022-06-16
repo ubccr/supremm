@@ -57,18 +57,18 @@ def getoptions():
 
 class MockPromJob():
     def __init__(self):
-        self.job_id = "1"
+        self.job_id = "2007"
         self.end_str = "end"
         self.walltime = 9751
         self.nodecount = 1
-        self.acct = {"end_time": 12312, "id": 1, "uid": 0, "user": "root", "partition": "normal", "local_job_id": "1008", "resource_manager": "slurm"}  
+        self.acct = {"end_time": 12312, "id": 1, "uid": 0, "user": "root", "partition": "normal", "local_job_id": "2007", "resource_manager": "slurm"}  
         self.nodes = ["prometheus-dev"]
 
         self._data = {}
         self._errors = [] 
 
-        self.start_datetime = "2022-05-02T00:30:00.000Z"
-        self.end_datetime = "2022-05-02T09:00:00.000Z"
+        self.start_datetime = "2022-06-01T14:36:09.000Z"
+        self.end_datetime = "2022-06-01T15:35:25.000Z"
 
     def get_errors(self):
         """ return job errors """
