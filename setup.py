@@ -42,8 +42,8 @@ setup(
     data_files=[
         (confpath,                         ['config/config.json']),
         ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
-        ('share/supremm/templates/hotproc',       ['config/templates/hotproc/hotproc.conf']),
-        ('share/supremm/templates/pmlogger',    ['config/templates/pmlogger/control',    'config/templates/pmlogger/pmlogger-supremm.config'])
+        ('share/supremm/templates/pcp-4.3.x/hotproc',       ['config/templates/pcp-4.3.x/hotproc/hotproc.conf']),
+        ('share/supremm/templates/pcp-4.3.x/pmlogger',    ['config/templates/pcp-4.3.x/pmlogger/control',    'config/templates/pcp-4.3.x/pmlogger/pmlogger-supremm.config'])
     ],
     scripts=[
              'src/supremm/supremm_update'
