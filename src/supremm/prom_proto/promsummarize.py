@@ -3,6 +3,7 @@ import json
 import time
 import logging
 import requests
+import inspect
 import urllib.parse as urlparse
 from collections import OrderedDict
 
@@ -153,7 +154,8 @@ class PromSummarize():
 
     def processfirstlast(self, nodename, analytic, mdata, reqMetrics):
         # Query if timeseries exists at given timestamp
-        start, end = self.job.start_datetime, self.job.end_datetime
+        #start, end = self.job.start_datetime, self.job.end_datetime
+        start, end = "2022-06-07T09:27:35.000Z", "2022-06-07T10:28:01.000Z"       
 
         #available = self.timeseries_meta(start, end, reqMetrics.values())
         ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present

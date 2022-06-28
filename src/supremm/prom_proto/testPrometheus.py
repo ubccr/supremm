@@ -9,8 +9,11 @@ import logging
 import prometheus_api_client as pac
 from prometheus_api_client.utils import parse_datetime
 
+from supremm import outputter
+from supremm.config import Config
 from supremm.proc_common import filter_plugins, instantiatePlugins
 from supremm.plugin import loadpreprocessors, loadplugins
+from supremm.xdmodaccount import XDMoDAcct
 
 from promsummarize import PromSummarize
 
@@ -91,11 +94,24 @@ class MockPromJob():
     def __str__(self):
         return "{} {} {} {}".format(self.job_id, self.walltime, self.nodes, self.node_archives)
 
+def summarizejobprom(job, plugins, preprocs):
+    mdata = {}
+    summarizeerror = None
+
+    # Instantiate plugins by job's available metrics (PCP naming)   
+    preprocs = [x(job) for x in preprocs]
+    plugins = [x(job) for x in plugins]
+
+    s = PromSummarize(preprocs, plugins, job)
+    s.process()
+
+    return s, mdata, True, summarizeerror
+
 def main():
     """
     Main entry point for script
     """
-
+    config = Config()
     opts, args = getoptions()
 
     logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%dT%H:%M:%S', level=logging.DEBUG)
@@ -112,17 +128,20 @@ def main():
     logging.debug("Loaded %s preprocessors", len(preprocs))
     logging.debug("Loaded %s plugins", len(plugins))
 
-    job = MockPromJob()
-    
-    # Instantiate plugins by job's available metrics (PCP naming) 
-    preprocs = [x(job) for x in preprocs]
-    plugins = [x(job) for x in plugins]  
+    #with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
+    dbif = XDMoDAcct('1', config)
+    for job in dbif.getbylocaljobid('2018'):
+        try:
+            summarize_start = time.time()
+            res = summarizejobprom(job, plugins, preprocs)
+            s, mdata, success, s_err = res
+            summarize_time = time.time() - summarize_start
+            summary_dict = s.get()
+        except Exception as e:
+            logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
+    #process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))
 
-    s = PromSummarize(preprocs, plugins, job)
-    s.process()
- 
-    result = s.get()
-    print(json.dumps(result, indent=4))
+    print(json.dumps(summary_dict, indent=4))
 
 if __name__ == "__main__":
     main()
