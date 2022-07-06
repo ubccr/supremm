@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Helper functions that can process data that is generated on 
     resources that use a Linux kernel or Linux based OS."""
 

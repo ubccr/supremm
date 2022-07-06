@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Script that indexes the pc archives for a given resource.
 """
 

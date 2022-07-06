@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Summarization software test harness
 
     This test harness provides a convienient way to test individual plugins and

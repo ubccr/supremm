@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Utilities for processing Lariat data """
 import datetime
 import os
