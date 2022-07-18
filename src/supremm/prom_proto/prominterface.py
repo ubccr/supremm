@@ -24,7 +24,7 @@ class PromClient():
 
         endpoint = "/api/v1/query"
         url = urlparse.urljoin(self._url, endpoint)
-        
+ 
         r = requests.get(url, params=params, headers=headers)
         if r.status_code != 200:
             print(str(r.content))
@@ -45,14 +45,13 @@ class PromClient():
 
         endpoint = "/api/v1/query_range"
         url = urlparse.urljoin(self._url, endpoint)
-
+        
         r = requests.get(url, params=params, headers=headers)
         if r.status_code != 200:
             print(r.content)
             return None
 
-        data = r.json()
-
+        data = r.json() 
         plugin_data = formatforplugin(data)
         return plugin_data
 
@@ -100,38 +99,50 @@ class PromClient():
 
 def formatforplugin(rdata):
     rtype = rdata["data"]["resultType"]
-    numtimestamps = len(rdata["data"]["result"][0]["values"])
-    numlabels = len(rdata["data"]["result"])
-    data = np.empty((numtimestamps, numlabels), dtype=np.uint64)
+    result = rdata["data"]["result"]
 
     # Process vector
     if rtype == "vector":
-        return formatvector(rdata["data"]["result"])
+        # Allocate numpy array with shape (1, instances)
+        # A vector only corresponds to one timestamp
+        instances = len(result)
+        size = instances
+
+        # Format data
+        data = np.fromiter(formatvector(result), dtype=np.uint64, count=size).reshape(1, instances)
+        return data
 
     # Process matrix
     elif rtype == "matrix":
-        return formatmatrix(rdata["data"]["result"])
+        # Allocate numpy array with shape (timestamps, instances)
+        timestamps = len(result[0]["values"])
+        instances = len(result)
+        size = timestamps * instances
 
-def formatvector(rdata):
-    pdata = []
-    # TODO: Ensure timestamps are equivalent 
-    ts = rdata[0]["value"][0] 
-    for m in rdata:
-        pdata.append(m["value"][1])
-    return ts, pdata
+        # Format data
+        data = np.fromiter(formatmatrix(result), dtype=np.uint64, count=size).reshape(timestamps, instances)
+        return data
 
-def formatmatrix(rdata):
-    for idx, val in enumerate(rdata[0]["values"]):
+def formatvector(r):
+    for item in r:
+        yield item["value"][1]
+
+def formatmatrix(r):
+    for idx, val in enumerate(r[0]["values"]):
         ts = val[0]
-        pdata = [m["values"][idx][1] for m in rdata]
-        yield ts, pdata
+        for instance in r:
+            # Cast as float due to occasional error where
+            # pdata is a float with VERY small precision
+            pdata = float(instance["values"][idx][1])
+            yield pdata
 
 if __name__=="__main__":
     url = "http://172.22.0.216:9090"
 
-    start = "2022-05-02T00:30:00.000Z"
-    end = "2022-05-02T09:00:00.000Z"
+    start = "2022-07-01T00:30:00.000Z"
+    end = "2022-07-03T09:00:00.000Z"
 
     client = PromClient(url)
-    data = client.query_range("node_cpu_seconds_total{mode='user'} * 1000", start, end)
-    print([d for d in data])
+    data = client.query_range("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start, end)
+    data = client.query("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start)
+    print(data, data.shape)
