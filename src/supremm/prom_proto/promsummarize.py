@@ -2,15 +2,14 @@ import os
 import json
 import time
 import logging
-import requests
 import urllib.parse as urlparse
 from collections import OrderedDict
 
+import requests
 import numpy as np
-import prometheus_api_client as pac
-from prometheus_api_client.utils import parse_datetime
 
 from supremm.proc_common import filter_plugins, instantiatePlugins
+from supremm.prominterface import PromClient
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.rangechange import RangeChange
 
@@ -45,10 +44,9 @@ class PromSummarize():
     def __init__(self, preprocessors, analytics, job):
         # Establish connection with server:
         self.url = "http://172.22.0.216:9090"
-        self.connect = pac.PrometheusConnect(url=self.url, disable_ssl=True)
+        self.client = PromClient(url=self.url)
 
         # Translation Prom -> PCP metric names
-        #self.available_metrics = self.connect.all_metrics()
         self.valid_metrics = load_translation()
 
         # Standard summarization attributes
@@ -199,20 +197,7 @@ class PromSummarize():
 
     def runpreproccall(self, preproc, mdata, pdata, ts, description):
         """ Call the pre-processor data processing function 
-            Comment from pcp_common/pcpcinterface/pcpcinterface.pyx
-            function: extractValues
-            data is in format: list (entry for each pmid)
-                        |--> list (entry for each instance)
-                                |--> list (pmid 0, instance 0)
-                                        |--> value
-                                        |--> instance
-                                |--> list (pmid0, instance 1)
-                                        ...
-                                ...
-                        ...
-    
         """
-        # Format for preproc like above
         data = []
         if len(pdata[0]) == 1:
             data.append([[float(pdata[0][0]),-1]])
@@ -283,57 +268,3 @@ class PromSummarize():
         data = r.json()
         # data is a list of valid queries to pass along elsewhere
         return data["data"]
-
-    def label_val_meta(self, start, end, matches, l):
-        """
-        Queries label values for a given metric.
-        """
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
-        params = {
-            'match[]': matches,
-            'start': str(start),
-            'end': str(end)
-        }
-        # type(l) == set, len(l) == 1
-
-        urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self.url, "/api/v1/label/%s/values" % l)
-#        logging.debug('Prometheus QUERY LABEL VALUES, url="(%s).20s" start=%s end=%s', url, start, end)
-
-        # Get data
-        r = requests.get(url, params=params, headers=headers)
-        if r.status_code != 200:
-            print(r.content)
-            return False
-        data = r.json()
-
-        # Format for plugin
-        label_idx = np.arange(0, len(data["data"]))
-        return [label_idx, data["data"]]
-
-def formatforplugin(rdata, rtype):
-    if rtype == "vector":
-        return formatvector(rdata)
-
-    # Process matrix
-    elif rtype == "matrix":
-        return formatmatrix(rdata)
-
-def formatvector(rdata):
-    pdata = []
-    ts = rdata[0][0]["value"][0]
-    for m in rdata:
-        vector = [m[idx]["value"][1] for idx,_ in enumerate(m)]
-        pdata.append(vector)
-    return ts, pdata
-
-def formatmatrix(rdata):
-    for idx, val in enumerate(rdata[0][0]['values']):
-        ts = val[0]
-        pdata = []
-        for r in rdata:
-            pdata.append([m['values'][idx][1] for m in r])
-        yield ts, pdata
-
