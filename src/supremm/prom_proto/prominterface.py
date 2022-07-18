@@ -67,7 +67,7 @@ class PromClient():
         url = urlparse.urljoin(self._url, endpoint)
         return
 
-    def label_val_meta(self, start, end, matches, l):
+    def label_val_meta(self, start, end, matches, label):
         """
         Queries label values for a given metric.
         """
@@ -79,10 +79,10 @@ class PromClient():
             'start': str(start),
             'end': str(end)
         }
-        # type(l) == set, len(l) == 1
+        # type(label) == set, len(label) == 1
 
         urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self.url, "/api/v1/label/%s/values" % l)
+        url = urlparse.urljoin(self._url, "/api/v1/label/%s/values" % label)
         logging.debug('Prometheus QUERY LABEL VALUES, url="(%s).20s" start=%s end=%s', url, start, end)
 
         # Query data
@@ -145,4 +145,5 @@ if __name__=="__main__":
     client = PromClient(url)
     data = client.query_range("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start, end)
     data = client.query("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start)
-    print(data, data.shape)
+    labels = client.label_val_meta(start, end, ["node_cpu_seconds_total{mode='user', host='prometheus-dev'}"], "cpu")
+    print(labels)
