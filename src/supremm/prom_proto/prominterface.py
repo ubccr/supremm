@@ -98,6 +98,20 @@ class PromClient():
         return [label_idx, names]
 
 def formatforplugin(rdata):
+    """
+    Format Prometheus query response into the expected format for SUPReMM plugins.
+    Check out https://prometheus.io/docs/prometheus/latest/querying/api/ for the formatting information.
+    
+    params: Prometheus json response
+    return: numpy array of dtype uint64
+            matrices: [
+                       [ts0 inst0 inst1 ... instN],
+                       [ts1 inst0 inst1 ... instN],
+                       ...
+                       [tsN inst0 inst1 ... instN]
+                      ]
+            vectors: [[ts inst0 inst1 ... instN]]
+    """
     rtype = rdata["data"]["resultType"]
     result = rdata["data"]["result"]
 
@@ -108,9 +122,10 @@ def formatforplugin(rdata):
         instances = len(result)
         size = instances
 
-        # Format data
+        # Format timestamps and data
+        ts = np.fromiter(formattimestamps(result[0]["value"], rtype), dtype=np.uint64, count=1)
         data = np.fromiter(formatvector(result), dtype=np.uint64, count=size).reshape(1, instances)
-        return data
+        return np.column_stack((ts, data))
 
     # Process matrix
     elif rtype == "matrix":
@@ -120,12 +135,17 @@ def formatforplugin(rdata):
         size = timestamps * instances
 
         # Format data
+        ts = np.fromiter(formattimestamps(result[0]["values"], rtype), dtype=np.uint64, count=timestamps)
         data = np.fromiter(formatmatrix(result), dtype=np.uint64, count=size).reshape(timestamps, instances)
-        return data
+        return np.column_stack((ts, data))
 
 def formatvector(r):
+    ts = r[0]["value"][0]
     for item in r:
-        yield item["value"][1]
+        # Cast as float due to occasional error where
+        # pdata is a float with VERY small precision
+        pdata = float(item["value"][1])
+        yield pdata
 
 def formatmatrix(r):
     for idx, val in enumerate(r[0]["values"]):
@@ -136,6 +156,16 @@ def formatmatrix(r):
             pdata = float(instance["values"][idx][1])
             yield pdata
 
+def formattimestamps(r, rtype):
+    # Assume the same timestamps for all instances
+    # Timestamps are only taken from the first instance
+    if rtype == "vector":
+        yield r[0]
+
+    elif rtype == "matrix":
+        for ts,_ in r:
+            yield ts
+
 if __name__=="__main__":
     url = "http://172.22.0.216:9090"
 
@@ -145,5 +175,5 @@ if __name__=="__main__":
     client = PromClient(url)
     data = client.query_range("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start, end)
     data = client.query("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start)
-    labels = client.label_val_meta(start, end, ["node_cpu_seconds_total{mode='user', host='prometheus-dev'}"], "cpu")
-    print(labels)
+    #labels = client.label_val_meta(start, end, ["node_cpu_seconds_total{mode='user', host='prometheus-dev'}"], "cpu")
+    print(data)

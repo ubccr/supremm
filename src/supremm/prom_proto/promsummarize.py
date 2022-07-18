@@ -1,3 +1,4 @@
+import sys
 import os
 import json
 import time
@@ -9,7 +10,7 @@ import requests
 import numpy as np
 
 from supremm.proc_common import filter_plugins, instantiatePlugins
-from supremm.prominterface import PromClient
+from supremm.prom_proto.prominterface import PromClient
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.rangechange import RangeChange
 
@@ -53,8 +54,10 @@ class PromSummarize():
         self.preprocs = preprocessors
         self.firstlast = [x for x in analytics if x.mode == "firstlast"]
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
-        
+        self.errors = {} 
         self.job = job
+        self.start = time.time()
+        self.nodes_processed = 0
 
     def get(self):
         logging.info("Returning summary information")
@@ -82,18 +85,27 @@ class PromSummarize():
         return output
 
     def process(self):
-        # For now just a single node
-        nodelist = ["prometheus-dev.ccr.xdmod.org"]
-        for nodename in nodelist:
-            logging.info("Processing node %s", nodename)
-            node_proc_start = time.time()
+        """ Main entry point. All nodes are processed. """
+        success = 0
+        self.archives_processed = 0
 
-            self.process_node(nodename)
+        #nodelist = ["prometheus-dev.ccr.xdmod.org"]
+        #for nodename in nodelist:
+        for nodename, nodeidx, archive in self.job.nodearchives():
+            try:
+                self.processnode(nodename)
+                self.nodes_processed += 1
 
-            node_proc_time = time.time() - node_proc_start
-            logging.debug("%s summarized in %s seconds" % (nodename, node_proc_time))
+            except Exception as exc:
+                print("Something went wrong. Oops!")
+                success -= 1
+                self.adderror("node", "Exception {0} for node: {1}".format(exc, nodename))
+                if self.fail_fast:
+                    raise
 
-    def process_node(self, nodename):
+        return success == 0
+
+    def processnode(self, nodename):
         # Create metadata from nodename
         mdata = NodeMeta(nodename)
 
@@ -135,7 +147,7 @@ class PromSummarize():
 
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
+        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
         
         start = parse_datetime(start)
         end = parse_datetime(end) 
@@ -153,20 +165,26 @@ class PromSummarize():
         # Query if timeseries exists at given timestamp
         start, end = self.job.start_datetime, self.job.end_datetime
 
+        # TODO update metric mapping before this can be done
         #available = self.timeseries_meta(start, end, reqMetrics.values())
         ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
         #if not available:
         #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
         #    analytic.status = "failure"
         #    return
+
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
+        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
 
         for t in (start, end):
-            rdata = [self.connect.custom_query(query=m, params={'time':t}) for m in matches]
+            rdata = [self.client.query(m, t) for m in matches]
             assert len(rdata) == len(description)
-            ts, pdata = formatforplugin(rdata, "vector")
+            #ts = rdata[0][0]
+            #pdata = [d[:-1] for d in rdata]
+            print(*rdata)
+            sys.exit(0)       
+
             self.runcallback(analytic, mdata, pdata, ts, description)
 
         analytic.status = "complete"
@@ -183,7 +201,7 @@ class PromSummarize():
 
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
+        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
 
         start = parse_datetime(start)
         end = parse_datetime(end)
