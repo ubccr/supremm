@@ -136,6 +136,11 @@ class Job(object):
             if nodedata.archive != None:
                 yield nodename, nodedata.nodeindex, nodedata.archive
 
+    def nodenames(self):
+       """ iterator for all nodenames in the job """
+       for nodename, _ in self._nodes.items():
+           yield nodename
+
     def has_any_archives(self):
         """ are there any archives for this job """
 
