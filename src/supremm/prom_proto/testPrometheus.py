@@ -9,10 +9,14 @@ import logging
 import prometheus_api_client as pac
 from prometheus_api_client.utils import parse_datetime
 
+from supremm import outputter
+from supremm.config import Config
 from supremm.proc_common import filter_plugins, instantiatePlugins
 from supremm.plugin import loadpreprocessors, loadplugins
+from supremm.xdmodaccount import XDMoDAcct
 
 from promsummarize import PromSummarize
+
 
 
 def usage():
@@ -127,18 +131,17 @@ def main():
 
     #with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
     dbif = XDMoDAcct('1', config)
-    for job in dbif.getbylocaljobid('2018'):
+    for job in dbif.getbylocaljobid('2019'):
         try:
             summarize_start = time.time()
             res = summarizejobprom(job, plugins, preprocs)
             s, mdata, success, s_err = res
             summarize_time = time.time() - summarize_start
             summary_dict = s.get()
+            print(json.dumps(summary_dict, indent=4))
         except Exception as e:
             logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
     #process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))
-
-    print(json.dumps(summary_dict, indent=4))
 
 if __name__ == "__main__":
     main()
