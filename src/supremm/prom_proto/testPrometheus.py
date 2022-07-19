@@ -4,6 +4,7 @@ import sys
 import os
 import requests
 import time
+import traceback
 import logging
 
 import prometheus_api_client as pac
@@ -16,7 +17,6 @@ from supremm.plugin import loadpreprocessors, loadplugins
 from supremm.xdmodaccount import XDMoDAcct
 
 from promsummarize import PromSummarize
-
 
 
 def usage():
@@ -131,7 +131,7 @@ def main():
 
     #with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
     dbif = XDMoDAcct('1', config)
-    for job in dbif.getbylocaljobid('2019'):
+    for job in dbif.getbylocaljobid('2022'):
         try:
             summarize_start = time.time()
             res = summarizejobprom(job, plugins, preprocs)

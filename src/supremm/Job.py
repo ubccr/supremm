@@ -130,16 +130,16 @@ class Job(object):
             if len(nodedata.rawarchives) > 0:
                 yield nodename, nodedata.rawarchives
 
+    def nodenames(self):
+        """ iterator for all nodenames that the job ran on """
+        for nodename in self.acct['host_list']:
+            yield nodename
+
     def nodearchives(self):
         """ iterator for the combined archives for the nodes in the job """
         for nodename, nodedata in self._nodes.items():
             if nodedata.archive != None:
                 yield nodename, nodedata.nodeindex, nodedata.archive
-
-    def nodenames(self):
-       """ iterator for all nodenames in the job """
-       for nodename, _ in self._nodes.items():
-           yield nodename
 
     def has_any_archives(self):
         """ are there any archives for this job """

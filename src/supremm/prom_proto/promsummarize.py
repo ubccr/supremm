@@ -89,16 +89,17 @@ class PromSummarize():
         success = 0
         self.archives_processed = 0
 
-        #nodelist = ["prometheus-dev.ccr.xdmod.org"]
-        #for nodename in nodelist:
-        for nodename, nodeidx, archive in self.job.nodearchives():
+        for nodename in self.job.nodenames():
+            print(nodename)
             try:
+                print("Summarizing job {0} on node {1}".format(self.job, nodename))
                 self.processnode(nodename)
                 self.nodes_processed += 1
 
             except Exception as exc:
                 print("Something went wrong. Oops!")
                 success -= 1
+                # TODO add code for self.adderror
                 self.adderror("node", "Exception {0} for node: {1}".format(exc, nodename))
                 if self.fail_fast:
                     raise
@@ -134,7 +135,7 @@ class PromSummarize():
             self.processfirstlast(nodename, analytic, mdata, reqMetrics)
 
     def processforpreproc(self, mdata, preproc, reqMetrics):
-        start, end = self.job.start_datetime, self.job.end_datetime
+        start, end = self.job.nodestart, self.job.end_datetime
 
         #available = self.timeseries_meta(start, end, reqMetrics.values())
         ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
@@ -172,6 +173,9 @@ class PromSummarize():
         #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
         #    analytic.status = "failure"
         #    return
+
+        start = datetime_to_timestamp(start)
+        end = datetime_to_timestamp(end)
 
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
