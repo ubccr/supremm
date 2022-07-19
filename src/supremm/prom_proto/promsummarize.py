@@ -1,3 +1,4 @@
+import sys
 import os
 import json
 import time
@@ -7,11 +8,11 @@ import inspect
 import urllib.parse as urlparse
 from collections import OrderedDict
 
+import requests
 import numpy as np
-import prometheus_api_client as pac
-from prometheus_api_client.utils import parse_datetime
 
 from supremm.proc_common import filter_plugins, instantiatePlugins
+from supremm.prom_proto.prominterface import PromClient
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.rangechange import RangeChange
 
@@ -46,18 +47,19 @@ class PromSummarize():
     def __init__(self, preprocessors, analytics, job):
         # Establish connection with server:
         self.url = "http://172.22.0.216:9090"
-        self.connect = pac.PrometheusConnect(url=self.url, disable_ssl=True)
+        self.client = PromClient(url=self.url)
 
         # Translation Prom -> PCP metric names
-        #self.available_metrics = self.connect.all_metrics()
         self.valid_metrics = load_translation()
 
         # Standard summarization attributes
         self.preprocs = preprocessors
         self.firstlast = [x for x in analytics if x.mode == "firstlast"]
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
-        
+        self.errors = {} 
         self.job = job
+        self.start = time.time()
+        self.nodes_processed = 0
 
     def get(self):
         logging.info("Returning summary information")
@@ -85,18 +87,28 @@ class PromSummarize():
         return output
 
     def process(self):
-        # For now just a single node
-        nodelist = ["prometheus-dev.ccr.xdmod.org"]
-        for nodename in nodelist:
-            logging.info("Processing node %s", nodename)
-            node_proc_start = time.time()
+        """ Main entry point. All nodes are processed. """
+        success = 0
+        self.archives_processed = 0
 
-            self.process_node(nodename)
+        for nodename in self.job.nodenames():
+            print(nodename)
+            try:
+                print("Summarizing job {0} on node {1}".format(self.job, nodename))
+                self.processnode(nodename)
+                self.nodes_processed += 1
 
-            node_proc_time = time.time() - node_proc_start
-            logging.debug("%s summarized in %s seconds" % (nodename, node_proc_time))
+            except Exception as exc:
+                print("Something went wrong. Oops!")
+                success -= 1
+                # TODO add code for self.adderror
+                self.adderror("node", "Exception {0} for node: {1}".format(exc, nodename))
+                if self.fail_fast:
+                    raise
 
-    def process_node(self, nodename):
+        return success == 0
+
+    def processnode(self, nodename):
         # Create metadata from nodename
         mdata = NodeMeta(nodename)
 
@@ -125,7 +137,7 @@ class PromSummarize():
             self.processfirstlast(nodename, analytic, mdata, reqMetrics)
 
     def processforpreproc(self, mdata, preproc, reqMetrics):
-        start, end = self.job.start_datetime, self.job.end_datetime
+        start, end = self.job.nodestart, self.job.end_datetime
 
         #available = self.timeseries_meta(start, end, reqMetrics.values())
         ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
@@ -138,7 +150,7 @@ class PromSummarize():
 
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
+        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
         
         start = parse_datetime(start)
         end = parse_datetime(end) 
@@ -157,20 +169,29 @@ class PromSummarize():
         #start, end = self.job.start_datetime, self.job.end_datetime
         start, end = "2022-06-07T09:27:35.000Z", "2022-06-07T10:28:01.000Z"       
 
+        # TODO update metric mapping before this can be done
         #available = self.timeseries_meta(start, end, reqMetrics.values())
         ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
         #if not available:
         #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
         #    analytic.status = "failure"
         #    return
+
+        start = datetime_to_timestamp(start)
+        end = datetime_to_timestamp(end)
+
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
+        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
 
         for t in (start, end):
-            rdata = [self.connect.custom_query(query=m, params={'time':t}) for m in matches]
+            rdata = [self.client.query(m, t) for m in matches]
             assert len(rdata) == len(description)
-            ts, pdata = formatforplugin(rdata, "vector")
+            #ts = rdata[0][0]
+            #pdata = [d[:-1] for d in rdata]
+            print(*rdata)
+            sys.exit(0)       
+
             self.runcallback(analytic, mdata, pdata, ts, description)
 
         analytic.status = "complete"
@@ -187,7 +208,7 @@ class PromSummarize():
 
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.label_val_meta(start, end, matches, l) for m in matches])
+        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
 
         start = parse_datetime(start)
         end = parse_datetime(end)
@@ -201,20 +222,7 @@ class PromSummarize():
 
     def runpreproccall(self, preproc, mdata, pdata, ts, description):
         """ Call the pre-processor data processing function 
-            Comment from pcp_common/pcpcinterface/pcpcinterface.pyx
-            function: extractValues
-            data is in format: list (entry for each pmid)
-                        |--> list (entry for each instance)
-                                |--> list (pmid 0, instance 0)
-                                        |--> value
-                                        |--> instance
-                                |--> list (pmid0, instance 1)
-                                        ...
-                                ...
-                        ...
-    
         """
-        # Format for preproc like above
         data = []
         if len(pdata[0]) == 1:
             data.append([[float(pdata[0][0]),-1]])
@@ -285,57 +293,3 @@ class PromSummarize():
         data = r.json()
         # data is a list of valid queries to pass along elsewhere
         return data["data"]
-
-    def label_val_meta(self, start, end, matches, l):
-        """
-        Queries label values for a given metric.
-        """
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
-        params = {
-            'match[]': matches,
-            'start': str(start),
-            'end': str(end)
-        }
-        # type(l) == set, len(l) == 1
-
-        urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self.url, "/api/v1/label/%s/values" % l)
-#        logging.debug('Prometheus QUERY LABEL VALUES, url="(%s).20s" start=%s end=%s', url, start, end)
-
-        # Get data
-        r = requests.get(url, params=params, headers=headers)
-        if r.status_code != 200:
-            print(r.content)
-            return False
-        data = r.json()
-
-        # Format for plugin
-        label_idx = np.arange(0, len(data["data"]))
-        return [label_idx, data["data"]]
-
-def formatforplugin(rdata, rtype):
-    if rtype == "vector":
-        return formatvector(rdata)
-
-    # Process matrix
-    elif rtype == "matrix":
-        return formatmatrix(rdata)
-
-def formatvector(rdata):
-    pdata = []
-    ts = rdata[0][0]["value"][0]
-    for m in rdata:
-        vector = [m[idx]["value"][1] for idx,_ in enumerate(m)]
-        pdata.append(vector)
-    return ts, pdata
-
-def formatmatrix(rdata):
-    for idx, val in enumerate(rdata[0][0]['values']):
-        ts = val[0]
-        pdata = []
-        for r in rdata:
-            pdata.append([m['values'][idx][1] for m in r])
-        yield ts, pdata
-

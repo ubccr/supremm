@@ -130,6 +130,11 @@ class Job(object):
             if len(nodedata.rawarchives) > 0:
                 yield nodename, nodedata.rawarchives
 
+    def nodenames(self):
+        """ iterator for all nodenames that the job ran on """
+        for nodename in self.acct['host_list']:
+            yield nodename
+
     def nodearchives(self):
         """ iterator for the combined archives for the nodes in the job """
         for nodename, nodedata in self._nodes.items():

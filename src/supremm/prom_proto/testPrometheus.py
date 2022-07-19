@@ -4,6 +4,7 @@ import sys
 import os
 import requests
 import time
+import traceback
 import logging
 
 import prometheus_api_client as pac
@@ -60,18 +61,18 @@ def getoptions():
 
 class MockPromJob():
     def __init__(self):
-        self.job_id = "1"
+        self.job_id = "2007"
         self.end_str = "end"
         self.walltime = 9751
         self.nodecount = 1
-        self.acct = {"end_time": 12312, "id": 1, "uid": 0, "user": "root", "partition": "normal", "local_job_id": "1008", "resource_manager": "slurm"}  
+        self.acct = {"end_time": 12312, "id": 1, "uid": 0, "user": "root", "partition": "normal", "local_job_id": "2007", "resource_manager": "slurm"}  
         self.nodes = ["prometheus-dev"]
 
         self._data = {}
         self._errors = [] 
 
-        self.start_datetime = "2022-05-02T00:30:00.000Z"
-        self.end_datetime = "2022-05-02T09:00:00.000Z"
+        self.start_datetime = "2022-07-01T14:36:09.000Z"
+        self.end_datetime = "2022-07-04T15:35:25.000Z"
 
     def get_errors(self):
         """ return job errors """
@@ -98,7 +99,7 @@ def summarizejobprom(job, plugins, preprocs):
     mdata = {}
     summarizeerror = None
 
-    # Instantiate plugins by job's available metrics (PCP naming)   
+    # Instantiate plugins by job's available metrics (PCP naming)
     preprocs = [x(job) for x in preprocs]
     plugins = [x(job) for x in plugins]
 
@@ -116,32 +117,31 @@ def main():
 
     logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%dT%H:%M:%S', level=logging.DEBUG)
     logging.captureWarnings(True)
-    
+
     preprocs = loadpreprocessors()
     plugins = loadplugins()
 
     if opts['plugin_whitelist']:
         preprocs, plugins = filter_plugins({"plugin_whitelist": opts['plugin_whitelist']}, preprocs, plugins)
     elif opts['plugin_blacklist']:
-        preprocs, plugins = filter_plugins({"plugin_blacklist": opts['plugin_blacklist']}, preprocs, plugins)    
+        preprocs, plugins = filter_plugins({"plugin_blacklist": opts['plugin_blacklist']}, preprocs, plugins)
 
     logging.debug("Loaded %s preprocessors", len(preprocs))
     logging.debug("Loaded %s plugins", len(plugins))
 
     #with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
     dbif = XDMoDAcct('1', config)
-    for job in dbif.getbylocaljobid('2018'):
+    for job in dbif.getbylocaljobid('2022'):
         try:
             summarize_start = time.time()
             res = summarizejobprom(job, plugins, preprocs)
             s, mdata, success, s_err = res
             summarize_time = time.time() - summarize_start
             summary_dict = s.get()
+            print(json.dumps(summary_dict, indent=4))
         except Exception as e:
             logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
     #process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))
-
-    print(json.dumps(summary_dict, indent=4))
 
 if __name__ == "__main__":
     main()
