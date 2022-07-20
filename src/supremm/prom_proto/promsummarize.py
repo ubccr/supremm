@@ -24,7 +24,7 @@ def load_translation():
     """        
     # Load mapping
     prom2pcp = {}
-    version = "v4"
+    version = "v5"
     file = "mapping/%s.json" % (version)
     with open(file, "r") as f:
         prom2pcp = json.load(f)
@@ -163,12 +163,11 @@ class PromSummarize():
         preproc.status = "complete"
         preproc.hostend()
 
+    # TODO this function and corresponding "process" functions should not grab actual data.
+    # Instead grab the necessary info and pass along to runcallback()
     def processfirstlast(self, nodename, analytic, mdata, reqMetrics):
         # Query if timeseries exists at given timestamp
         start, end = self.job.acct['start_time'], self.job.acct['end_time']
-        print(start, end)
-
-        #start, end = "2022-06-07T09:27:35.000Z", "2022-06-07T10:28:01.000Z"       
 
         # TODO update metric mapping before this can be done
         #available = self.timeseries_meta(start, end, reqMetrics.values())
@@ -178,7 +177,10 @@ class PromSummarize():
         #    analytic.status = "failure"
         #    return
 
+        # TODO add scale factor in here -> pass as parameter to client's query OR just scale response array at the end
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
+        print(matches)
+        sys.exit(0)
         l = set(x['label'] for x in reqMetrics.values()).pop()
         description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
 

@@ -123,9 +123,9 @@ def formatforplugin(rdata):
         size = instances
 
         # Format timestamps and data
-        ts = np.fromiter(formattimestamps(result[0]["value"], rtype), dtype=np.uint64, count=1)
+        #ts = np.fromiter(formattimestamps(result[0]["value"], rtype), dtype=np.uint64, count=1)
         data = np.fromiter(formatvector(result), dtype=np.uint64, count=size).reshape(1, instances)
-        return np.column_stack((ts, data))
+        return data #np.column_stack((ts, data))
 
     # Process matrix
     elif rtype == "matrix":
@@ -135,29 +135,22 @@ def formatforplugin(rdata):
         size = timestamps * instances
 
         # Format data
-        ts = np.fromiter(formattimestamps(result[0]["values"], rtype), dtype=np.uint64, count=timestamps)
+        #ts = np.fromiter(formattimestamps(result[0]["values"], rtype), dtype=np.uint64, count=timestamps)
         data = np.fromiter(formatmatrix(result), dtype=np.uint64, count=size).reshape(timestamps, instances)
-        return np.column_stack((ts, data))
+        return data #np.column_stack((ts, data))
 
 def formatvector(r):
     ts = r[0]["value"][0]
     for item in r:
-        # Cast as float due to occasional error where
-        # pdata is a float with VERY small precision
-        pdata = item["value"][1]
-        print("BEFORE: ", pdata)
-        pdata = float(pdata)
-        print("AFTER: ", pdata)
-        yield pdata
+        ### REMOVE * 1000 SCALING AFTER TESTING ###
+        data = float(item["value"][1]) * 1000
+        yield data
 
 def formatmatrix(r):
     for idx, val in enumerate(r[0]["values"]):
-        ts = val[0]
-        for instance in r:
-            # Cast as float due to occasional error where
-            # pdata is a float with VERY small precision
-            pdata = float(instance["values"][idx][1])
-            yield pdata
+        #ts = val[0]
+        for inst in r:
+            yield inst["values"][idx][1]
 
 def formattimestamps(r, rtype):
     # Assume the same timestamps for all instances
