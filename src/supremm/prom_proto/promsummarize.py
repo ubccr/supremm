@@ -92,9 +92,8 @@ class PromSummarize():
         self.archives_processed = 0
 
         for nodename in self.job.nodenames():
-            print(nodename)
             try:
-                print("Summarizing job {0} on node {1}".format(self.job, nodename))
+                logging.info("Summarizing job %s on node %s", self.job, nodename)
                 self.processnode(nodename)
                 self.nodes_processed += 1
 
@@ -166,8 +165,10 @@ class PromSummarize():
 
     def processfirstlast(self, nodename, analytic, mdata, reqMetrics):
         # Query if timeseries exists at given timestamp
-        #start, end = self.job.start_datetime, self.job.end_datetime
-        start, end = "2022-06-07T09:27:35.000Z", "2022-06-07T10:28:01.000Z"       
+        start, end = self.job.acct['start_time'], self.job.acct['end_time']
+        print(start, end)
+
+        #start, end = "2022-06-07T09:27:35.000Z", "2022-06-07T10:28:01.000Z"       
 
         # TODO update metric mapping before this can be done
         #available = self.timeseries_meta(start, end, reqMetrics.values())
@@ -176,9 +177,6 @@ class PromSummarize():
         #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
         #    analytic.status = "failure"
         #    return
-
-        start = datetime_to_timestamp(start)
-        end = datetime_to_timestamp(end)
 
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
@@ -189,8 +187,9 @@ class PromSummarize():
             assert len(rdata) == len(description)
             #ts = rdata[0][0]
             #pdata = [d[:-1] for d in rdata]
-            print(*rdata)
-            sys.exit(0)       
+            for datum in rdata:
+                print(datum, '\n')
+            sys.exit(0)
 
             self.runcallback(analytic, mdata, pdata, ts, description)
 

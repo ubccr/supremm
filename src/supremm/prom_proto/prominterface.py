@@ -144,7 +144,10 @@ def formatvector(r):
     for item in r:
         # Cast as float due to occasional error where
         # pdata is a float with VERY small precision
-        pdata = float(item["value"][1])
+        pdata = item["value"][1]
+        print("BEFORE: ", pdata)
+        pdata = float(pdata)
+        print("AFTER: ", pdata)
         yield pdata
 
 def formatmatrix(r):
