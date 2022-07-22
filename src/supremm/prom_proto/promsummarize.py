@@ -133,7 +133,7 @@ class PromSummarize():
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
                 continue
             logging.debug("Processing %s for %s", analytic.name, nodename)
-            self.processfirstlast(nodename, analytic, mdata, reqMetrics)
+            self.processfirstlast(analytic, mdata, reqMetrics)
 
     def processforpreproc(self, mdata, preproc, reqMetrics):
         start, end = self.job.nodestart, self.job.end_datetime
@@ -148,8 +148,8 @@ class PromSummarize():
         preproc.hoststart(mdata.nodename)
 
         matches = [x['metric'].split()[0] for x in reqMetrics.values()]
-        l = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
+        label = set(x['label'] for x in reqMetrics.values()).pop()
+        description = np.asarray([self.client.label_val_meta(start, end, matches, label) for m in matches])
         
         start = parse_datetime(start)
         end = parse_datetime(end) 
@@ -165,30 +165,25 @@ class PromSummarize():
 
     # TODO this function and corresponding "process" functions should not grab actual data.
     # Instead grab the necessary info and pass along to runcallback()
-    def processfirstlast(self, nodename, analytic, mdata, reqMetrics):
-        # Query if timeseries exists at given timestamp
-        start, end = self.job.acct['start_time'], self.job.acct['end_time']
+    def processfirstlast(self, analytic, mdata, reqMetrics):
+        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
 
-        # TODO update metric mapping before this can be done
-        #available = self.timeseries_meta(start, end, reqMetrics.values())
+        matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
+        available = self.timeseries_meta(start, end, matches)
         ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
-        #if not available:
-        #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
-        #    analytic.status = "failure"
-        #    return
+        ## TODO Should check each reqMetric and break if not present
+        print(available)
+        if not available:
+            logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
+            analytic.status = "failure"
+            return
 
         # TODO add scale factor in here -> pass as parameter to client's query OR just scale response array at the end
-        matches = [x['metric'].split()[0] for x in reqMetrics.values()]
-        print(matches)
-        sys.exit(0)
-        l = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
+        label = set(x['label'] for x in reqMetrics.values()).pop()
+        description = np.asarray([self.client.label_val_meta(start, end, matches, label) for m in matches])
 
-        for t in (start, end):
-            rdata = [self.client.query(m, t) for m in matches]
-            assert len(rdata) == len(description)
-            #ts = rdata[0][0]
-            #pdata = [d[:-1] for d in rdata]
+        for ts in (start, end):
+            rdata = [self.client.query(m, ts) for m in matches]
             for datum in rdata:
                 print(datum, '\n')
             sys.exit(0)
@@ -200,14 +195,14 @@ class PromSummarize():
     def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
         start, end = self.job.start_datetime, self.job.end_datetime
 
-        #available = self.timeseries_meta(start, end, reqMetrics.values())
+        matches = [x['metric'].split()[0] for x in reqMetrics.values()]
+        #available = self.timeseries_meta(start, end, matches)
         # Currently only checks if there is no data, assumes that if there is data then all timeseries are present
         #if not available:
         #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
         #    analytic.status = "failure"
         #    return
 
-        matches = [x['metric'].split()[0] for x in reqMetrics.values()]
         l = set(x['label'] for x in reqMetrics.values()).pop()
         description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
 
@@ -240,11 +235,11 @@ class PromSummarize():
 
     def runcallback(self, analytic, mdata, pdata, ts, description):
         """ Call the plugin data processing function """
-        callback_start = time.time()
+
         plugin_data = [np.array(datum, dtype=np.float) for datum in pdata]
         retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=description)
 
-        callback_time = time.time() - callback_start
+
         return retval
 
     def metric_mapping(self, reqMetrics):
