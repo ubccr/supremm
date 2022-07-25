@@ -55,17 +55,33 @@ class PromClient():
         plugin_data = formatforplugin(data)
         return plugin_data
 
-    def series_meta(self):
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+    def timeseries_meta(self, start, end, match):
+        # This is basis for checking if timeseries is available
+        # Checks if a timeseries or list of timeseries ('match[]') are available
+        # without returning any actual data
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
         params = {
-            'match[]': matches,
-            'start': start,
-            'end': end
+            'match[]': match,
+            'start': str(start),
+            'end': str(end)
         }
 
         endpoint = "/api/v1/series"
+        urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self._url, endpoint)
-        return
+        logging.debug('Prometheus QUERY SERIES META, url=%s start=%s end=%s', url, start, end)
+        
+        r = requests.get(url, params=params, headers=headers)
+        if r.status_code != 200:
+            return False
+
+        data = r.json()
+        # data is a list of timeseries present at the given specified times
+        
+        return bool(data["data"])
+
 
     def label_val_meta(self, start, end, matches, label):
         """
@@ -79,11 +95,10 @@ class PromClient():
             'start': str(start),
             'end': str(end)
         }
-        # type(label) == set, len(label) == 1
 
         urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self._url, "/api/v1/label/%s/values" % label)
-        logging.debug('Prometheus QUERY LABEL VALUES, url="(%s).20s" start=%s end=%s', url, start, end)
+        logging.debug('Prometheus QUERY LABEL VALUES, url=%s start=%s end=%s', url, start, end)
 
         # Query data
         r = requests.get(url, params=params, headers=headers)
@@ -103,14 +118,14 @@ def formatforplugin(rdata):
     Check out https://prometheus.io/docs/prometheus/latest/querying/api/ for the formatting information.
     
     params: Prometheus json response
-    return: numpy array of dtype uint64
+    return: numpy array, dtype=uint64
             matrices: [
-                       [ts0 inst0 inst1 ... instN],
-                       [ts1 inst0 inst1 ... instN],
+                       [inst0 inst1 ... instN],
+                       [inst0 inst1 ... instN],
                        ...
-                       [tsN inst0 inst1 ... instN]
+                       [inst0 inst1 ... instN]
                       ]
-            vectors: [[ts inst0 inst1 ... instN]]
+            vectors: [inst0 inst1 ... instN]
     """
     rtype = rdata["data"]["resultType"]
     result = rdata["data"]["result"]
@@ -122,10 +137,9 @@ def formatforplugin(rdata):
         instances = len(result)
         size = instances
 
-        # Format timestamps and data
-        #ts = np.fromiter(formattimestamps(result[0]["value"], rtype), dtype=np.uint64, count=1)
-        data = np.fromiter(formatvector(result), dtype=np.uint64, count=size).reshape(1, instances)
-        return data #np.column_stack((ts, data))
+        # Format data
+        data = np.fromiter(formatvector(result), dtype=np.uint64, count=size)
+        return data
 
     # Process matrix
     elif rtype == "matrix":
@@ -135,9 +149,8 @@ def formatforplugin(rdata):
         size = timestamps * instances
 
         # Format data
-        #ts = np.fromiter(formattimestamps(result[0]["values"], rtype), dtype=np.uint64, count=timestamps)
         data = np.fromiter(formatmatrix(result), dtype=np.uint64, count=size).reshape(timestamps, instances)
-        return data #np.column_stack((ts, data))
+        return data
 
 def formatvector(r):
     ts = r[0]["value"][0]
@@ -148,7 +161,7 @@ def formatvector(r):
 
 def formatmatrix(r):
     for idx, val in enumerate(r[0]["values"]):
-        #ts = val[0]
+        ts = val[0]
         for inst in r:
             yield inst["values"][idx][1]
 

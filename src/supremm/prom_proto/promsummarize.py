@@ -61,6 +61,9 @@ class PromSummarize():
         self.start = time.time()
         self.nodes_processed = 0
 
+        # TODO this is set from opts/configs NOT hardcoded
+        self.fail_fast = True
+
     def get(self):
         logging.info("Returning summary information")
         output = {}
@@ -101,7 +104,7 @@ class PromSummarize():
                 print("Something went wrong. Oops!")
                 success -= 1
                 # TODO add code for self.adderror
-                self.adderror("node", "Exception {0} for node: {1}".format(exc, nodename))
+                #self.adderror("node", "Exception {0} for node: {1}".format(exc, nodename))
                 if self.fail_fast:
                     raise
 
@@ -138,7 +141,7 @@ class PromSummarize():
     def processforpreproc(self, mdata, preproc, reqMetrics):
         start, end = self.job.nodestart, self.job.end_datetime
 
-        #available = self.timeseries_meta(start, end, reqMetrics.values())
+        #available = self.client.timeseries_meta(start, end, reqMetrics.values())
         ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
         #if not available:
         #    logging.warning("Skipping %s (%s). No data available." % (type(preproc).__name__, preproc.name))
@@ -163,56 +166,56 @@ class PromSummarize():
         preproc.status = "complete"
         preproc.hostend()
 
-    # TODO this function and corresponding "process" functions should not grab actual data.
-    # Instead grab the necessary info and pass along to runcallback()
     def processfirstlast(self, analytic, mdata, reqMetrics):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
-
         matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
-        available = self.timeseries_meta(start, end, matches)
-        ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
-        ## TODO Should check each reqMetric and break if not present
-        print(available)
-        if not available:
-            logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
-            analytic.status = "failure"
-            return
+
+        for match in matches:
+            available = self.client.timeseries_meta(start, end, match)
+            if not available:
+                logging.warning("Skipping %s (%s). No timeseries present." % (type(analytic).__name__, analytic.name))
+                analytic.status = "failure"
+                return
 
         # TODO add scale factor in here -> pass as parameter to client's query OR just scale response array at the end
         label = set(x['label'] for x in reqMetrics.values()).pop()
+
+        # TODO something fishy here ... why loop over matches then just pass matches[] to function anyway?
         description = np.asarray([self.client.label_val_meta(start, end, matches, label) for m in matches])
 
         for ts in (start, end):
-            rdata = [self.client.query(m, ts) for m in matches]
-            for datum in rdata:
-                print(datum, '\n')
-            sys.exit(0)
-
-            self.runcallback(analytic, mdata, pdata, ts, description)
+            self.runcallback(analytic, mdata, matches, ts, description)
 
         analytic.status = "complete"
 
     def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
-        start, end = self.job.start_datetime, self.job.end_datetime
+        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
+        matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
 
-        matches = [x['metric'].split()[0] for x in reqMetrics.values()]
-        #available = self.timeseries_meta(start, end, matches)
-        # Currently only checks if there is no data, assumes that if there is data then all timeseries are present
-        #if not available:
-        #    logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
-        #    analytic.status = "failure"
-        #    return
+        for m in matches:
+            available = self.timeseries_meta(start, end, matches)
+            if not available:
+                logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
+                analytic.status = "failure"
+                return
 
+        # TODO add scale factor in here -> pass as parameter to client's query OR just scale response array at the end
         l = set(x['label'] for x in reqMetrics.values()).pop()
+
+        # TODO something fishy here ... why loop over matches then just pass matches[] to function anyway?
         description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
 
-        start = parse_datetime(start)
-        end = parse_datetime(end)
+        # TODO parse configuration setting
         timestep = "30s"
-        
-        rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep) for metric in reqMetrics.values()]
-        for ts, d in formatforplugin(rdata, "matrix"):
-            self.runcallback(analytic, mdata, d, ts, description)
+
+        # query data from time range 
+        while not done:
+            done = True
+
+        #OLD
+        #rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep) for metric in reqMetrics.values()]
+        #for ts, d in formatforplugin(rdata, "matrix"):
+        #    self.runcallback(analytic, mdata, d, ts, description)
         
         analytic.status = "complete"
 
@@ -233,14 +236,17 @@ class PromSummarize():
         retval = preproc.process(timestamp=ts, data=preproc_data, description=description)
         return retval
 
-    def runcallback(self, analytic, mdata, pdata, ts, description):
+    def runcallback(self, analytic, mdata, matches, ts, description):
         """ Call the plugin data processing function """
+        # TODO handle vectors and matrices differently OR handle timeslices
+        try:
+            plugin_data = [self.client.query(m, ts) for m in matches]
+            retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=description)
+            return retval
+        except Exception as exc:
+            logging.error("An error occurred with the query: %s", exc)
 
-        plugin_data = [np.array(datum, dtype=np.float) for datum in pdata]
-        retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=description)
-
-
-        return retval
+        # OLD plugin_data = [np.array(datum, dtype=np.float) for datum in pdata]
 
     def metric_mapping(self, reqMetrics):
         """
@@ -265,27 +271,3 @@ class PromSummarize():
                     logging.warning("Mapping unavailable for metric: %s", k)
                     return False
             return mapping
-
-    def timeseries_meta(self, start, end, matches):
-        # This is basis for checking if timeseries is available
-        # General form matches.append("{__name__=%s, instance=%s}" %s (metric_name, nodename))
-        # http://172.22.0.216:9090/api/v1/series?start=&end=' --data-urlencode 'match[]=prom_metric_name{label="labelname"}'
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
-        params = {
-            'match[]': matches,
-            'start': str(start),
-            'end': str(end)
-        }
-
-        urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self.url, "/api/v1/series")
-        logging.debug('Prometheus QUERY SERIES META, url="%s" start=%s end=%s', url, start, end)
-        r = requests.get(url, params=params, headers=headers)
-        if r.status_code != 200:
-            return False
-
-        data = r.json()
-        # data is a list of valid queries to pass along elsewhere
-        return data["data"]
