@@ -131,7 +131,7 @@ def main():
 
     #with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
     dbif = XDMoDAcct('1', config)
-    for job in dbif.getbylocaljobid('2020'):
+    for job in dbif.getbylocaljobid('2034'):
         try:
             summarize_start = time.time()
             res = summarizejobprom(job, plugins, preprocs)

@@ -5,17 +5,18 @@ import time
 import logging
 import requests
 import inspect
+import datetime
 import urllib.parse as urlparse
 from collections import OrderedDict
 
 import requests
 import numpy as np
 
-from supremm.proc_common import filter_plugins, instantiatePlugins
 from supremm.prom_proto.prominterface import PromClient
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.rangechange import RangeChange
 
+VERSION = "2.0.0"
 
 def load_translation():
     """
@@ -25,8 +26,9 @@ def load_translation():
     # Load mapping
     prom2pcp = {}
     version = "v5"
-    file = "mapping/%s.json" % (version)
-    with open(file, "r") as f:
+    file = "prom_proto/mapping/%s.json" % (version)
+    file_path = os.path.abspath(file)
+    with open(file_path, "r") as f:
         prom2pcp = json.load(f)
 
     logging.debug("Available metric mapping(s): \n{}".format(json.dumps(prom2pcp, indent=2)))
@@ -87,6 +89,18 @@ class PromSummarize():
             if result != None:
                 output.update(result)
 
+        output['summarization'] = {
+            "version": VERSION,
+            "elapsed": time.time() - self.start,
+            "created": time.time(),
+            "srcdir": self.job.jobdir,
+            "complete": True} # True for now
+
+        output['created'] = datetime.datetime.utcnow()
+
+        output['acct'] = self.job.acct
+        output['acct']['id'] = self.job.job_id
+
         return output
 
     def process(self):
@@ -96,6 +110,7 @@ class PromSummarize():
 
         for nodename in self.job.nodenames():
             try:
+                print("Processing node: %s" % nodename)
                 logging.info("Summarizing job %s on node %s", self.job, nodename)
                 self.processnode(nodename)
                 self.nodes_processed += 1
@@ -139,36 +154,49 @@ class PromSummarize():
             self.processfirstlast(analytic, mdata, reqMetrics)
 
     def processforpreproc(self, mdata, preproc, reqMetrics):
-        start, end = self.job.nodestart, self.job.end_datetime
-
-        #available = self.client.timeseries_meta(start, end, reqMetrics.values())
-        ## Currently only checks if there is no data, assumes that if there is data then all timeseries are present
-        #if not available:
-        #    logging.warning("Skipping %s (%s). No data available." % (type(preproc).__name__, preproc.name))
-        #    preproc.status = "failure"
-        #    preproc.hostend()
-        #    return
+        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         preproc.hoststart(mdata.nodename)
-
-        matches = [x['metric'].split()[0] for x in reqMetrics.values()]
-        label = set(x['label'] for x in reqMetrics.values()).pop()
-        description = np.asarray([self.client.label_val_meta(start, end, matches, label) for m in matches])
-        
-        start = parse_datetime(start)
-        end = parse_datetime(end) 
-        timestep = "30s"
  
-        rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep) for metric in reqMetrics.values()]
-        for ts, d in formatforplugin(rdata, "matrix"):
-            if False == self.runpreproccall(preproc, mdata, d, ts, description):
+        metrics = []
+        descriptions = []
+        for m in reqMetrics.values():
+            metric = m['metric'] % mdata.nodename
+            base = metric.split()[0]
+
+            # Check if timeseries is available
+            available = self.client.timeseries_meta(start, end, base)
+            if not available:
+                logging.warning("Skipping %s (%s). No data available." % (type(preproc).__name__, preproc.name))
+                preproc.status = "failure"
+                preproc.hostend()
+                return
+
+            # Get metric label -> description from metric and label
+            label = m['label']
+            description = self.client.label_val_meta(start, end, base, m['label'], 'preprocessor')
+            metrics.append(metric)
+            descriptions.append(description)
+
+        # TODO use config query to parse yaml scrape config
+        rdata = [self.client.query(metric, start, 'preprocessor') for metric in metrics]
+        while True:
+            if False == self.runpreproccall(preproc, mdata, rdata, start, descriptions):
                 break
-        
+
+            start += 30 # HARD-CODED TIMESTEP
+            if start > end:
+                preproc.status = "failure"
+                preproc.hostend()
+                return
+
         preproc.status = "complete"
         preproc.hostend()
 
     def processfirstlast(self, analytic, mdata, reqMetrics):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
-        matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
+        """
+        OLD
+        matches = [x['metric'].split()[0] % mdata.nodename for x in reqMetrics.values()]
 
         for match in matches:
             available = self.client.timeseries_meta(start, end, match)
@@ -181,14 +209,38 @@ class PromSummarize():
         label = set(x['label'] for x in reqMetrics.values()).pop()
 
         # TODO something fishy here ... why loop over matches then just pass matches[] to function anyway?
-        description = np.asarray([self.client.label_val_meta(start, end, matches, label) for m in matches])
+        description = np.asarray([self.client.label_val_meta(start, end, matches, label, 'plugin') for m in matches])
 
         for ts in (start, end):
             self.runcallback(analytic, mdata, matches, ts, description)
+        """
 
+        metrics = []
+        descriptions = []
+        for m in reqMetrics.values():
+            metric = m['metric'] % mdata.nodename
+            base = metric.split()[0]
+
+            # Check if timeseries is available
+            available = self.client.timeseries_meta(start, end, base)
+            if not available:
+                logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
+                analytic.status = "failure"
+                return
+
+            # Get metric label -> description from metric and label
+            label = m['label']
+            description = self.client.label_val_meta(start, end, base, m['label'], 'plugin')
+            metrics.append(metric)
+            descriptions.append(description)
+
+        for ts in (start, end):
+            self.runcallback(analytic, mdata, metrics, ts, descriptions)
+ 
         analytic.status = "complete"
 
     def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
+        return
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
 
@@ -213,15 +265,17 @@ class PromSummarize():
             done = True
 
         #OLD
-        #rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep) for metric in reqMetrics.values()]
+        #rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep, 'plugin') for metric in reqMetrics.values()]
         #for ts, d in formatforplugin(rdata, "matrix"):
         #    self.runcallback(analytic, mdata, d, ts, description)
         
         analytic.status = "complete"
 
-    def runpreproccall(self, preproc, mdata, pdata, ts, description):
+    def runpreproccall(self, preproc, mdata, data, ts, description):
         """ Call the pre-processor data processing function 
         """
+        """
+        OLD
         data = []
         if len(pdata[0]) == 1:
             data.append([[float(pdata[0][0]),-1]])
@@ -231,16 +285,15 @@ class PromSummarize():
                 for idx, v in enumerate(m):
                     datum.append((float(v), idx))
                 data = [datum]
-
-        preproc_data = np.array(data)
-        retval = preproc.process(timestamp=ts, data=preproc_data, description=description)
+        """
+        retval = preproc.process(timestamp=ts, data=data, description=description)
         return retval
 
     def runcallback(self, analytic, mdata, matches, ts, description):
         """ Call the plugin data processing function """
         # TODO handle vectors and matrices differently OR handle timeslices
         try:
-            plugin_data = [self.client.query(m, ts) for m in matches]
+            plugin_data = [self.client.query(m, ts, 'plugin') for m in matches]
             retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=description)
             return retval
         except Exception as exc:

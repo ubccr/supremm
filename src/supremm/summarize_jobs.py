@@ -5,6 +5,7 @@
 
 import logging
 import os
+import json # debug
 import shutil
 import time
 import traceback
@@ -99,6 +100,8 @@ def process_resource(resconf, preprocs, plugins, config, opts):
                 s, mdata, success, s_err = res
                 summarize_time = time.time() - summarize_start
                 summary_dict = s.get()
+                # FOR PRESENTATION ONLY DELETE LATER
+                print(json.dumps(summary_dict, indent=4, default=str))
             except Exception as e:
                 logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
                 clean_jobdir(opts, job)
@@ -106,9 +109,9 @@ def process_resource(resconf, preprocs, plugins, config, opts):
                     raise
                 else:
                     continue
-
-            process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))
-            clean_jobdir(opts, job)
+            # FOR PRESENTATION ONLY REMOVE LATER
+            #process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))
+            #clean_jobdir(opts, job)
 
 
 def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, pool):

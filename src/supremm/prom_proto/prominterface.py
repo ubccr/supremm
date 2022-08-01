@@ -1,11 +1,14 @@
 import logging
 import urllib.parse as urlparse
+from sys import getsizeof
 
 import numpy as np
 import requests
 
 
 HTTP_TIMEOUT = 5
+
+MAX_DATA_POINTS = 11000 # prometheus queries return max of 11,000 data points
 
 class PromClient():
 
@@ -15,7 +18,7 @@ class PromClient():
     def __str__(self):
         return self._url
 
-    def query(self, query, time):
+    def query(self, query, time, type):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         params = {
             'query': query,
@@ -31,8 +34,11 @@ class PromClient():
             return None
 
         data = r.json()
-        plugin_data = formatforplugin(data)
-        return plugin_data
+        if type == 'preprocessor':
+            pdata = formatforpreproc(data)
+        elif type == 'plugin':
+            pdata = formatforplugin(data)
+        return pdata
 
     def query_range(self, query, start, end, step="30s"):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
@@ -50,8 +56,11 @@ class PromClient():
         if r.status_code != 200:
             print(r.content)
             return None
-
-        data = r.json() 
+        
+        data = r.json()
+        #print(len(data['data']['result'][0]['values'])) # DEBUG
+        #print(getsizeof(data['data']['result'][0]['values'] * 4)) #DEBUG
+        
         plugin_data = formatforplugin(data)
         return plugin_data
 
@@ -83,7 +92,7 @@ class PromClient():
         return bool(data["data"])
 
 
-    def label_val_meta(self, start, end, matches, label):
+    def label_val_meta(self, start, end, matches, label, type):
         """
         Queries label values for a given metric.
         """
@@ -107,10 +116,17 @@ class PromClient():
             return False
         data = r.json()
         names = data["data"]
+        label_idx = np.arange(0, len(names))
+
+        # Format for preprocessor
+        if type == "preprocessor":
+            description = dict(zip(label_idx, names))
+            return description #[label_idx, names]
 
         # Format for plugin
-        label_idx = np.arange(0, len(names))
-        return [label_idx, names]
+        elif type == "plugin":
+            description = (label_idx, names)
+            return description #[label_idx, names]
 
 def formatforplugin(rdata):
     """
@@ -152,18 +168,52 @@ def formatforplugin(rdata):
         data = np.fromiter(formatmatrix(result), dtype=np.uint64, count=size).reshape(timestamps, instances)
         return data
 
+def formatforpreproc(rdata):
+    """
+    Format Prometheus query response into the expected format for preprocessors.
+    Check out https://prometheus.io/docs/prometheus/latest/querying/api/ for the formatting information.
+    
+    params: Prometheus json response
+    return:
+    """
+    rtype = rdata["data"]["resultType"]
+    result = rdata["data"]["result"]
+
+    # Process vector
+    if rtype == "vector":
+        # Allocate numpy array with shape (1, instances)
+        # A vector only corresponds to one timestamp
+        instances = len(result)
+        size = instances
+
+        # Format data
+        data = np.fromiter(formatvector(result), dtype=np.uint64, count=size).reshape(1, size).T
+        idx = np.arange(0, size).reshape(1, size).T
+        return np.column_stack((data, idx))
+
+    # Process matrix
+    elif rtype == "matrix":
+        # Allocate numpy array with shape (timestamps, instances)
+        timestamps = len(result[0]["values"])
+        instances = len(result)
+        size = timestamps * instances
+
+        # Format data
+        data = np.fromiter(formatmatrix(result), dtype=np.uint64, count=size).reshape(timestamps, instances)
+        return data
+
+
 def formatvector(r):
     ts = r[0]["value"][0]
     for item in r:
-        ### REMOVE * 1000 SCALING AFTER TESTING ###
-        data = float(item["value"][1]) * 1000
+        data = float(item["value"][1])
         yield data
 
 def formatmatrix(r):
     for idx, val in enumerate(r[0]["values"]):
         ts = val[0]
         for inst in r:
-            yield inst["values"][idx][1]
+            yield float(inst["values"][idx][1])
 
 def formattimestamps(r, rtype):
     # Assume the same timestamps for all instances
@@ -178,11 +228,13 @@ def formattimestamps(r, rtype):
 if __name__=="__main__":
     url = "http://172.22.0.216:9090"
 
-    start = "2022-07-01T00:30:00.000Z"
-    end = "2022-07-03T09:00:00.000Z"
+    start = "2022-06-26T00:00:00.000Z"
+    end = "2022-06-29T19:30:00.000Z"
 
     client = PromClient(url)
-    data = client.query_range("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start, end)
-    data = client.query("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start)
+    data = client.query_range("node_cpu_seconds_total{mode='user', host='prometheus-dev'}", start, end)
+    #data = client.query("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start)
     #labels = client.label_val_meta(start, end, ["node_cpu_seconds_total{mode='user', host='prometheus-dev'}"], "cpu")
+
+    print(data.nbytes)
     print(data)
