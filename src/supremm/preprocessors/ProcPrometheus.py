@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Proc information pre-processor """
 
 import re
@@ -20,16 +20,9 @@ class Proc(PreProcessor):
 
     name = property(lambda x: "proc")
     mode = property(lambda x: "timeseries")
-    requiredMetrics = property(lambda x: [
-        ["proc.psinfo.cpusallowed",
-         "proc.id.uid_nm",
-         "proc.psinfo.cgroups"],
-        ["hotproc.psinfo.cpusallowed",
-         "hotproc.id.uid_nm",
-         "hotproc.psinfo.cgroups"]
-        ])
+    requiredMetrics = property(lambda x: [])#TODO how to handle with reqMetrics? 
 
-    optionalMetrics = property(lambda x: ["cgroup.cpuset.cpus"])
+    optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
@@ -98,18 +91,14 @@ class Proc(PreProcessor):
             # processes are not always recorded in the Indom
             return True
 
-        currentpids = {}
-        cgroupedprocs = []
+        #currentpids = {}
+        #cgroupedprocs = []
 
         containedprocs = {}
-        otherjobs = {}
-        unconstrainedprocs = {}
 
-        # Find all procs running under job user account
-        for idx, unamepid in enumerate(data[1]):
-            if unamepid[0] == self.jobusername:
-                pid = int(unamepid[1])
-                currentpids[pid] = idx
+
+
+
 
         for pid, idx in currentpids.items():
             if pid not in description[1]:
