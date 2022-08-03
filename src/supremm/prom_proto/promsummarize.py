@@ -320,7 +320,7 @@ class PromSummarize():
             for k, v in mapping.items():
                 #TODO add code here to process prometheus only metrics, format same as pcp->prom mapping
                 if k[:4] == "prom:":
-                    v.update{'metric':k[4:]} # remove "prom:"
+                    v['metric'] += k[4:] # remove "prom:"
                 try:
                     mapping[k] = self.valid_metrics[k]
                 except KeyError:
