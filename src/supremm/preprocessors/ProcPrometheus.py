@@ -13,20 +13,21 @@ SLURM_CGROUP_RE = re.compile(r"cpuset:/slurm/uid_(\d+)/job_(\d+)/")
 TORQUE_CGROUP_RE = re.compile(r"cpuset:/torque/(\d+(?:\[\d+\])?)(?:\.[^\.].*)?")
 
 
-class Proc(PreProcessor):
+class ProcPrometheus(PreProcessor):
     """ Parse and analyse the proc information for a job. Supports parsing the cgroup information
         from SLRUM and PBS/Torque (if available).
     """
 
-    name = property(lambda x: "proc")
+    name = property(lambda x: "procprom")
     mode = property(lambda x: "timeseries")
-    requiredMetrics = property(lambda x: [])#TODO how to handle with reqMetrics? 
+    requiredMetrics = property(lambda x: ["prom:cgroup_cpu_info",
+                                          "prom:cgroup_process_exec_count"])
 
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
-        super(Proc, self).__init__(job)
+        super(ProcPrometheus, self).__init__(job)
 
         self.cgrouppath = None
         self.expectedcgroup = None
@@ -85,51 +86,14 @@ class Proc(PreProcessor):
         self.output['errors'][self.hostname].add(info)
 
     def process(self, timestamp, data, description):
-
-        #if len(data[0]) != len(data[1]) or len(data[0]) != len(data[2]):
-            # There is a known race condition in the proc pmda that means that
-            # processes are not always recorded in the Indom
-        #    return True
-
-        #currentpids = {}
-        #cgroupedprocs = []
-        
-        # Contained procs should be the list of executables return by cgroup exporter.
-        # All processes returned by the exporter are contained.
-        containedprocs = {}
-
-        # Set contstrained and unconstrained procs here
-
-        # No concept of pid returned by the exporter
-        #for pid, idx in currentpids.items():
-        #    if pid not in description[1]:
-        #        self.logerror("missing process name")
-        #        continue
-
-        #    s = str(description[1][pid], errors='replace')
-        #    command = s[s.find(" ") + 1:]
-
-        #    if self.cgroupparser is not None:
-        #        if self.expectedcgroup in data[2][idx][0]:
-        #            containedprocs[pid] = command
-        #            cgroupedprocs.append(idx)
-        #        else:
-        #            _, otherjobid = self.cgroupparser(data[2][idx][0])
-        #            if otherjobid is not None:
-        #                otherjobs[pid] = command
-        #            else:
-        #                unconstrainedprocs[pid] = command
-        #    else:
-        #        unconstrainedprocs[pid] = command
-
         # Set self.cgroupcpuset here using parsecpusallowed
         # The cgroupcpuset is returned as part of the description query
         # label: "cpus" 
         if self.cpusallowed is None:
             allcores = set()
             try:
-                for idx in cgroupedprocs:
-                    allcores |= parsecpusallowed(data[0][idx][0])
+                for cpuset in description[0].values():
+                    allcores |= parsecpusallowed(cpuset)
                 if len(allcores) > 0:
                     self.cpusallowed = allcores
             except ValueError:
@@ -138,12 +102,12 @@ class Proc(PreProcessor):
                 pass
 
         # All procs from the exporter are contained (constrained)
-        for procname in containedprocs.values():
+        for procname in description[1].values():
             self.output['procDump']['constrained'][procname] += 1
         
         # Currently no unconstrained proc data from the exporter
-        for procname in unconstrainedprocs.values():
-            self.output['procDump']['unconstrained'][procname] += 1
+        #for procname in unconstrainedprocs.values():
+        #    self.output['procDump']['unconstrained'][procname] += 1
 
         return True
 

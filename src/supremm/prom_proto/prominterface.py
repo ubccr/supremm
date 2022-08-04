@@ -128,6 +128,35 @@ class PromClient():
             description = (label_idx, names)
             return description #[label_idx, names]
 
+    def cgroup_info(self, uid, jobid, start, end):
+        """
+        Queries a job's cgroup
+        """
+        match = "cgroup_info{uid='%s',jobid='%s'}" % (uid, jobid)
+
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+        params = {
+            'match[]': match,
+            'start': str(start),
+            'end': str(end)
+        }
+
+        urlparse.urlencode(params, doseq=True)
+        url = urlparse.urljoin(self._url, "/api/v1/label/cgroup/values")
+        logging.debug('Prometheus QUERY CGROUP, url=%s start=%s end=%s', url, start, end)
+
+        # Query data
+        r = requests.get(url, params=params, headers=headers)
+        if r.status_code != 200:
+            logging.error("Cgroup Query Error: %s", r.content)
+            return False
+        data = r.json()
+
+        cgroup = data["data"][0]
+        return cgroup
+
 def formatforplugin(rdata):
     """
     Format Prometheus query response into the expected format for SUPReMM plugins.

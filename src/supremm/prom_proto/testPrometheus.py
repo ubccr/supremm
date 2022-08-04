@@ -138,7 +138,7 @@ def main():
             s, mdata, success, s_err = res
             summarize_time = time.time() - summarize_start
             summary_dict = s.get()
-            print(json.dumps(summary_dict, indent=4))
+            print(json.dumps(summary_dict, indent=4, default=str))
         except Exception as e:
             logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
     #process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))

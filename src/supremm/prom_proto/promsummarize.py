@@ -26,7 +26,7 @@ def load_translation():
     # Load mapping
     prom2pcp = {}
     version = "v5"
-    file = "prom_proto/mapping/%s.json" % (version)
+    file = "mapping/%s.json" % (version)
     file_path = os.path.abspath(file)
     with open(file_path, "r") as f:
         prom2pcp = json.load(f)
@@ -131,6 +131,7 @@ class PromSummarize():
 
         for preproc in self.preprocs:
             reqMetrics = self.metric_mapping(preproc.requiredMetrics)
+            print(reqMetrics)
             if False == reqMetrics:
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(preproc).__name__, preproc.name))
                 continue
@@ -155,12 +156,17 @@ class PromSummarize():
 
     def processforpreproc(self, mdata, preproc, reqMetrics):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
+        print(start, end)
         preproc.hoststart(mdata.nodename)
  
         metrics = []
         descriptions = []
         for m in reqMetrics.values():
-            metric = m['metric'] % mdata.nodename
+            if preproc.name == "procprom":
+                cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start, end) #perhaps make this part of mdata?
+                metric = m['metric'] % (cgroup, mdata.nodename)
+            else:
+                metric = m['metric'] % mdata.nodename
             base = metric.split()[0]
 
             # Check if timeseries is available
@@ -177,6 +183,7 @@ class PromSummarize():
             metrics.append(metric)
             descriptions.append(description)
 
+        print(metrics)
         # TODO use config query to parse yaml scrape config
         rdata = [self.client.query(metric, start, 'preprocessor') for metric in metrics]
         while True:
@@ -318,11 +325,10 @@ class PromSummarize():
         else:
             mapping = OrderedDict.fromkeys(reqMetrics, None)
             for k, v in mapping.items():
-                #TODO add code here to process prometheus only metrics, format same as pcp->prom mapping
-                if k[:4] == "prom:":
-                    v['metric'] += k[4:] # remove "prom:"
                 try:
                     mapping[k] = self.valid_metrics[k]
+                    if k[:5] == "prom:":
+                        mapping[k]['metric'] = k[5:] + mapping[k]['metric']
                 except KeyError:
                     logging.warning("Mapping unavailable for metric: %s", k)
                     return False
