@@ -337,13 +337,12 @@ class PromSummarize():
                     return False
             return mapping
 
-def chunk_timerange(job_start, job_end, timestep=30):
+def chunk_timerange(job_start, job_end):
     chunk_start = job_start
-    done = False
-    while not done:
+    while True:
         chunk_end = chunk_start + datetime.timedelta(hours=MAX_CHUNK)
         if chunk_end > job_end:
             yield chunk_start, job_end
-            done = True
+            break
         yield chunk_start, chunk_end
-        chunk_start = chunk_end + datetime.timedelta(seconds=timestep)
+        chunk_start = chunk_end + datetime.timedelta(seconds=1)
