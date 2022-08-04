@@ -17,6 +17,7 @@ from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.rangechange import RangeChange
 
 VERSION = "2.0.0"
+MAX_CHUNK = 24 * 3
 
 def load_translation():
     """
@@ -155,22 +156,24 @@ class PromSummarize():
             self.processfirstlast(analytic, mdata, reqMetrics)
 
     def processforpreproc(self, mdata, preproc, reqMetrics):
-        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
-        print(start, end)
+        # Serialize as unix timestamp here for prometheus metadata queries.
+        # Later on in this function the self.job.(start/end)_datetime python objects
+        # are used for chunking. Maybe determine chunks first (if necessary)? Include job's (start, end) then list of chunked (start, end)
+        start_ts, end_ts = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         preproc.hoststart(mdata.nodename)
- 
+
         metrics = []
         descriptions = []
         for m in reqMetrics.values():
             if preproc.name == "procprom":
-                cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start, end) #perhaps make this part of mdata?
+                cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start_ts, end_ts) #perhaps make this part of mdata?
                 metric = m['metric'] % (cgroup, mdata.nodename)
             else:
                 metric = m['metric'] % mdata.nodename
             base = metric.split()[0]
 
             # Check if timeseries is available
-            available = self.client.timeseries_meta(start, end, base)
+            available = self.client.timeseries_meta(start_ts, end_ts, base)
             if not available:
                 logging.warning("Skipping %s (%s). No data available." % (type(preproc).__name__, preproc.name))
                 preproc.status = "failure"
@@ -179,11 +182,14 @@ class PromSummarize():
 
             # Get metric label -> description from metric and label
             label = m['label']
-            description = self.client.label_val_meta(start, end, base, m['label'], 'preprocessor')
+            description = self.client.label_val_meta(start_ts, end_ts, base, m['label'], 'preprocessor')
             metrics.append(metric)
             descriptions.append(description)
 
-        print(metrics)
+        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
+            print(start.strftime('%Y-%m-%d %H:%M:%S'), end.strftime('%Y-%m-%d %H:%M:%S'))
+        sys.exit(0)
+
         # TODO use config query to parse yaml scrape config
         rdata = [self.client.query(metric, start, 'preprocessor') for metric in metrics]
         while True:
@@ -201,26 +207,6 @@ class PromSummarize():
 
     def processfirstlast(self, analytic, mdata, reqMetrics):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
-        """
-        OLD
-        matches = [x['metric'].split()[0] % mdata.nodename for x in reqMetrics.values()]
-
-        for match in matches:
-            available = self.client.timeseries_meta(start, end, match)
-            if not available:
-                logging.warning("Skipping %s (%s). No timeseries present." % (type(analytic).__name__, analytic.name))
-                analytic.status = "failure"
-                return
-
-        # TODO add scale factor in here -> pass as parameter to client's query OR just scale response array at the end
-        label = set(x['label'] for x in reqMetrics.values()).pop()
-
-        # TODO something fishy here ... why loop over matches then just pass matches[] to function anyway?
-        description = np.asarray([self.client.label_val_meta(start, end, matches, label, 'plugin') for m in matches])
-
-        for ts in (start, end):
-            self.runcallback(analytic, mdata, matches, ts, description)
-        """
 
         metrics = []
         descriptions = []
@@ -247,7 +233,6 @@ class PromSummarize():
         analytic.status = "complete"
 
     def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
-        return
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
 
@@ -275,6 +260,26 @@ class PromSummarize():
         #rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep, 'plugin') for metric in reqMetrics.values()]
         #for ts, d in formatforplugin(rdata, "matrix"):
         #    self.runcallback(analytic, mdata, d, ts, description)
+
+        metrics = []
+        descriptions = []
+        for m in reqMetrics.values():
+            metric = m['metric'] % mdata.nodename
+            base = metric.split()[0]
+
+            # Check if timeseries is available
+            available = self.client.timeseries_meta(start, end, base)
+            if not available:
+                logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
+                analytic.status = "failure"
+                return
+
+            # Get metric label -> description from metric and label
+            label = m['label']
+            description = self.client.label_val_meta(start, end, base, m['label'], 'plugin')
+            metrics.append(metric)
+            descriptions.append(description)
+        #TODO runcallback here
         
         analytic.status = "complete"
 
@@ -306,8 +311,6 @@ class PromSummarize():
         except Exception as exc:
             logging.error("An error occurred with the query: %s", exc)
 
-        # OLD plugin_data = [np.array(datum, dtype=np.float) for datum in pdata]
-
     def metric_mapping(self, reqMetrics):
         """
         Recursively checks if a mapping is available from a given metrics list or list of lists
@@ -315,7 +318,7 @@ class PromSummarize():
         params: reqMetrics - list of metrics from preproc/plugin 
         return: OrderedDict of the PCP to Prometheus mapping
                 False if a mapping is not present.
-        """        
+        """ 
         if isinstance(reqMetrics[0], list):
             for metriclist in reqMetrics:
                 mapping = self.metric_mapping(metriclist)
@@ -324,7 +327,7 @@ class PromSummarize():
             return False
         else:
             mapping = OrderedDict.fromkeys(reqMetrics, None)
-            for k, v in mapping.items():
+            for k in mapping.keys():
                 try:
                     mapping[k] = self.valid_metrics[k]
                     if k[:5] == "prom:":
@@ -333,3 +336,14 @@ class PromSummarize():
                     logging.warning("Mapping unavailable for metric: %s", k)
                     return False
             return mapping
+
+def chunk_timerange(job_start, job_end, timestep=30):
+    chunk_start = job_start
+    done = False
+    while not done:
+        chunk_end = chunk_start + datetime.timedelta(hours=MAX_CHUNK)
+        if chunk_end > job_end:
+            yield chunk_start, job_end
+            done = True
+        yield chunk_start, chunk_end
+        chunk_start = chunk_end + datetime.timedelta(seconds=timestep)
