@@ -64,10 +64,16 @@ class PromSummarize():
         self.start = time.time()
         self.nodes_processed = 0
 
+        # TODO use config query to parse yaml scrape interval config
+        self.timestep = "30s"
+
         # TODO this is set from opts/configs NOT hardcoded
         self.fail_fast = True
 
     def get(self):
+        # TODO this should inherit from an abstract Summarize class
+        # Data at this point are in the same format from preprocs/plugins
+        # and therefore should be processed the same regardless of backend config.
         logging.info("Returning summary information")
         output = {}
         timeseries = {}
@@ -132,7 +138,6 @@ class PromSummarize():
 
         for preproc in self.preprocs:
             reqMetrics = self.metric_mapping(preproc.requiredMetrics)
-            print(reqMetrics)
             if False == reqMetrics:
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(preproc).__name__, preproc.name))
                 continue
@@ -187,20 +192,20 @@ class PromSummarize():
             descriptions.append(description)
 
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
-            print(start.strftime('%Y-%m-%d %H:%M:%S'), end.strftime('%Y-%m-%d %H:%M:%S'))
+            if False == self.runpreproccall(preproc, mdata, start.timestamp(), end.timestamp(), metrics, descriptions):
+                break
         sys.exit(0)
 
-        # TODO use config query to parse yaml scrape config
-        rdata = [self.client.query(metric, start, 'preprocessor') for metric in metrics]
-        while True:
-            if False == self.runpreproccall(preproc, mdata, rdata, start, descriptions):
-                break
+        #
+        #while True:
+        #    if False == self.runpreproccall(preproc, mdata, rdata, start, descriptions):
+        #        break
 
-            start += 30 # HARD-CODED TIMESTEP
-            if start > end:
-                preproc.status = "failure"
-                preproc.hostend()
-                return
+        #    start += 30 # HARD-CODED TIMESTEP
+        #    if start > end:
+        #        preproc.status = "failure"
+        #        preproc.hostend()
+        #        return
 
         preproc.status = "complete"
         preproc.hostend()
@@ -283,22 +288,13 @@ class PromSummarize():
         
         analytic.status = "complete"
 
-    def runpreproccall(self, preproc, mdata, data, ts, description):
+    def runpreproccall(self, preproc, mdata, start, end, metrics, descriptions):
         """ Call the pre-processor data processing function 
         """
-        """
-        OLD
-        data = []
-        if len(pdata[0]) == 1:
-            data.append([[float(pdata[0][0]),-1]])
-        else:
-            for m in pdata:
-                datum = []
-                for idx, v in enumerate(m):
-                    datum.append((float(v), idx))
-                data = [datum]
-        """
-        retval = preproc.process(timestamp=ts, data=data, description=description)
+        print(metrics, descriptions)
+        rdata = [self.client.query_range(metric, start, end, 'preprocessor') for metric in metrics]
+
+        retval = preproc.process(timestamp=ts, data=rdata, description=descriptions)
         return retval
 
     def runcallback(self, analytic, mdata, matches, ts, description):
@@ -313,7 +309,7 @@ class PromSummarize():
 
     def metric_mapping(self, reqMetrics):
         """
-        Recursively checks if a mapping is available from a given metrics list or list of lists
+        Recursively checks if a mapping is available from a given metrics list or list of lists.
 
         params: reqMetrics - list of metrics from preproc/plugin 
         return: OrderedDict of the PCP to Prometheus mapping
@@ -338,6 +334,17 @@ class PromSummarize():
             return mapping
 
 def chunk_timerange(job_start, job_end):
+    """
+    Generator function to return chunked time ranges for a job of arbitrary length.
+    This is necessary due to Prometheus's hard-coded limit of 11,000 data points:
+    https://github.com/prometheus/prometheus/blob/30af47535d4d7c0a7566df78e63e77515ba26863/web/api/v1/api.go#L202
+
+    params: job_start, job_end - Python datetime objects of a job's start and times
+    yield: chunk_start, chunk_end - Python datetime objects of a given chunk's start and end times
+
+    'chunk_end' will be the 'job_end' for the final chunk less than the maximum specified chunk size.
+    """
+
     chunk_start = job_start
     while True:
         chunk_end = chunk_start + datetime.timedelta(hours=MAX_CHUNK)
