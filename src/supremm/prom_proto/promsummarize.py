@@ -137,7 +137,6 @@ class PromSummarize():
 
         for preproc in self.preprocs:
             reqMetrics = self.metric_mapping(preproc.requiredMetrics)
-            print(reqMetrics)
             if False == reqMetrics:
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(preproc).__name__, preproc.name))
                 continue
@@ -167,12 +166,10 @@ class PromSummarize():
         start_ts, end_ts = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         preproc.hoststart(mdata.nodename)
         logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
-        print(reqMetrics)
          
         metrics = []
         descriptions = []
         for m in reqMetrics.values():
-            print(m['metric'])
             if preproc.name == "procprom":
                 cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start_ts, end_ts)
                 metric = m['metric'] % (cgroup, mdata.nodename)
@@ -195,7 +192,7 @@ class PromSummarize():
             descriptions.append(description)
 
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
-            if False == self.runpreproccall(preproc, mdata, start.timestamp(), end.timestamp(), metrics, descriptions):
+            if False == self.runpreproccall(preproc, mdata, start, end, metrics, descriptions):
                 break
 
         preproc.status = "complete"
@@ -225,18 +222,14 @@ class PromSummarize():
             descriptions.append(description)
 
         for ts in (start, end):
-            self.runcallback(analytic, mdata, metrics, ts, descriptions)
+            pdata = [self.client.query(m, ts, 'plugin') for m in metrics]
+            self.runcallback(analytic, mdata, pdata, descriptions)
  
         analytic.status = "complete"
 
     def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
-
-        matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
-
-        # TODO parse configuration setting
-        timestep = "30s"
 
         metrics = []
         descriptions = []
@@ -257,9 +250,13 @@ class PromSummarize():
             metrics.append(metric)
             descriptions.append(description)
 
-        rdata = [self.client.query_range(m, start, end, 'plugin') for m in metrics]
-        print(rdata)
-        
+        done = False
+        while not done:
+            for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
+                rdata = [self.client.query_range(m, start, end, 'plugin') for m in metrics]
+                if False == self.runcallback(analytic, mdata, rdata, descriptions):        
+                    done = True
+
         analytic.status = "complete"
 
     def runpreproccall(self, preproc, mdata, start, end, metrics, descriptions):
@@ -271,11 +268,11 @@ class PromSummarize():
         retval = preproc.process(timestamp=ts, data=rdata, description=descriptions)
         return retval
 
-    def runcallback(self, analytic, mdata, matches, ts, description):
+    def runcallback(self, analytic, mdata, pdata, description):
         """ Call the plugin data processing function """
         try:
-            plugin_data = [self.client.query(m, ts, 'plugin') for m in matches]
-            retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=description)
+            ts = 0
+            retval = analytic.process(nodemeta=mdata, timestamp=ts, data=pdata, description=description)
             return retval
         except Exception as exc:
             logging.error("An error occurred with the query: %s", exc)
@@ -326,7 +323,7 @@ def chunk_timerange(job_start, job_end):
     while True:
         chunk_end = chunk_start + datetime.timedelta(hours=MAX_CHUNK)
         if chunk_end > job_end:
-            yield chunk_start, job_end
+            yield chunk_start.timestamp(), job_end.timestamp()
             break
-        yield chunk_start, chunk_end
-        chunk_start = chunk_end + datetime.timedelta(seconds=1)
+        yield chunk_start.timestamp(), chunk_end.timestamp()
+        chunk_start = chunk_end
