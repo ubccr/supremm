@@ -117,7 +117,6 @@ class PromSummarize():
 
         for nodename in self.job.nodenames():
             try:
-                print("Processing node: %s" % nodename)
                 logging.info("Summarizing job %s on node %s", self.job, nodename)
                 self.processnode(nodename)
                 self.nodes_processed += 1
@@ -166,7 +165,8 @@ class PromSummarize():
         # are used for chunking. Maybe determine chunks first (if necessary)? Include job's (start, end) then list of chunked (start, end)
         start_ts, end_ts = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         preproc.hoststart(mdata.nodename)
-
+        logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
+        
         metrics = []
         descriptions = []
         for m in reqMetrics.values():
@@ -194,7 +194,6 @@ class PromSummarize():
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
             if False == self.runpreproccall(preproc, mdata, start.timestamp(), end.timestamp(), metrics, descriptions):
                 break
-        sys.exit(0)
 
         #
         #while True:
@@ -212,6 +211,7 @@ class PromSummarize():
 
     def processfirstlast(self, analytic, mdata, reqMetrics):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
+        logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
         metrics = []
         descriptions = []
@@ -239,16 +239,18 @@ class PromSummarize():
 
     def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
-        matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
+        logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
+        matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
         for m in matches:
-            available = self.timeseries_meta(start, end, matches)
+            available = self.client.timeseries_meta(start, end, base)
             if not available:
                 logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
                 analytic.status = "failure"
                 return
 
         # TODO add scale factor in here -> pass as parameter to client's query OR just scale response array at the end
+        # TODO Process similar to preproc above
         l = set(x['label'] for x in reqMetrics.values()).pop()
 
         # TODO something fishy here ... why loop over matches then just pass matches[] to function anyway?
@@ -291,9 +293,9 @@ class PromSummarize():
     def runpreproccall(self, preproc, mdata, start, end, metrics, descriptions):
         """ Call the pre-processor data processing function 
         """
-        print(metrics, descriptions)
-        rdata = [self.client.query_range(metric, start, end, 'preprocessor') for metric in metrics]
 
+        rdata = [self.client.query_range(metric, start, end, 'preprocessor') for metric in metrics]
+        ts = 0
         retval = preproc.process(timestamp=ts, data=rdata, description=descriptions)
         return retval
 

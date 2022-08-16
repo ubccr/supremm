@@ -14,6 +14,7 @@ class PromClient():
 
     def __init__(self, url):
         self._url = url
+        self._step = '30s'
 
     def __str__(self):
         return self._url
@@ -40,13 +41,13 @@ class PromClient():
             pdata = formatforplugin(data)
         return pdata
 
-    def query_range(self, query, start, end, step="30s"):
+    def query_range(self, query, start, end, type):
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         params = {
             'query': query,
             'start': start,
             'end': end,
-            'step': step
+            'step': self._step
         }
 
         endpoint = "/api/v1/query_range"
@@ -58,11 +59,11 @@ class PromClient():
             return None
         
         data = r.json()
-        #print(len(data['data']['result'][0]['values'])) # DEBUG
-        #print(getsizeof(data['data']['result'][0]['values'] * 4)) #DEBUG
-        
-        plugin_data = formatforplugin(data)
-        return plugin_data
+        if type == 'preprocessor':
+            pdata = formatforpreproc(data)
+        elif type == 'plugin':
+            pdata = formatforplugin(data)
+        return pdata       
 
     def timeseries_meta(self, start, end, match):
         # This is basis for checking if timeseries is available
@@ -80,7 +81,7 @@ class PromClient():
         endpoint = "/api/v1/series"
         urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self._url, endpoint)
-        logging.debug('Prometheus QUERY SERIES META, url=%s start=%s end=%s', url, start, end)
+        logging.debug('Prometheus QUERY SERIES META, start=%s end=%s', start, end)
         
         r = requests.get(url, params=params, headers=headers)
         if r.status_code != 200:
@@ -107,7 +108,7 @@ class PromClient():
 
         urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self._url, "/api/v1/label/%s/values" % label)
-        logging.debug('Prometheus QUERY LABEL VALUES, url=%s start=%s end=%s', url, start, end)
+        logging.debug('Prometheus QUERY LABEL VALUES, start=%s end=%s', start, end)
 
         # Query data
         r = requests.get(url, params=params, headers=headers)
@@ -145,7 +146,7 @@ class PromClient():
 
         urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self._url, "/api/v1/label/cgroup/values")
-        logging.debug('Prometheus QUERY CGROUP, url=%s start=%s end=%s', url, start, end)
+        logging.debug('Prometheus QUERY CGROUP, start=%s end=%s', start, end)
 
         # Query data
         r = requests.get(url, params=params, headers=headers)

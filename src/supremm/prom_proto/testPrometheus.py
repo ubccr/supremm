@@ -14,6 +14,7 @@ from supremm import outputter
 from supremm.config import Config
 from supremm.proc_common import filter_plugins, instantiatePlugins
 from supremm.plugin import loadpreprocessors, loadplugins
+from supremm.scripthelpers import setuplogger
 from supremm.xdmodaccount import XDMoDAcct
 
 from promsummarize import PromSummarize
@@ -115,8 +116,7 @@ def main():
     config = Config()
     opts, args = getoptions()
 
-    logging.basicConfig(format='%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%dT%H:%M:%S', level=logging.DEBUG)
-    logging.captureWarnings(True)
+    setuplogger('INFO')    
 
     preprocs = loadpreprocessors()
     plugins = loadplugins()
@@ -130,8 +130,10 @@ def main():
     logging.debug("Loaded %s plugins", len(plugins))
 
     #with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
-    dbif = XDMoDAcct('1', config)
-    for job in dbif.getbylocaljobid('2034'):
+    dbif = XDMoDAcct('11', config)
+
+    # Test on single job with walltime > 3 days and greatest node count (13)
+    for job in dbif.getbylocaljobid('8970792'):
         try:
             summarize_start = time.time()
             res = summarizejobprom(job, plugins, preprocs)
