@@ -137,6 +137,7 @@ class PromSummarize():
 
         for preproc in self.preprocs:
             reqMetrics = self.metric_mapping(preproc.requiredMetrics)
+            print(reqMetrics)
             if False == reqMetrics:
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(preproc).__name__, preproc.name))
                 continue
@@ -166,22 +167,24 @@ class PromSummarize():
         start_ts, end_ts = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         preproc.hoststart(mdata.nodename)
         logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
-        
+        print(reqMetrics)
+         
         metrics = []
         descriptions = []
         for m in reqMetrics.values():
+            print(m['metric'])
             if preproc.name == "procprom":
-                cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start_ts, end_ts) #perhaps make this part of mdata?
+                cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start_ts, end_ts)
                 metric = m['metric'] % (cgroup, mdata.nodename)
             else:
                 metric = m['metric'] % mdata.nodename
+
             base = metric.split()[0]
 
             # Check if timeseries is available
             available = self.client.timeseries_meta(start_ts, end_ts, base)
             if not available:
                 logging.warning("Skipping %s (%s). No data available." % (type(preproc).__name__, preproc.name))
-                preproc.status = "failure"
                 preproc.hostend()
                 return
 
@@ -194,17 +197,6 @@ class PromSummarize():
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
             if False == self.runpreproccall(preproc, mdata, start.timestamp(), end.timestamp(), metrics, descriptions):
                 break
-
-        #
-        #while True:
-        #    if False == self.runpreproccall(preproc, mdata, rdata, start, descriptions):
-        #        break
-
-        #    start += 30 # HARD-CODED TIMESTEP
-        #    if start > end:
-        #        preproc.status = "failure"
-        #        preproc.hostend()
-        #        return
 
         preproc.status = "complete"
         preproc.hostend()
@@ -242,31 +234,9 @@ class PromSummarize():
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
         matches = [x['metric'] % mdata.nodename for x in reqMetrics.values()]
-        for m in matches:
-            available = self.client.timeseries_meta(start, end, base)
-            if not available:
-                logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
-                analytic.status = "failure"
-                return
-
-        # TODO add scale factor in here -> pass as parameter to client's query OR just scale response array at the end
-        # TODO Process similar to preproc above
-        l = set(x['label'] for x in reqMetrics.values()).pop()
-
-        # TODO something fishy here ... why loop over matches then just pass matches[] to function anyway?
-        description = np.asarray([self.client.label_val_meta(start, end, matches, l) for m in matches])
 
         # TODO parse configuration setting
         timestep = "30s"
-
-        # query data from time range 
-        while not done:
-            done = True
-
-        #OLD
-        #rdata = [self.connect.custom_query_range(metric['metric'], start, end, timestep, 'plugin') for metric in reqMetrics.values()]
-        #for ts, d in formatforplugin(rdata, "matrix"):
-        #    self.runcallback(analytic, mdata, d, ts, description)
 
         metrics = []
         descriptions = []
@@ -286,7 +256,9 @@ class PromSummarize():
             description = self.client.label_val_meta(start, end, base, m['label'], 'plugin')
             metrics.append(metric)
             descriptions.append(description)
-        #TODO runcallback here
+
+        rdata = [self.client.query_range(m, start, end, 'plugin') for m in metrics]
+        print(rdata)
         
         analytic.status = "complete"
 
@@ -301,7 +273,6 @@ class PromSummarize():
 
     def runcallback(self, analytic, mdata, matches, ts, description):
         """ Call the plugin data processing function """
-        # TODO handle vectors and matrices differently OR handle timeslices
         try:
             plugin_data = [self.client.query(m, ts, 'plugin') for m in matches]
             retval = analytic.process(nodemeta=mdata, timestamp=ts, data=plugin_data, description=description)
@@ -329,7 +300,11 @@ class PromSummarize():
                 try:
                     mapping[k] = self.valid_metrics[k]
                     if k[:5] == "prom:":
-                        mapping[k]['metric'] = k[5:] + mapping[k]['metric']
+                        full_metric = mapping[k]['metric']
+                        if k[5:] not in full_metric:
+                            mapping[k]['metric'] = k[5:] + full_metric
+                        else:
+                            mapping[k]['metric'] = full_metric
                 except KeyError:
                     logging.warning("Mapping unavailable for metric: %s", k)
                     return False

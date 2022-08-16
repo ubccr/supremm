@@ -82,7 +82,7 @@ class PromClient():
         urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self._url, endpoint)
         logging.debug('Prometheus QUERY SERIES META, start=%s end=%s', start, end)
-        
+
         r = requests.get(url, params=params, headers=headers)
         if r.status_code != 200:
             return False
