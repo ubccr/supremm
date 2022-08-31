@@ -1,0 +1,54 @@
+{
+  "cgroup.memory.usage": {
+                           "metric": "cgroup_memory_used_bytes{host='%s'}",
+                           "label": "cgroup"
+                         },
+  "cgroup.memory.limit": {
+                           "metric": "cgroup_memory_total_bytes{host='%s'}",
+                           "label": "cgroup"
+                         },
+  "kernel.percpu.cpu.user": {
+                              "metric": "node_cpu_seconds_total{mode='user',host='%s'} * 1000",
+                              "label": "cpu"
+                            },
+  "kernel.percpu.cpu.idle": {
+                              "metric": "node_cpu_seconds_total{mode='idle',host='%s'} * 1000",
+                              "label": "cpu"
+                            },
+  "kernel.percpu.cpu.nice": {
+                              "metric": "node_cpu_seconds_total{mode='nice',host='%s'} * 1000",
+                              "label": "cpu"
+                            },
+  "kernel.percpu.cpu.sys": {
+                              "metric": "node_cpu_seconds_total{mode='system',host='%s'} * 1000",
+                              "label": "cpu"
+                            },
+  "kernel.percpu.cpu.wait.total": {
+                              "metric": "node_cpu_seconds_total{mode='iowait',host='%s'} * 1000",
+                              "label": "cpu"
+                            },
+  "kernel.percpu.cpu.irq.hard": {
+                              "metric": "node_cpu_seconds_total{mode='irq',host='%s'} * 1000",
+                              "label": "cpu"
+                            },
+  "kernel.percpu.cpu.irq.soft": {
+                              "metric": "node_cpu_seconds_total{mode='softirq',host='%s'} * 1000",
+                              "label": "cpu"
+                            },
+  "network.interface.in.bytes": {
+                              "metric": "node_network_receive_bytes_total{host='%s'}",
+                              "label": "device"
+                            },
+  "network.interface.out.bytes": {
+                                  "metric": "node_network_transmit_bytes_total{host='%s'}",
+                                  "label": "device"
+                            },
+  "prom:cgroup_cpu_info": {
+                                  "metric": "{cgroup='%s',host='%s'}",
+                                  "label": "cpus"
+                            },
+  "prom:cgroup_process_exec_count": {
+                                  "metric": "{cgroup='%s',host='%s'}",
+                                  "label": "exec"
+                            }
+}

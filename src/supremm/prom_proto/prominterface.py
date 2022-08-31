@@ -1,6 +1,6 @@
 import logging
 import urllib.parse as urlparse
-from sys import getsizeof
+import sys
 
 import numpy as np
 import requests
@@ -175,7 +175,11 @@ def formatforplugin(rdata):
     """
     rtype = rdata["data"]["resultType"]
     result = rdata["data"]["result"]
-
+    for idx, val in enumerate(result[0]["values"]):
+        ts = val[0]
+        for inst in result:
+            print(float(inst["values"][idx][1]))
+    sys.exit(0)
     # Process vector
     if rtype == "vector":
         # Allocate numpy array with shape (1, instances)
