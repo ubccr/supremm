@@ -10,7 +10,8 @@ class Summarize(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self._config
+        pass
+        #self._config
 
     @abstractmethod
     def adderror(self, category, errormsg):

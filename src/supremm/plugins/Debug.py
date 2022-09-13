@@ -18,8 +18,8 @@ class Debug(Plugin):
         super(Debug, self).__init__(job)
         self._numcallbacks = 0
         
-    def process(nodemeta=None, timestamp=None, data=None, description=None):
+    def process(self, nodemeta=None, timestamp=None, data=None, description=None):
         self._numcallbacks += 1
         
-    def results():
+    def results(self):
         return {"callbacks": self._numcallbacks}
