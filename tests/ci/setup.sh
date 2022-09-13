@@ -18,4 +18,5 @@ yum install -y \
     python3-pexpect \
     python3-pylint \
     python3-pcp \
+    python3-requests \
     pcp-devel
