@@ -35,6 +35,14 @@
                               "metric": "node_cpu_seconds_total{mode='softirq',host='%s'} * 1000",
                               "label": "cpu"
                             },
+  "mem.freemem": {
+                "metric": "node_memory_MemFree_bytes{host='%s'}",
+                "label": "host"
+               },
+  "mem.physmem": {
+                "metric": "node_memory_MemTotal_bytes{host='%s'}",
+                "label": "host"
+  },
   "network.interface.in.bytes": {
                               "metric": "node_network_receive_bytes_total{host='%s'}",
                               "label": "device"

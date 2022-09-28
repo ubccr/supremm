@@ -12,9 +12,10 @@ from collections import OrderedDict
 import requests
 import numpy as np
 
-from supremm.prom_proto.prominterface import PromClient
+from prominterface import PromClient, formatforplugin # Use local import for debugging, testing
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.rangechange import RangeChange
+
 
 VERSION = "2.0.0"
 MAX_CHUNK = 24 * 3
@@ -37,9 +38,9 @@ def load_translation():
 
 class NodeMeta(NodeMetadata):
     """ container for node metadata """
-    def __init__(self, nodename):
+    def __init__(self, nodename, idx):
         self._nodename = nodename
-        self._nodeidx = 0
+        self._nodeidx = idx
         self._archivedata = None
 
     nodename = property(lambda self: self._nodename)
@@ -49,7 +50,7 @@ class NodeMeta(NodeMetadata):
 class PromSummarize():
     def __init__(self, preprocessors, analytics, job):
         # Establish connection with server:
-        self.url = "http://172.22.0.216:9090"
+        self.url = "http://127.0.0.1:9090"
         self.client = PromClient(url=self.url)
 
         # Translation Prom -> PCP metric names
@@ -113,12 +114,13 @@ class PromSummarize():
     def process(self):
         """ Main entry point. All nodes are processed. """
         success = 0
-        self.archives_processed = 0
+        self.nodes_processed = 0
 
         for nodename in self.job.nodenames():
             try:
                 logging.info("Summarizing job %s on node %s", self.job, nodename)
-                self.processnode(nodename)
+                idx = self.nodes_processed
+                self.processnode(nodename, idx)
                 self.nodes_processed += 1
 
             except Exception as exc:
@@ -131,9 +133,9 @@ class PromSummarize():
 
         return success == 0
 
-    def processnode(self, nodename):
+    def processnode(self, nodename, idx):
         # Create metadata from nodename
-        mdata = NodeMeta(nodename)
+        mdata = NodeMeta(nodename, idx)
 
         for preproc in self.preprocs:
             reqMetrics = self.metric_mapping(preproc.requiredMetrics)
@@ -192,7 +194,8 @@ class PromSummarize():
             descriptions.append(description)
 
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
-            if False == self.runpreproccall(preproc, mdata, start, end, metrics, descriptions):
+            pdata = [self.client.query_range(metric, start, end, 'preprocessor') for metric in metrics]
+            if False == self.runpreproccall(preproc, mdata, pdata, descriptions):
                 break
 
         preproc.status = "complete"
@@ -222,8 +225,8 @@ class PromSummarize():
             descriptions.append(description)
 
         for ts in (start, end):
-            pdata = [self.client.query(m, ts, 'plugin') for m in metrics]
-            self.runcallback(analytic, mdata, pdata, descriptions)
+            rdata = [self.client.query(m, ts) for m in metrics]
+            self.runcallback(analytic, mdata, rdata, descriptions)
  
         analytic.status = "complete"
 
@@ -231,8 +234,9 @@ class PromSummarize():
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
-        metrics = []
+        data = []
         descriptions = []
+        metrics = []
         for m in reqMetrics.values():
             metric = m['metric'] % mdata.nodename
             base = metric.split()[0]
@@ -250,32 +254,64 @@ class PromSummarize():
             metrics.append(metric)
             descriptions.append(description)
 
-        done = False
-        while not done:
-            for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
-                rdata = [self.client.query_range(m, start, end, 'plugin') for m in metrics]
-                if False == self.runcallback(analytic, mdata, rdata, descriptions):        
-                    done = True
+        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
+            rdata = [self.client.query_range(m, start, end) for m in metrics]
+            if False == self.runcallback(analytic, mdata, rdata, descriptions):        
+                break
 
         analytic.status = "complete"
 
-    def runpreproccall(self, preproc, mdata, start, end, metrics, descriptions):
+    def runpreproccall(self, preproc, mdata, rdata, descriptions):
         """ Call the pre-processor data processing function 
         """
-
-        rdata = [self.client.query_range(metric, start, end, 'preprocessor') for metric in metrics]
         ts = 0
         retval = preproc.process(timestamp=ts, data=rdata, description=descriptions)
         return retval
 
-    def runcallback(self, analytic, mdata, pdata, description):
+    def runcallback(self, analytic, mdata, rdata, description):
         """ Call the plugin data processing function """
-        try:
-            ts = 0
-            retval = analytic.process(nodemeta=mdata, timestamp=ts, data=pdata, description=description)
-            return retval
-        except Exception as exc:
-            logging.error("An error occurred with the query: %s", exc)
+        format_func = formatforplugin(rdata)
+
+        # Initialize minimum timestamp with first available timestamp
+        # Note: 'label' is not universal for required metrics so this should
+        # be moved out of 'context'.
+
+        init_ctx = {
+                "ts_min" : int(rdata[0]["data"]["result"][0]["values"][0][0]),
+                "label" : "host",
+                "idx_dict" : dict()
+        }
+
+        for m in rdata:
+            name = m["data"]["result"][0]["metric"]["__name__"]
+            metrics = { name : {} }
+            for inst in m["data"]["result"]:
+                ### 'Label' is uniqueness
+                inst_id = inst["metric"][init_ctx["label"]]
+                ts = int(inst["values"][0][0])
+                if ts < init_ctx["ts_min"]:
+                    ctx["ts_min"] = ts
+                metrics[name].update({inst_id : {"idx" : 0, "ts" : ts}})
+            init_ctx["idx_dict"].update(metrics)
+
+        # Size of numpy array = total number of instances from all responses
+        ctx = init_ctx
+        while True:
+            try:
+                next(format_func)
+                ts, vals, new_ctx = format_func.send(ctx)
+                ctx = new_ctx
+            except StopIteration:
+                break
+            try:
+                retval = analytic.process(mdata, ts, vals, description)
+                if not retval:
+                    break
+            except Exception as e:
+                print(e)
+                break
+
+        return False
 
     def metric_mapping(self, reqMetrics):
         """
@@ -296,6 +332,7 @@ class PromSummarize():
             for k in mapping.keys():
                 try:
                     mapping[k] = self.valid_metrics[k]
+                    # Prometheus-only plugins/preprocs
                     if k[:5] == "prom:":
                         full_metric = mapping[k]['metric']
                         if k[5:] not in full_metric:
