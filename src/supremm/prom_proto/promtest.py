@@ -7,9 +7,6 @@ import time
 import traceback
 import logging
 
-import prometheus_api_client as pac
-from prometheus_api_client.utils import parse_datetime
-
 from supremm import outputter
 from supremm.config import Config
 from supremm.proc_common import filter_plugins, instantiatePlugins
@@ -94,7 +91,7 @@ class MockPromJob():
         return None
 
     def __str__(self):
-        return "{} {} {} {}".format(self.job_id, self.walltime, self.nodes, self.node_archives)
+        return "{} {} {}".format(self.job_id, self.walltime, self.nodes)
 
 def summarizejobprom(job, plugins, preprocs):
     mdata = {}

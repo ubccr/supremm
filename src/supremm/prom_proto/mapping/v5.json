@@ -36,11 +36,11 @@
                               "label": "cpu"
                             },
   "mem.freemem": {
-                "metric": "node_memory_MemFree_bytes{host='%s'}",
+                "metric": "node_memory_MemFree_bytes{host='%s'} / 1000",
                 "label": "host"
                },
   "mem.physmem": {
-                "metric": "node_memory_MemTotal_bytes{host='%s'}",
+                "metric": "node_memory_MemTotal_bytes{host='%s'} / 1000",
                 "label": "host"
   },
   "network.interface.in.bytes": {

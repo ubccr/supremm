@@ -250,9 +250,10 @@ class PromSummarize():
             description = self.client.label_val_meta(start, end, base, m['label'], 'plugin')
             descriptions.append(description)
 
+        #ctx = Context()
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):            
             rdata = []
-            #ctx = Context()
+
             for m in reqMetrics.values():
                 metric = m['metric'] % mdata.nodename
                 base = metric.split()[0]
@@ -261,7 +262,7 @@ class PromSummarize():
                 #ctx.add_metric(query, m['label'])
 
                 rdata.append(query)
-            
+            print(rdata)
             if False == self.runcallback(analytic, mdata, rdata, descriptions):        
                 continue
 
@@ -272,7 +273,7 @@ class PromSummarize():
 
         for ts, vals in formatforpreproc(rdata):
             try:
-                print(ts, vals)
+                #print(ts, vals)
                 retval = preproc.process(mdata, ts, vals, description)
                 if retval:
                     break
