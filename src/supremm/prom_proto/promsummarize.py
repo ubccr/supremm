@@ -6,13 +6,14 @@ import logging
 import requests
 import inspect
 import datetime
+import traceback
 import urllib.parse as urlparse
 from collections import OrderedDict
 
 import requests
 import numpy as np
 
-from prominterface import PromClient, formatforplugin, formatforpreproc # Use local import for debugging, testing
+from prominterface import PromClient, Context, formatforplugin, formatforpreproc # Use local import for debugging, testing
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.rangechange import RangeChange
 
@@ -168,8 +169,8 @@ class PromSummarize():
         start_ts, end_ts = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         preproc.hoststart(mdata.nodename)
         logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
-         
-        metrics = []
+
+        ctx = Context()
         descriptions = []
         for m in reqMetrics.values():
             if preproc.name == "procprom":
@@ -190,13 +191,30 @@ class PromSummarize():
             # Get metric label -> description from metric and label
             label = m['label']
             description = self.client.label_val_meta(start_ts, end_ts, base, m['label'], 'preprocessor')
-            metrics.append(metric)
             descriptions.append(description)
+            ctx.add_metric(base, label)
 
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
-            pdata = [self.client.query_range(metric, start, end) for metric in metrics]
-            if False == self.runpreproccall(preproc, mdata, pdata, descriptions):
+            rdata = OrderedDict()
+
+            for m in reqMetrics.values():
+                if preproc.name == "procprom":
+                    cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start_ts, end_ts)
+                    metric = m['metric'] % (cgroup, mdata.nodename)
+                else:
+                    metric = m['metric'] % mdata.nodename
+                base = metric.split()[0]
+
+                query = self.client.query_range(metric, start, end)
+                rdata.update({base : query})
+                
+                if not ctx.get_rtype():
+                    ctx.set_rtype(query)
+
+            if False == self.runpreproccall(preproc, mdata, rdata, descriptions, ctx):        
                 break
+                
+            ctx.reset()
 
         preproc.status = "complete"
         preproc.hostend()
@@ -234,9 +252,11 @@ class PromSummarize():
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
+        ctx = Context()
         descriptions = []
         for m in reqMetrics.values():
             metric = m['metric'] % mdata.nodename
+            label = m['label']
             base = metric.split()[0]
 
             # Check if timeseries is available
@@ -247,38 +267,40 @@ class PromSummarize():
                 return
 
             # Get metric label -> description from metric and label
-            description = self.client.label_val_meta(start, end, base, m['label'], 'plugin')
+            description = self.client.label_val_meta(start, end, base, label, 'plugin')
             descriptions.append(description)
+            ctx.add_metric(base, label)            
 
-        #ctx = Context()
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):            
-            rdata = []
+            rdata = OrderedDict()
 
             for m in reqMetrics.values():
                 metric = m['metric'] % mdata.nodename
                 base = metric.split()[0]
 
                 query = self.client.query_range(metric, start, end)
-                #ctx.add_metric(query, m['label'])
+                rdata.update({base : query})
+                
+                if not ctx.get_rtype():
+                    ctx.set_rtype(query)
 
-                rdata.append(query)
-            print(rdata)
-            if False == self.runcallback(analytic, mdata, rdata, descriptions):        
+            if False == self.runcallback(analytic, mdata, rdata, descriptions, ctx):        
                 continue
+                
+            ctx.reset()
 
         analytic.status = "complete"
 
-    def runpreproccall(self, preproc, mdata, rdata, descriptions):
+    def runpreproccall(self, preproc, mdata, rdata, descriptions, ctx):
         """ Call the pre-processor data processing function """
 
-        for ts, vals in formatforpreproc(rdata):
+        for ts, vals in formatforpreproc(rdata, ctx):
             try:
-                #print(ts, vals)
-                retval = preproc.process(mdata, ts, vals, description)
+                retval = preproc.process(ts, vals, descriptions)
                 if retval:
                     break
             except Exception as e:
-                print(e)
+                print(traceback.format_exc())
                 break
 
         return False
@@ -286,13 +308,13 @@ class PromSummarize():
     def runcallback(self, analytic, mdata, rdata, description, ctx=None):
         """ Call the plugin data processing function """
 
-        for ts, vals in formatforplugin(rdata):
+        for ts, vals in formatforplugin(rdata, ctx):
             try:
                 retval = analytic.process(mdata, ts, vals, description)
                 if not retval:
                     break
             except Exception as e:
-                print(e)
+                print(traceback.format_exc())
                 break
 
         return False
@@ -334,7 +356,7 @@ def chunk_timerange(job_start, job_end):
     This is necessary due to Prometheus's hard-coded limit of 11,000 data points:
     https://github.com/prometheus/prometheus/blob/30af47535d4d7c0a7566df78e63e77515ba26863/web/api/v1/api.go#L202
 
-    params: job_start, job_end - Python datetime objects of a job's start and times
+    params: job_start, job_end - Python datetime objects of a job's start and end times
     yield: chunk_start, chunk_end - Python datetime objects of a given chunk's start and end times
 
     'chunk_end' will be the 'job_end' for the final chunk less than the maximum specified chunk size.

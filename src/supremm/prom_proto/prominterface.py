@@ -6,60 +6,12 @@ import math
 import numpy as np
 import requests
 
-class Context():
-    def __init__(self):
-        self._min_ts = np.inf
-        self._idx_dict = {}
-
-    # Build context
-    def add_metric(self, query, label):
-        for m in query:
-            name = m["data"]["result"][0]["metric"]["__name__"]
-            metric = { name : {"label" : label, "inst" : {}} }
-            for inst in m["data"]["result"]:
-                inst_id = inst["metric"][label]
-                ts = int(inst["values"][0][0])
-                if ts < self._min_ts:
-                    self._min_ts = ts
-                metrics[name].update({inst_id :
-                                        {"idx"    : 0,
-                                         "ts"     : ts,
-                                         "update" : False}})
-            self._idx_dict.update(metrics)
-
-    def update_min_ts(self):
-        new_min = np.inf
-        min_ts = self._min_ts
-    
-        for inst in metric["data"]["result"]:
-            name = inst["metric"]["__name__"]
-            inst_id = inst["metric"][label]
-            idx = ctx["idx_dict"][name][inst_id]["idx"]
-            try:
-                ts = inst["values"][idx][0]
-            except IndexError:
-                yield np.NaN
-
-            if ts == ts_min:
-                value = inst["values"][idx][1]
-                try:
-                    idx += 1
-                    ctx["idx_dict"][name][inst_id]["ts"] = inst["values"][idx][0]
-                    ctx["idx_dict"][name][inst_id]["idx"] = idx
-                except IndexError:
-                    ctx["idx_dict"][name][inst_id]["ts"] = np.inf
-                yield value
-                
-        # Update minimum timestamps in context dict
-        for m in self._idx_dict.values():
-            ctx["ts_min"] = min(inst["ts"] for inst in m.values())
-
 
 HTTP_TIMEOUT = 5
 MAX_DATA_POINTS = 11000 # Prometheus queries return maximum of 11,000 data points
 
 class PromClient():
-    def __init__(self, url='127.0.0.1:9090'):
+    def __init__(self, url='http://127.0.0.1:9090'):
         self._url = url
         self._step = '30s'
 
@@ -152,6 +104,7 @@ class PromClient():
         if r.status_code != 200:
             logging.error("Label Name Query Error: %s", r.content)
             return False
+
         data = r.json()
         names = data["data"]
         label_idx = np.arange(0, len(names))
@@ -159,12 +112,12 @@ class PromClient():
         # Format for preprocessor
         if type == "preprocessor":
             description = dict(zip(label_idx, names))
-            return description #[label_idx, names]
+            return description
 
         # Format for plugin
         elif type == "plugin":
             description = (label_idx, names)
-            return description #[label_idx, names]
+            return description
 
     def cgroup_info(self, uid, jobid, start, end):
         """
@@ -195,7 +148,7 @@ class PromClient():
         cgroup = data["data"][0]
         return cgroup
 
-def formatforpreproc(response):
+def formatforpreproc(response, ctx):
     """
     Format Prometheus query response into the expected format for preprocessors.
     
@@ -204,17 +157,13 @@ def formatforpreproc(response):
             appropriate prometheus response type
     """
 
-    rtype = response[0]["data"]["resultType"]
-
-    # Process vector
-    if rtype == "vector":
+    if ctx:
+        return formatmatrixpreproc(response, ctx)
+    else:
         return formatvectorpreproc(response)
 
-    # Process matrix
-    elif rtype == "matrix":
-        return formatmatrixpreproc(response)
 
-def formatforplugin(response):
+def formatforplugin(response, ctx):
     """
     Format Prometheus query response into the expected format for plugin.
     
@@ -223,120 +172,56 @@ def formatforplugin(response):
             appropriate prometheus response type
     """
 
-    rtype = response[0]["data"]["resultType"]
+    if ctx:
+        return formatmatrix(response, ctx)
+    else:
+        return formatvector(response)        
 
-    # Process vector
-    if rtype == "vector":
-        return formatvector(response)
-
-    # Process matrix
-    elif rtype == "matrix":
-        return formatmatrix(response)
 
 def formatvectorpreproc(response):
     """ """
 
-    def populatevector(metric):
-        """ Generator to populate data array """
-        for inst in metric["data"]["result"]:
-            yield inst["value"][1]
-
     # Timestamp is the same for all instances in a vector
     ts = int(response[0]["data"]["result"][0]["value"][0])
     
     data = []
     for m in response:
         size = len(m["data"]["result"])
-        data.append(np.fromiter(populatevector(m), np.float64, size))
-        data.append([i for i in range(0, size)])
+        idx = [i for i in range(0, size)]
+        vals = np.fromiter(populatematrix(m), np.float64, size)
+        data.append(zip(vals, idx))
 
     yield ts, data
     
-def formatmatrixpreproc(response, label="cpu"):
+def formatmatrixpreproc(response, ctx):
 
-    def getdata(metric, ctx):
-        """ Generator to populate data array """
-        label = ctx["label"]
-        ts_min = ctx["ts_min"]
-
-        for inst in metric["data"]["result"]:
-            name = inst["metric"]["__name__"]
+    for metric, data in response.items():
+        label = ctx.get_label(metric)
+        for inst in data["data"]["result"]:
             inst_id = inst["metric"][label]
-            idx = ctx["idx_dict"][name][inst_id]["idx"]
-
-            try:
-                ts = inst["values"][idx][0]
-            except IndexError:
-                yield np.NaN
-
-            if ts == ts_min:
-                value = inst["values"][idx][1]
-
-                try:
-                    idx += 1
-                    ctx["idx_dict"][name][inst_id]["ts"] = inst["values"][idx][0]
-                    ctx["idx_dict"][name][inst_id]["idx"] = idx
-                except IndexError:
-                    ctx["idx_dict"][name][inst_id]["ts"] = np.inf
-
-                yield value
-
-            else:
-                yield np.NaN
-
-    # Initialize minimum timestamp with first available timestamp
-    # Note: 'label' is not universal for required metrics so this should
-    # be moved out of context dict.
-    ctx = {
-        "ts_min" : int(response[0]["data"]["result"][0]["values"][0][0]),
-        "label" : label,
-        "idx_dict" : dict()
-    }
-    # Build context
-    for m in response:
-        #print(m["data"]["result"][0]["metric"])
-        inst_cnt = 0
-        name = m["data"]["result"][0]["metric"]["__name__"]
-        metrics = { name : {} }
-        for inst in m["data"]["result"]:
-            ### 'Label' is uniqueness
-            inst_cnt = inst["metric"][ctx["label"]]
-            ts = int(inst["values"][0][0])
-            if ts < ctx["ts_min"]:
-                ctx["ts_min"] = ts
-            metrics[name].update({inst_id :
-                                    {"idx"    : 0,
-                                     "ts"     : ts,
-                                     "update" : False,
-                                     "id"     : inst_cnt}})
-            inst_cnt += 1
-        ctx["idx_dict"].update(metrics)
+            min_ts = inst["values"][0][0]
+            ctx.add_inst(metric, inst_id, min_ts)
+    print(ctx)
 
     done = False
     while not done:
-        # Generate plugin-formatted data from prometheus response
-        # for a single timestamp
         data = []
-        for m in response:
-            size = len(m["data"]["result"])
-            data.append([d for d in getdata(m, ctx)])
-            data.append([i for i in range(0, len(ctx["idx_dict"].values()))])
-
-        # Update minimum timestamps in context dict
-        ts_min = ctx["ts_min"]
-
-        ctx["ts_min"] = next_ts_min
-        if ctx["ts_min"] == np.inf:
-            #print("No more timestamps!")
+        for m, d in response.items():
+            size = len(d["data"]["result"])
+            idx = [i for i in range(0, size)]
+            vals = np.fromiter(populatematrix(m, d, ctx), np.float64, size)
+            pdata = zip(vals, idx)
+            data.append(pdata)
+        
+        min_ts = ctx.get_min_ts()
+        ctx.next_min_ts()
+        if np.inf == ctx.curr_ts():
             done = True
 
-        yield ts_min, data
+        yield min_ts, data
 
 def formatvector(response):
-    def populatevector(metric):
-        for inst in metric["data"]["result"]:
-            yield inst["value"][1]
-
+    
     # Timestamp is the same for all instances in a vector
     ts = int(response[0]["data"]["result"][0]["value"][0])
 
@@ -347,91 +232,114 @@ def formatvector(response):
 
     yield ts, data
 
-def formatmatrix(response, label="host"):
+def formatmatrix(response, ctx):
 
-    def getdata(metric, ctx, nidx):
-        label = ctx["label"]
-        ts_min = ctx["ts_min"]
-
-        for inst in metric["data"]["result"]:
-            try:
-                name = inst["metric"]["__name__"]
-            except KeyError:
-                if nidx == 0:
-                    name = "node_memory_MemFree_bytes"
-                elif nidx == 1:
-                    name = "node_memory_MemTotal_bytes"
+    for metric, data in response.items():
+        label = ctx.get_label(metric)
+        for inst in data["data"]["result"]:
             inst_id = inst["metric"][label]
-            idx = ctx["idx_dict"][name][inst_id]["idx"]
-            try:
-                ts = inst["values"][idx][0]
-            except IndexError:
-                yield np.NaN
-
-            if ts == ts_min:
-                value = inst["values"][idx][1]
-                try:
-                    idx += 1
-                    ctx["idx_dict"][name][inst_id]["ts"] = inst["values"][idx][0]
-                    ctx["idx_dict"][name][inst_id]["idx"] = idx
-                except IndexError:
-                    ctx["idx_dict"][name][inst_id]["ts"] = np.inf
-                yield float(value)
-            else:
-                yield np.NaN
-
-    # Initialize minimum timestamp with first available timestamp
-    # Note: 'label' is not universal for required metrics so this should
-    # be moved out of context dict.
-    ctx = {
-        "ts_min" : int(response[0]["data"]["result"][0]["values"][0][0]),
-        "label" : label,
-        "idx_dict" : dict()
-    }
-    # Build context
-    for m in response:
-        inst_cnt = 0
-        try:
-            name = m["data"]["result"][0]["metric"]["__name__"]
-        except KeyError:
-            if "node_memory_MemFree_bytes" in ctx["idx_dict"]:
-                name = "node_memory_MemTotal_bytes"
-            else:
-                name = "node_memory_MemFree_bytes"
-        metrics = { name : {} }
-        for inst in m["data"]["result"]:
-            ### 'Label' is uniqueness
-            inst_id = inst["metric"][ctx["label"]]
-            ts = int(inst["values"][0][0])
-            if ts < ctx["ts_min"]:
-                ctx["ts_min"] = ts
-            metrics[name].update({inst_id :
-                                    {"idx"    : 0,
-                                     "ts"     : ts,
-                                     "update" : False,
-                                     "id"     : inst_cnt}})
-            inst_cnt += 1
-        ctx["idx_dict"].update(metrics)
+            min_ts = inst["values"][0][0]
+            ctx.add_inst(metric, inst_id, min_ts)
 
     done = False
     while not done:
-        # Build plugin-formatted data from prometheus response
-        # for a single timestamp
         data = []
-        i = 0
-        for m in response:
-            size = len(m["data"]["result"])
-            data.append(np.fromiter(getdata(m, ctx, i), np.int64, size))
-            i += 1
-
-        # Update minimum timestamps in context dict
-        ts_min = ctx["ts_min"]
-        for m in ctx["idx_dict"].values():
-            ctx["ts_min"] = min(inst["ts"] for inst in m.values())
-
-        if ctx["ts_min"] == np.inf:
+        for m, d in response.items():
+            size = len(d["data"]["result"])
+            data.append(np.fromiter(populatematrix(m, d, ctx), np.float64, size))
+        
+        min_ts = ctx.get_min_ts()
+        ctx.next_min_ts()
+        if np.inf == ctx.curr_ts():
             done = True
-        yield ts_min, data
+
+        yield min_ts, data
+
+def populatematrix(metric, data, context):
+    min_ts = context.curr_ts()
+    label = context.get_label(metric)
+
+    for inst in data["data"]["result"]:
+        inst_id = inst["metric"][label]
+        idx = context.get_idx(metric, inst_id)
+        try:
+            ts = inst["values"][idx][0]
+        except IndexError:
+            yield np.NaN
+
+        if ts == min_ts:
+            value = inst["values"][idx][1]
+            try:
+                next_ts = inst["values"][idx+1][0]
+            except IndexError:
+                next_ts = np.inf
+            context.update(metric, inst_id, next_ts)
+            yield value
+        else:
+            yield np.NaN
+            
+def populatevector(metric):
+    """ Generator to populate numpy array 
+        from prometheus response data
+    """
+    for inst in metric["data"]["result"]:
+        yield inst["value"][1]
+
+class Context():
+    def __init__(self):
+        self._min_ts = np.inf
+        self._next_min_ts = np.inf
+        self._idx_dict = {}
+        self._rtype = None
+
+    def __str__(self):
+        return str(self._idx_dict)            
+
+    def curr_ts(self):
+        return self._min_ts
+
+    def inst_cnt(self, metric):
+        return len(self._idx_dict[metric]["inst"].keys())        
+
+    def update(self, metric, inst, ts):
+        self._idx_dict[metric]["insts"][inst]["ts"] = ts
+        self._idx_dict[metric]["insts"][inst]["idx"] += 1
+        self._next_min_ts = min(self._next_min_ts, ts)
+
+    def next_min_ts(self):
+        self._min_ts = self._next_min_ts
+        self._next_min_ts = np.inf
+
+    def get_min_ts(self):
+        return self._min_ts
+
+    def get_label(self, metric):
+        return self._idx_dict[metric]["label"]
+
+    def get_idx(self, metric, inst):
+        return self._idx_dict[metric]["insts"][inst]["idx"]
+        
+    def get_ts(self, metric, inst):
+        return self._idx_dict[metric]["insts"][inst]["ts"]
+
+    def set_rtype(self, query):
+        self._rtype = query["data"]["resultType"]
+
+    def get_rtype(self):
+        return self._rtype
+
+    def add_metric(self, metric, label):
+        self._idx_dict.update({metric : {"insts" : {}, "label" : label}})
+
+    def add_inst(self, metric, inst, ts):
+        idx_dict = {"idx" : 0, "ts" : np.inf, "update" : False}
+        self._idx_dict[metric]["insts"].update({inst : idx_dict})
+        self._min_ts = min(self._min_ts, ts)
+
+    def reset(self):
+        for m in self._idx_dict.values():
+            for inst in m["insts"].values():
+                inst = {"idx" : 0, "ts" : np.inf, "update" : False}
 
 if __name__=="__main__":
     pass
