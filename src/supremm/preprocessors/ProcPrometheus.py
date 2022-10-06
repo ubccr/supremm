@@ -105,7 +105,7 @@ class ProcPrometheus(PreProcessor):
         for procname in description[1].values():
             self.output['procDump']['constrained'][procname] += 1
         
-        # Currently no unconstrained proc data from the exporter
+        # No unconstrained proc data from the exporter
         #for procname in unconstrainedprocs.values():
         #    self.output['procDump']['unconstrained'][procname] += 1
 
@@ -127,18 +127,13 @@ class ProcPrometheus(PreProcessor):
     def results(self):
 
         constrained = [x[0] for x in self.output['procDump']['constrained'].most_common()]
-        unconstrained = [x[0] for x in self.output['procDump']['unconstrained'].most_common()]
 
         result = {"constrained": constrained,
-                  "unconstrained": unconstrained,
                   "cpusallowed": {}}
 
         sizelimit = 150
         if len(result["constrained"]) > sizelimit:
             result["constrained"] = result["constrained"][0:sizelimit]
-            result["error"] = "process list limited to {0} procs".format(sizelimit)
-        if len(result["unconstrained"]) > sizelimit:
-            result["unconstrained"] = result["unconstrained"][0:sizelimit]
             result["error"] = "process list limited to {0} procs".format(sizelimit)
 
         i = 0
