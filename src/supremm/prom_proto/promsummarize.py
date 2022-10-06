@@ -15,7 +15,7 @@ import numpy as np
 
 from prominterface import PromClient, Context, formatforplugin, formatforpreproc # Use local import for debugging, testing
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
-from supremm.rangechange import RangeChange
+from supremm.summarize import Summarize
 
 
 VERSION = "2.0.0"
@@ -42,75 +42,24 @@ class NodeMeta(NodeMetadata):
     def __init__(self, nodename, idx):
         self._nodename = nodename
         self._nodeidx = idx
-        self._ctx = None
+        #self._ctx = None
 
     nodename = property(lambda self: self._nodename)
-    nodeindex = property(lambda self: self._nodeidx)
-    ctx = property(lambda self: self._ctx)
+    #ctx = property(lambda self: self._ctx)
 
-class PromSummarize():
-    def __init__(self, preprocessors, analytics, job):
+class PromSummarize(Summarize):
+    def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
+        super().__init__(preprocessors, analytics, job, config, fail_fast)
         # Establish connection with server:
         self.url = "http://127.0.0.1:9090"
         self.client = PromClient(url=self.url)
 
         # Translation Prom -> PCP metric names
         self.valid_metrics = load_translation()
-
-        # Standard summarization attributes
-        self.preprocs = preprocessors
-        self.firstlast = [x for x in analytics if x.mode == "firstlast"]
-        self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
-        self.errors = {} 
-        self.job = job
-        self.start = time.time()
         self.nodes_processed = 0
 
         # TODO use config query to parse yaml scrape interval config
         self.timestep = "30s"
-
-        # TODO this is set from opts/configs NOT hardcoded
-        self.fail_fast = True
-
-    def get(self):
-        # TODO this should inherit from an abstract Summarize class
-        # Data at this point are in the same format from preprocs/plugins
-        # and therefore should be processed the same regardless of backend config.
-        logging.info("Returning summary information")
-        output = {}
-        timeseries = {}
-
-        for analytic in self.alltimestamps:
-            if analytic.status != "uninitialized":
-                if analytic.mode == "all":
-                    output[analytic.name] = analytic.results()
-                if analytic.mode == "timeseries":
-                    timeseries[analytic.name] = analytic.results()
-        for analytic in self.firstlast:
-            if analytic.status != "uninitialized": 
-                output[analytic.name] = analytic.results()
-
-        if len(timeseries) > 0:
-            output['timeseries'] = timeseries
-
-        for preproc in self.preprocs:
-            result = preproc.results()
-            if result != None:
-                output.update(result)
-
-        output['summarization'] = {
-            "version": VERSION,
-            "elapsed": time.time() - self.start,
-            "created": time.time(),
-            "srcdir": self.job.jobdir,
-            "complete": True} # True for now
-
-        output['created'] = datetime.datetime.utcnow()
-
-        output['acct'] = self.job.acct
-        output['acct']['id'] = self.job.job_id
-
-        return output
 
     def process(self):
         """ Main entry point. All nodes are processed. """
@@ -118,32 +67,26 @@ class PromSummarize():
         self.nodes_processed = 0
 
         for nodename in self.job.nodenames():
+            idx = self.nodes_processed
+            mdata = NodeMeta(nodename, idx)
             try:
-                logging.info("Summarizing job %s on node %s", self.job, nodename)
-                idx = self.nodes_processed
-                self.processnode(nodename, idx)
+                self.processnode(mdata)
                 self.nodes_processed += 1
 
             except Exception as exc:
-                print("Something went wrong. Oops!")
                 success -= 1
-                # TODO add code for self.adderror
-                #self.adderror("node", "Exception {0} for node: {1}".format(exc, nodename))
+                self.adderror("node", "Exception {0} for node: {1}".format(exc, nodename))
                 if self.fail_fast:
                     raise
 
         return success == 0
 
-    def processnode(self, nodename, idx):
-        # Create metadata from nodename
-        mdata = NodeMeta(nodename, idx)
-
+    def processnode(self, mdata):
         for preproc in self.preprocs:
             reqMetrics = self.metric_mapping(preproc.requiredMetrics)
             if False == reqMetrics:
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(preproc).__name__, preproc.name))
                 continue
-            logging.debug("Processing %s for %s.", preproc.name, nodename)
             self.processforpreproc(mdata, preproc, reqMetrics)
 
         for analytic in self.alltimestamps:
@@ -151,7 +94,6 @@ class PromSummarize():
             if False == reqMetrics:
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
                 continue
-            logging.debug("Processing %s for %s.", analytic.name, nodename)
             self.processforanalytic(nodename, analytic, mdata, reqMetrics)
 
         for analytic in self.firstlast:
@@ -159,7 +101,6 @@ class PromSummarize():
             if False == reqMetrics:
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
                 continue
-            logging.debug("Processing %s for %s", analytic.name, nodename)
             self.processfirstlast(analytic, mdata, reqMetrics)
 
     def processforpreproc(self, mdata, preproc, reqMetrics):
@@ -194,7 +135,7 @@ class PromSummarize():
             descriptions.append(description)
             ctx.add_metric(base, label)
 
-        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
+        for start, end in chunk_timerange(start_ts, end_ts):
             rdata = OrderedDict()
 
             for m in reqMetrics.values():
@@ -278,15 +219,19 @@ class PromSummarize():
                 metric = m['metric'] % mdata.nodename
                 base = metric.split()[0]
 
-                query = self.client.query_range(metric, start, end)
+                try:
+                    query = self.client.query_range(metric, start, end)
+                except Exception as e:
+                    print("Exception with query: {}" % e)
                 rdata.update({base : query})
-                
-                if not ctx.get_rtype():
-                    ctx.set_rtype(query)
-
-            if False == self.runcallback(analytic, mdata, rdata, descriptions, ctx):        
-                continue
-                
+            
+            try:
+                if False == self.runcallback(analytic, mdata, rdata, descriptions, ctx):        
+                    continue
+            except Exception as exp:
+                logging.warning("%s (%s) raised exception %s", type(analytic).__name__, analytic.name, str(exp))
+                analytic.status = "failure"
+                raise exp
             ctx.reset()
 
         analytic.status = "complete"
@@ -300,8 +245,9 @@ class PromSummarize():
                 if retval:
                     break
             except Exception as e:
-                print(traceback.format_exc())
-                break
+                logging.exception("%s %s @ %s", self.job.job_id, analytic.name, float(result.contents.timestamp))
+                self.logerror(mdata.nodename, analytic.name, str(e))
+                return False
 
         return False
 
@@ -314,9 +260,9 @@ class PromSummarize():
                 if not retval:
                     break
             except Exception as e:
-                print(traceback.format_exc())
-                break
-
+                logging.exception("%s %s @ %s", self.job.job_id, analytic.name, float(result.contents.timestamp))
+                self.logerror(mdata.nodename, analytic.name, str(e))
+                return False
         return False
 
     def metric_mapping(self, reqMetrics):

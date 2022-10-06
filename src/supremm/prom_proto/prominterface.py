@@ -84,7 +84,7 @@ class PromClient():
 
     def label_val_meta(self, start, end, matches, label, type):
         """
-        Queries label values for a given metric.
+        Queries label values for a corresponding metric.
         """
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -167,8 +167,8 @@ def formatforplugin(response, ctx):
     """
     Format Prometheus query response into the expected format for plugin.
     
-    params: Prometheus json response
-    return: formatting generator for the
+    params: List of Prometheus json responses
+    return: Formatting generator for the
             appropriate prometheus response type
     """
 
@@ -290,7 +290,6 @@ class Context():
         self._min_ts = np.inf
         self._next_min_ts = np.inf
         self._idx_dict = {}
-        self._rtype = None
 
     def __str__(self):
         return str(self._idx_dict)            
@@ -322,24 +321,18 @@ class Context():
     def get_ts(self, metric, inst):
         return self._idx_dict[metric]["insts"][inst]["ts"]
 
-    def set_rtype(self, query):
-        self._rtype = query["data"]["resultType"]
-
-    def get_rtype(self):
-        return self._rtype
-
     def add_metric(self, metric, label):
         self._idx_dict.update({metric : {"insts" : {}, "label" : label}})
 
     def add_inst(self, metric, inst, ts):
-        idx_dict = {"idx" : 0, "ts" : np.inf, "update" : False}
+        idx_dict = {"idx" : 0, "ts" : np.inf}
         self._idx_dict[metric]["insts"].update({inst : idx_dict})
         self._min_ts = min(self._min_ts, ts)
 
     def reset(self):
         for m in self._idx_dict.values():
             for inst in m["insts"].values():
-                inst = {"idx" : 0, "ts" : np.inf, "update" : False}
+                inst = {"idx" : 0, "ts" : np.inf}
 
 if __name__=="__main__":
     pass

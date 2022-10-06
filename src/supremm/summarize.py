@@ -9,14 +9,76 @@ class Summarize(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self):
-        pass
-        #self._config
+    def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
+        self.preprocs = preprocessors
+        self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
+        self.firstlast = [x for x in analytics if x.mode == "firstlast"]
+        self.errors = {}
+        self.job = job
+        self.start = time.time()
+        self.fail_fast = fail_fast
 
-    @abstractmethod
+    def get(self):
+        """ Return a dict with the summary information """
+        output = {}
+        timeseries = {}
+
+        je = self.job.get_errors()
+        if len(je) > 0:
+            self.adderror("job", je)
+
+        if self.job.nodecount > 0:
+            for analytic in self.alltimestamps:
+                if analytic.status != "uninitialized":
+                    if analytic.mode == "all":
+                        output[analytic.name] = analytic.results()
+                    if analytic.mode == "timeseries":
+                        timeseries[analytic.name] = analytic.results()
+            for analytic in self.firstlast:
+                if analytic.status != "uninitialized":
+                    output[analytic.name] = analytic.results()
+                    
+        output['summarization'] = {
+            "version": VERSION,
+            "elapsed": time.time() - self.start,
+            "created": time.time(),
+            "srcdir": self.job.jobdir,
+            "complete": self.complete()}
+
+        output['created'] = datetime.datetime.utcnow()
+
+        output['acct'] = self.job.acct
+        output['acct']['id'] = self.job.job_id
+
+        if len(timeseries) > 0:
+            timeseries['hosts'] = dict((str(idx), name) for name, idx, _ in self.job.nodearchives())
+            timeseries['version'] = TIMESERIES_VERSION
+            output['timeseries'] = timeseries
+
+        for preproc in self.preprocs:
+            result = preproc.results()
+            if result != None:
+                output.update(result)
+
+        for source, data in self.job.data().items():
+            if 'errors' in data:
+                self.adderror(source, str(data['errors']))
+
+        if len(self.errors) > 0:
+            output['errors'] = {}
+            for k, v in self.errors.items():
+                output['errors'][k] = list(v)
+
+        return output
+
     def adderror(self, category, errormsg):
         """ All errors reported with this function show up in the job summary """
-        pass
+        if category not in self.errors:
+            self.errors[category] = set()
+        if isinstance(errormsg, list):
+            self.errors[category].update(set(errormsg))
+        else:
+            self.errors[category].add(errormsg)
 
     @abstractmethod
     def process(self):
@@ -35,48 +97,4 @@ class Summarize(object):
         """ A job is good_enough if archives for 95% of nodes have
             been processed sucessfullly
         """
-        pass
-
-    @abstractmethod
-    def get(self):
-        """ Return a dict with the summary information """
-        pass
-
-    @abstractmethod
-    def runcallback(self, analytic, result, mtypes, ctx, mdata, metric_id_array):
-        """ get the data and call the analytic """
-        pass
-
-    @abstractmethod
-    def runpreproccall(self, preproc, result, mtypes, ctx, mdata, metric_id_array):
-        """ Call the pre-processor data processing function """
-        pass
-
-    @abstractmethod
-    def processforpreproc(self, ctx, mdata, preproc):
-        """ fetch the data from the archive, reformat as a python data structure
-        and call the analytic process function """
-
-    @abstractmethod
-    def processforanalytic(self, ctx, mdata, analytic):
-        """ fetch the data from the archive, reformat as a python data structure
-        and call the analytic process function """
-        pass
-
-    @abstractmethod
-    def logerror(self, archive, analyticname, pmerrorcode):
-        """
-        Store the detail of archive processing errors
-        """
-        pass
-
-    @abstractmethod
-    def processfirstlast(self, ctx, mdata, analytic):
-        """ fetch the data from the archive, reformat as a python data structure
-        and call the analytic process function """
-        pass
-
-    @abstractmethod
-    def processarchive(self, nodename, nodeidx, archive):
-        """ process the archive """
         pass
