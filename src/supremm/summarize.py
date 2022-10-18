@@ -1,22 +1,21 @@
 """ Definition of the summarize API """
 
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 
-class Summarize(object):
+class Summarize(ABC):
     """ Abstract base class describing the job summarization interface.
         Currently only interfaces with PCP archives and is subject to change.
     """
-    __metaclass__ = ABCMeta
 
     def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
-        self.preprocs = preprocessors
-        self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
-        self.firstlast = [x for x in analytics if x.mode == "firstlast"]
-        self.errors = {}
-        self.job = job
-        self.start = time.time()
-        self.fail_fast = fail_fast
+        self._preprocs = preprocessors
+        self._alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
+        self._firstlast = [x for x in analytics if x.mode == "firstlast"]
+        self._errors = {}
+        self._job = job
+        self._start = time.time()
+        self._fail_fast = fail_fast
 
     def get(self):
         """ Return a dict with the summary information """
@@ -50,6 +49,7 @@ class Summarize(object):
         output['acct'] = self.job.acct
         output['acct']['id'] = self.job.job_id
 
+        #TODO replace job.nodearchives
         if len(timeseries) > 0:
             timeseries['hosts'] = dict((str(idx), name) for name, idx, _ in self.job.nodearchives())
             timeseries['version'] = TIMESERIES_VERSION

@@ -189,7 +189,7 @@ def formatvectorpreproc(response):
         size = len(m["data"]["result"])
         idx = [i for i in range(0, size)]
         vals = np.fromiter(populatematrix(m), np.float64, size)
-        data.append(zip(vals, idx))
+        data.append(np.column_stack((vals, idx)))
 
     yield ts, data
     
@@ -201,7 +201,6 @@ def formatmatrixpreproc(response, ctx):
             inst_id = inst["metric"][label]
             min_ts = inst["values"][0][0]
             ctx.add_inst(metric, inst_id, min_ts)
-    print(ctx)
 
     done = False
     while not done:
@@ -210,14 +209,14 @@ def formatmatrixpreproc(response, ctx):
             size = len(d["data"]["result"])
             idx = [i for i in range(0, size)]
             vals = np.fromiter(populatematrix(m, d, ctx), np.float64, size)
-            pdata = zip(vals, idx)
+            pdata = np.column_stack((vals, idx))
             data.append(pdata)
-        
+
         min_ts = ctx.get_min_ts()
-        ctx.next_min_ts()
+        ctx.update_min_ts()
         if np.inf == ctx.curr_ts():
             done = True
-
+        print(data)
         yield min_ts, data
 
 def formatvector(response):
@@ -249,7 +248,7 @@ def formatmatrix(response, ctx):
             data.append(np.fromiter(populatematrix(m, d, ctx), np.float64, size))
         
         min_ts = ctx.get_min_ts()
-        ctx.next_min_ts()
+        ctx.update_min_ts()
         if np.inf == ctx.curr_ts():
             done = True
 
@@ -305,7 +304,7 @@ class Context():
         self._idx_dict[metric]["insts"][inst]["idx"] += 1
         self._next_min_ts = min(self._next_min_ts, ts)
 
-    def next_min_ts(self):
+    def update_min_ts(self):
         self._min_ts = self._next_min_ts
         self._next_min_ts = np.inf
 
