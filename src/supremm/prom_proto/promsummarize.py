@@ -19,6 +19,8 @@ from supremm.summarize import Summarize
 
 
 VERSION = "2.0.0"
+TIMESERIES_VERSION = 4
+
 MAX_CHUNK = 24 * 3
 
 def load_translation():
@@ -179,7 +181,7 @@ class PromSummarize():
             if False == reqMetrics:
                 logging.warning("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
                 continue
-            self.processforanalytic(nodename, analytic, mdata, reqMetrics)
+            self.processforanalytic(analytic, mdata, reqMetrics)
 
         for analytic in self.firstlast:
             reqMetrics = self.metric_mapping(analytic.requiredMetrics)
@@ -270,7 +272,7 @@ class PromSummarize():
  
         analytic.status = "complete"
 
-    def processforanalytic(self, nodename, analytic, mdata, reqMetrics):
+    def processforanalytic(self, analytic, mdata, reqMetrics):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 

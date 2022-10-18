@@ -3,6 +3,10 @@
 from abc import ABC, abstractmethod
 
 
+VERSION = "1.0.6"
+TIMESERIES_VERSION = 4
+
+
 class Summarize(ABC):
     """ Abstract base class describing the job summarization interface.
         Currently only interfaces with PCP archives and is subject to change.

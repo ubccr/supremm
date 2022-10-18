@@ -216,7 +216,7 @@ def formatmatrixpreproc(response, ctx):
         ctx.update_min_ts()
         if np.inf == ctx.curr_ts():
             done = True
-        print(data)
+
         yield min_ts, data
 
 def formatvector(response):
