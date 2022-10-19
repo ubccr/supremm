@@ -49,8 +49,9 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self, preprocessors, analytics, job, config, fail_fast=True):
-        super(PromSummarize, self).__init__(self, preprocessors, analytics, job, config, fail_fast)
+    def __init__(self, preprocessors, analytics, job, config):
+        super(PromSummarize, self).__init__(preprocessors, analytics, job, config)
+        self.start = time.time()
 
         # Establish connection with server:
         self.url = "http://172.22.0.216:9090"

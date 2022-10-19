@@ -1,5 +1,4 @@
 """ Definition of the summarize API """
-
 from abc import ABC, abstractmethod
 
 
@@ -13,14 +12,12 @@ class Summarize(ABC):
     """
 
     def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
-	super(Summarize, self).__init__()
-        self._preprocs = preprocessors
-        self._alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
-        self._firstlast = [x for x in analytics if x.mode == "firstlast"]
-        self._errors = {}
-        self._job = job
-        self._start = time.time()
-        self._fail_fast = fail_fast
+        self.preprocs = preprocessors
+        self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
+        self.firstlast = [x for x in analytics if x.mode == "firstlast"]
+        self.errors = {}
+        self.job = job
+        self.fail_fast = fail_fast
 
     def get(self):
         """ Return a dict with the summary information """
