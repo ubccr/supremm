@@ -48,21 +48,12 @@ class NodeMeta(NodeMetadata):
     nodename = property(lambda self: self._nodename)
     nodeindex = property(lambda self: self._nodeidx)
 
-class PromSummarize():
-    #def __init__(self, preprocessors, analytics, job, config, fail_fast=True):
-        #super(PromSummarize, self).__init__(self, preprocessors, analytics, job, config, fail_fast)
-
-    def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
-        self.preprocs = preprocessors
-        self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
-        self.firstlast = [x for x in analytics if x.mode == "firstlast"]
-        self.errors = {}
-        self.job = job
-        self.start = time.time()
-        self.fail_fast = fail_fast
+class PromSummarize(Summarize):
+    def __init__(self, preprocessors, analytics, job, config, fail_fast=True):
+        super(PromSummarize, self).__init__(self, preprocessors, analytics, job, config, fail_fast)
 
         # Establish connection with server:
-        self.url = "http://127.0.0.1:9090"
+        self.url = "http://172.22.0.216:9090"
         self.client = PromClient(url=self.url)
 
         # Translation Prom -> PCP metric names

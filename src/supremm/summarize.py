@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 
-VERSION = "1.0.6"
+VERSION = "2.0.0"
 TIMESERIES_VERSION = 4
 
 
@@ -13,6 +13,7 @@ class Summarize(ABC):
     """
 
     def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
+	super(Summarize, self).__init__()
         self._preprocs = preprocessors
         self._alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
         self._firstlast = [x for x in analytics if x.mode == "firstlast"]

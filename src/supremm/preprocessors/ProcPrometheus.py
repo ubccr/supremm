@@ -3,7 +3,7 @@
 
 import re
 
-from supremm.plugins import Proc
+from supremm.preprocessors.Proc import Proc
 from supremm.linuxhelpers import parsecpusallowed
 
 
@@ -21,7 +21,7 @@ class ProcPrometheus(Proc):
     derivedMetrics = property(lambda x: [])
 
     def __init__(self, job):
-        super(Proc, self).__init__(job)
+        super(ProcPrometheus, self).__init__(job)
 
     def process(self, timestamp, data, description):
         """ Override Proc process() method """
