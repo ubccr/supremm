@@ -11,10 +11,12 @@ HTTP_TIMEOUT = 5
 MAX_DATA_POINTS = 11000 # Prometheus queries return maximum of 11,000 data points
 
 class PromClient():
-    def __init__(self, url='http://127.0.0.1:9090'):
+    def __init__(self, url='http://127.0.0.1:9090/'):
         self._url = url
         self._step = '30s'
+
         self._client = requests.Session()
+        self._client.mount(url, self._client.get_adapter(url))
         self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded'})
 
     def __str__(self):
