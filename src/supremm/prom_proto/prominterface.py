@@ -185,7 +185,7 @@ def formatvectorpreproc(response):
     data = []
     for m in response:
         size = len(m["data"]["result"])
-        idx = [i for i in range(0, size)]
+        idx = np.arange(size)
         vals = np.fromiter(populatematrix(m), np.float64, size)
         data.append(np.column_stack((vals, idx)))
 
@@ -205,7 +205,7 @@ def formatmatrixpreproc(response, ctx):
         data = []
         for m, d in response.items():
             size = len(d["data"]["result"])
-            idx = [i for i in range(0, size)]
+            idx = np.arange(size)
             vals = np.fromiter(populatematrix(m, d, ctx), np.float64, size)
             pdata = np.column_stack((vals, idx))
             data.append(pdata)
