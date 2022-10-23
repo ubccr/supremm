@@ -93,7 +93,7 @@ class MockPromJob():
     def __str__(self):
         return "{} {} {}".format(self.job_id, self.walltime, self.nodes)
 
-def summarizejobprom(job, plugins, preprocs):
+def summarizejobprom(job, plugins, preprocs, config):
     mdata = {}
     summarizeerror = None
 
@@ -101,7 +101,7 @@ def summarizejobprom(job, plugins, preprocs):
     preprocs = [x(job) for x in preprocs]
     plugins = [x(job) for x in plugins]
 
-    s = PromSummarize(preprocs, plugins, job)
+    s = PromSummarize(preprocs, plugins, job, config)
     s.process()
 
     return s, mdata, True, summarizeerror
@@ -113,7 +113,7 @@ def main():
     config = Config()
     opts, args = getoptions()
 
-    setuplogger('INFO')    
+    setuplogger('DEBUG')    
 
     preprocs = loadpreprocessors()
     plugins = loadplugins()
@@ -128,12 +128,13 @@ def main():
 
     #with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
     dbif = XDMoDAcct('11', config)
-
+    job_id = '8970792' #'8921088'
     # Test on single job with walltime > 3 days and greatest node count (13)
-    for job in dbif.getbylocaljobid('8970792'):
+    for job in dbif.getbylocaljobid(job_id):
+        print(job)
         try:
             summarize_start = time.time()
-            res = summarizejobprom(job, plugins, preprocs)
+            res = summarizejobprom(job, plugins, preprocs, config)
             s, mdata, success, s_err = res
             summarize_time = time.time() - summarize_start
             summary_dict = s.get()

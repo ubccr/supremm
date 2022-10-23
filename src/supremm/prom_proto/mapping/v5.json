@@ -7,6 +7,10 @@
                            "metric": "cgroup_memory_total_bytes{host='%s'}",
                            "label": "cgroup"
                          },
+  "ipmi.dcmi.power": {
+                       "metric": "ipmi_dcmi_power_consumption_watts{host='%s'}",
+                       "label": "host"
+                     },
   "kernel.percpu.cpu.user": {
                               "metric": "node_cpu_seconds_total{mode='user',host='%s'} * 1000",
                               "label": "cpu"

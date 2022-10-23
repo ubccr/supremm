@@ -14,12 +14,14 @@ class PromClient():
     def __init__(self, url='http://127.0.0.1:9090'):
         self._url = url
         self._step = '30s'
+        self._client = requests.Session()
+        self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded'})
 
     def __str__(self):
         return self._url
 
     def query(self, query, time):
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
         params = {
             'query': query,
             'time': time,
@@ -28,7 +30,7 @@ class PromClient():
         endpoint = "/api/v1/query"
         url = urlparse.urljoin(self._url, endpoint)
  
-        r = requests.get(url, params=params, headers=headers)
+        r = self._client.get(url, params=params)
         if r.status_code != 200:
             print(str(r.content))
             return None
@@ -36,7 +38,7 @@ class PromClient():
         return r.json()
 
     def query_range(self, query, start, end):
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
         params = {
             'query': query,
             'start': start,
@@ -47,7 +49,7 @@ class PromClient():
         endpoint = "/api/v1/query_range"
         url = urlparse.urljoin(self._url, endpoint)
         
-        r = requests.get(url, params=params, headers=headers)
+        r = self._client.get(url, params=params)
         if r.status_code != 200:
             print(r.content)
             return None
@@ -58,9 +60,7 @@ class PromClient():
         # This is basis for checking if timeseries is available
         # Checks if a timeseries or list of timeseries ('match[]') are available
         # without returning any actual data
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
+
         params = {
             'match[]': match,
             'start': str(start),
@@ -72,13 +72,13 @@ class PromClient():
         url = urlparse.urljoin(self._url, endpoint)
         logging.debug('Prometheus QUERY SERIES META, start=%s end=%s', start, end)
 
-        r = requests.get(url, params=params, headers=headers)
+        r = self._client.get(url, params=params)
         if r.status_code != 200:
             return False
 
-        data = r.json() # "data" is a list of zero or more 
-                        # timeseries present at the specified times
-
+        # "data" is a list of zero or more timeseries present at the specified times
+        data = r.json()
+        
         return bool(data["data"])
 
 
@@ -86,9 +86,7 @@ class PromClient():
         """
         Queries label values for a corresponding metric.
         """
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
+
         params = {
             'match[]': matches,
             'start': str(start),
@@ -100,7 +98,7 @@ class PromClient():
         logging.debug('Prometheus QUERY LABEL VALUES, start=%s end=%s', start, end)
 
         # Query data
-        r = requests.get(url, params=params, headers=headers)
+        r = self._client.get(url, params=params)
         if r.status_code != 200:
             logging.error("Label Name Query Error: %s", r.content)
             return False
@@ -123,11 +121,9 @@ class PromClient():
         """
         Queries a job's cgroup
         """
+
         match = "cgroup_info{uid='%s',jobid='%s'}" % (uid, jobid)
 
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
         params = {
             'match[]': match,
             'start': str(start),
@@ -139,7 +135,7 @@ class PromClient():
         logging.debug('Prometheus QUERY CGROUP, start=%s end=%s', start, end)
 
         # Query data
-        r = requests.get(url, params=params, headers=headers)
+        r = self._client.get(url, params=params)
         if r.status_code != 200:
             logging.error("Cgroup Query Error: %s", r.content)
             return False
@@ -147,6 +143,7 @@ class PromClient():
         data = r.json()
         cgroup = data["data"][0]
         return cgroup
+
 
 def formatforpreproc(response, ctx):
     """
@@ -161,7 +158,6 @@ def formatforpreproc(response, ctx):
         return formatmatrixpreproc(response, ctx)
     else:
         return formatvectorpreproc(response)
-
 
 def formatforplugin(response, ctx):
     """
@@ -212,9 +208,9 @@ def formatmatrixpreproc(response, ctx):
             pdata = np.column_stack((vals, idx))
             data.append(pdata)
 
-        min_ts = ctx.get_min_ts()
+        min_ts = ctx.min_ts()
         ctx.update_min_ts()
-        if np.inf == ctx.curr_ts():
+        if np.inf == ctx.min_ts():
             done = True
 
         yield min_ts, data
@@ -247,15 +243,15 @@ def formatmatrix(response, ctx):
             size = len(d["data"]["result"])
             data.append(np.fromiter(populatematrix(m, d, ctx), np.float64, size))
         
-        min_ts = ctx.get_min_ts()
+        min_ts = ctx.min_ts()
         ctx.update_min_ts()
-        if np.inf == ctx.curr_ts():
+        if np.inf == ctx.min_ts():
             done = True
 
         yield min_ts, data
 
 def populatematrix(metric, data, context):
-    min_ts = context.curr_ts()
+    min_ts = context.min_ts()
     label = context.get_label(metric)
 
     for inst in data["data"]["result"]:
@@ -291,10 +287,7 @@ class Context():
         self._idx_dict = {}
 
     def __str__(self):
-        return str(self._idx_dict)            
-
-    def curr_ts(self):
-        return self._min_ts
+        return str(self._idx_dict)
 
     def inst_cnt(self, metric):
         return len(self._idx_dict[metric]["inst"].keys())        
@@ -308,7 +301,7 @@ class Context():
         self._min_ts = self._next_min_ts
         self._next_min_ts = np.inf
 
-    def get_min_ts(self):
+    def min_ts(self):
         return self._min_ts
 
     def get_label(self, metric):
@@ -332,18 +325,3 @@ class Context():
         for m in self._idx_dict.values():
             for inst in m["insts"].values():
                 inst = {"idx" : 0, "ts" : np.inf}
-
-if __name__=="__main__":
-    pass
-    #url = "http://172.22.0.216:9090"
-
-    #start = "2022-06-26T00:00:00.000Z"
-    #end = "2022-06-29T19:30:00.000Z"
-
-    #client = PromClient(url)
-    #data = client.query_range("node_cpu_seconds_total{mode='user', host='prometheus-dev'}", start, end)
-    #data = client.query("node_cpu_seconds_total{mode='user', host='prometheus-dev'} * 1000", start)
-    #labels = client.label_val_meta(start, end, ["node_cpu_seconds_total{mode='user', host='prometheus-dev'}"], "cpu")
-
-    #print(data.nbytes)
-    #print(data)

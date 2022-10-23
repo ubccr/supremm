@@ -372,7 +372,7 @@ class PromSummarize(Summarize):
                         else:
                             mapping[k]['metric'] = full_metric
                 except KeyError:
-                    logging.warning("Mapping unavailable for metric: %s", k)
+                    logging.debug("Mapping unavailable for metric: %s", k)
                     return False
             return mapping
 
