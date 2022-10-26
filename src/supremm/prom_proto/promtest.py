@@ -128,10 +128,14 @@ def main():
 
     #with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
     dbif = XDMoDAcct('11', config)
-    job_id = '8970792' #'8921088'
+
+    #job_id = '8919096'
+    #job_id = '8948502'
+    #job_id = '8970792'
+    #job_id = '8921088'
+    job_id = '9018627'
     # Test on single job with walltime > 3 days and greatest node count (13)
     for job in dbif.getbylocaljobid(job_id):
-        print(job)
         try:
             summarize_start = time.time()
             res = summarizejobprom(job, plugins, preprocs, config)

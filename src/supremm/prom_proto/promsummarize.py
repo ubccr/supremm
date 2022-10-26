@@ -21,7 +21,7 @@ from supremm.summarize import Summarize
 VERSION = "2.0.0"
 TIMESERIES_VERSION = 4
 
-MAX_CHUNK = 24 * 3
+MAX_CHUNK = 6 #hours
 
 def load_translation():
     """
