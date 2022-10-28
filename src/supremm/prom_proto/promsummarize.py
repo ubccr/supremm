@@ -289,7 +289,7 @@ class PromSummarize(Summarize):
             descriptions.append(description)
             ctx.add_metric(base, label)            
 
-        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime, self.chunk_size): 
+        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime, self.chunk_size):
             rdata = OrderedDict()
 
             for m in reqMetrics.values():

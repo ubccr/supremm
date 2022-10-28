@@ -113,7 +113,7 @@ def main():
     config = Config()
     opts, args = getoptions()
 
-    setuplogger('DEBUG')    
+    setuplogger('DEBUG')
 
     preprocs = loadpreprocessors()
     plugins = loadplugins()

@@ -79,8 +79,7 @@ class PromClient():
             return False
 
         # "data" is a list of zero or more timeseries present at the specified times
-        data = r.json()
-        
+        data = r.json() 
         return bool(data["data"])
 
 
