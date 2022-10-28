@@ -49,13 +49,14 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self, preprocessors, analytics, job, config):
+    def __init__(self, preprocessors, analytics, job, config, chunk):
         super(PromSummarize, self).__init__(preprocessors, analytics, job, config)
         self.start = time.time()
 
         # Establish connection with server:
         self.url = "http://172.22.0.216:9090"
         self.client = PromClient(url=self.url)
+        self.chunk_size = chunk
 
         # Translation Prom -> PCP metric names
         self.valid_metrics = load_translation()
@@ -214,7 +215,7 @@ class PromSummarize(Summarize):
             descriptions.append(description)
             ctx.add_metric(base, label)
 
-        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):
+        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime, self.chunk_size):
             rdata = OrderedDict()
 
             for m in reqMetrics.values():
@@ -288,7 +289,7 @@ class PromSummarize(Summarize):
             descriptions.append(description)
             ctx.add_metric(base, label)            
 
-        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime):            
+        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime, self.chunk_size): 
             rdata = OrderedDict()
 
             for m in reqMetrics.values():
@@ -376,7 +377,7 @@ class PromSummarize(Summarize):
                     return False
             return mapping
 
-def chunk_timerange(job_start, job_end):
+def chunk_timerange(job_start, job_end, chunk_size):
     """
     Generator function to return chunked time ranges for a job of arbitrary length.
     This is necessary due to Prometheus's hard-coded limit of 11,000 data points:
@@ -390,7 +391,7 @@ def chunk_timerange(job_start, job_end):
 
     chunk_start = job_start
     while True:
-        chunk_end = chunk_start + datetime.timedelta(hours=MAX_CHUNK)
+        chunk_end = chunk_start + datetime.timedelta(hours=chunk_size)
         if chunk_end > job_end:
             yield chunk_start.timestamp(), job_end.timestamp()
             break
