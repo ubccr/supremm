@@ -12,7 +12,6 @@ import requests
 import numpy as np
 
 from prominterface import PromClient, Context, formatforplugin, formatforpreproc # Use local import for debugging, testing
-from supremm.config import autodetectconfpath
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.summarize import Summarize
 
@@ -20,7 +19,7 @@ from supremm.summarize import Summarize
 VERSION = "2.0.0"
 TIMESERIES_VERSION = 4
 
-MAX_CHUNK = 72 #hours
+MAX_CHUNK = 4 #hours
 
 class NodeMeta(NodeMetadata):
     """ container for node metadata """
