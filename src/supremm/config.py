@@ -8,6 +8,28 @@ import glob
 import pkg_resources
 import logging
 
+
+def autodetectconfpath(filename):
+    """ search known paths for the configuration directory
+        List of paths support the three typical install locations
+        1) Environment variable SUPREMM_CONFIG_DIR
+        2) source install with pip
+        3) rpm based install
+        4) source install with python setup.py install
+        @returns Directory name or None if no suitable directory found
+    """
+    searchpaths = [
+        os.getenv('SUPREMM_CONFIG_DIR', os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm"),
+        "/etc/supremm",
+        pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
+    ]
+
+    for path in searchpaths:
+        if os.path.exists(os.path.join(path, filename)):
+            return os.path.abspath(path)
+
+    return None
+
 def iscomment(line):
     """ check is line is a c++ style comment """
     if re.search(r"^\s*//", line):
@@ -23,13 +45,14 @@ class Config(object):
 
     def __init__(self, confpath=None):
 
+        name = "config.json"
         if confpath == None:
-            confpath = self.autodetectconfpath()
+            confpath = self.getpath(name)
 
         if confpath is None or os.path.isdir(confpath) == False:
             raise Exception("Missing configuration path %s" % confpath)
 
-        conffile = os.path.join(confpath, "config.json")
+        conffile = os.path.join(confpath, name)
         logging.debug("Using config file %s", conffile)
         with open(conffile, "r") as conffp:
             confdata = ""
@@ -44,26 +67,8 @@ class Config(object):
         self._xdmodconfig = None
 
     @staticmethod
-    def autodetectconfpath():
-        """ search known paths for the configuration directory
-            List of paths support the three typical install locations
-            1) Environment variable SUPREMM_CONFIG_DIR
-            2) source install with pip
-            3) rpm based install
-            4) source install with python setup.py install
-            @returns Directory name or None if no suitable directory found
-        """
-        searchpaths = [
-            os.getenv('SUPREMM_CONFIG_DIR', os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm"),
-            "/etc/supremm",
-            pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
-        ]
-
-        for path in searchpaths:
-            if os.path.exists(os.path.join(path, "config.json")):
-                return os.path.abspath(path)
-
-        return None
+    def getpath(name):
+        return autodetectconfpath(name)
 
     def getsection(self, sectionname):
         """ return the dict for a given section """
