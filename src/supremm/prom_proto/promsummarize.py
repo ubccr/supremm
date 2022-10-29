@@ -1,6 +1,4 @@
-import sys
 import os
-import json
 import time
 import logging
 import requests
@@ -14,6 +12,7 @@ import requests
 import numpy as np
 
 from prominterface import PromClient, Context, formatforplugin, formatforpreproc # Use local import for debugging, testing
+from supremm.config import autodetectconfpath
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.summarize import Summarize
 
@@ -21,23 +20,7 @@ from supremm.summarize import Summarize
 VERSION = "2.0.0"
 TIMESERIES_VERSION = 4
 
-MAX_CHUNK = 6 #hours
-
-def load_translation():
-    """
-    Update mapping of available Prometheus metrics
-    with corresponding PCP metric names.
-    """        
-    # Load mapping
-    prom2pcp = {}
-    version = "v5"
-    file = "mapping/%s.json" % (version)
-    file_path = os.path.abspath(file)
-    with open(file_path, "r") as f:
-        prom2pcp = json.load(f)
-
-    logging.debug("Available metric mapping(s): \n{}".format(json.dumps(prom2pcp, indent=2)))
-    return prom2pcp        
+MAX_CHUNK = 72 #hours
 
 class NodeMeta(NodeMetadata):
     """ container for node metadata """
@@ -49,17 +32,16 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self, preprocessors, analytics, job, config, chunk):
+    def __init__(self,  preprocessors, analytics, job, config, client, mapping, chunk=MAX_CHUNK):
         super(PromSummarize, self).__init__(preprocessors, analytics, job, config)
         self.start = time.time()
 
         # Establish connection with server:
-        self.url = "http://172.22.0.216:9090"
-        self.client = PromClient(url=self.url)
+        self.client = client
         self.chunk_size = chunk
 
         # Translation Prom -> PCP metric names
-        self.valid_metrics = load_translation()
+        self.valid_metrics = mapping
         self.nodes_processed = 0
 
         # TODO use config query to parse yaml scrape interval config
@@ -134,13 +116,19 @@ class PromSummarize(Summarize):
         """
         #if analyticname != "gpu":
         logging.debug("Processing exception: %s", analyticname)
-        self.adderror(" ", "{0} {1} {2}".format(nodename, analyticname, error))
+        self.adderror("node", "{0} {1} {2}".format(nodename, analyticname, error))
 
     def complete(self):
-        return True
-        
+        """ A job is complete if archives exist for all assigned nodes and they have
+            been processed sucessfullly
+        """
+        return self.job.nodecount == self.nodes_processed
+
     def good_enough(self):
-        return True
+        """ A job is good_enough if archives for 95% of nodes have
+            been processed sucessfullly
+        """
+        return self.nodes_processed >= 0.95 * float(self.job.nodecount)
 
     def process(self):
         """ Main entry point. All nodes are processed. """
@@ -299,7 +287,8 @@ class PromSummarize(Summarize):
                 try:
                     query = self.client.query_range(metric, start, end)
                 except Exception as e:
-                    print("Exception with query: {}" % e)
+                    logging.error("Exception with query: {}" % e)
+                    raise e
 
                 rdata.update({base : query})
             
@@ -327,7 +316,7 @@ class PromSummarize(Summarize):
             except Exception as e:
                 logging.exception("%s %s @ %s", self.job.job_id, preproc.name, ts)
                 self.logerror(mdata.nodename, preproc.name, str(e))
-                return False
+                raise e
 
         return False
 
@@ -342,7 +331,7 @@ class PromSummarize(Summarize):
             except Exception as e:
                 logging.exception("%s %s @ %s", self.job.job_id, analytic.name, ts)
                 self.logerror(mdata.nodename, analytic.name, str(e))
-                return False
+                raise e
                 
         return False
 

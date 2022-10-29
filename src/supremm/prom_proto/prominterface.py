@@ -1,22 +1,38 @@
+import os
 import logging
-import sys
 import urllib.parse as urlparse
 import math
+import json
 
 import numpy as np
 import requests
-
+from supremm.config import autodetectconfpath
 
 HTTP_TIMEOUT = 5
 MAX_DATA_POINTS = 11000 # Prometheus queries return maximum of 11,000 data points
 
+
+def load_mapping():
+    """
+    Update mapping of available Prometheus metrics
+    with corresponding PCP metric names.
+    """
+    # Load mapping
+    fpath = autodetectconfpath("mapping.json")
+    file = os.path.join(fpath, "mapping.json")
+    with open(file, "r") as f:
+        mapping = json.load(f)
+
+    logging.debug("Loaded metric mapping from {}".format(fpath))
+    return mapping
+
 class PromClient():
-    def __init__(self, url='http://127.0.0.1:9090/'):
-        self._url = url
+    def __init__(self, resconf):
+        self._url = "{}:{}".format(resconf['prometheus_url'], resconf['prometheus_port'])
         self._step = '30s'
 
         self._client = requests.Session()
-        self._client.mount(url, self._client.get_adapter(url))
+        self._client.mount(self._url, self._client.get_adapter(self._url))
         self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded'})
 
     def __str__(self):
