@@ -33,7 +33,8 @@ class PromClient():
 
         self._client = requests.Session()
         self._client.mount(self._url, self._client.get_adapter(self._url))
-        self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded'})
+        self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded',
+                                     'Accept': 'application/json'})
 
     def __str__(self):
         return self._url
