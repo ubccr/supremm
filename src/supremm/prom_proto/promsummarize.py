@@ -124,7 +124,7 @@ class PromSummarize(Summarize):
         return self.job.nodecount == self.nodes_processed
 
     def good_enough(self):
-        """ A job is good_enough if archives for 95% of nodes have
+        """ A job is good_enough if 95% of nodes have
             been processed sucessfullly
         """
         return self.nodes_processed >= 0.95 * float(self.job.nodecount)
@@ -136,6 +136,7 @@ class PromSummarize(Summarize):
         for nodename in self.job.nodenames():
             idx = self.nodes_processed
             mdata = NodeMeta(nodename, idx)
+            # populate mapping string with nodename, resource 
             try:
                 self.processnode(mdata)
                 self.nodes_processed += 1
