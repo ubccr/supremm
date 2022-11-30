@@ -23,6 +23,10 @@ def load_mapping():
     with open(file, "r") as f:
         mapping = json.load(f)
 
+    for pcp, prom in mapping.items():
+        query = mapping[pcp]["metric"]
+        mapping[pcp].update({"query": query})
+
     logging.debug("Loaded metric mapping from {}".format(fpath))
     return mapping
 
@@ -100,7 +104,7 @@ class PromClient():
         return bool(data["data"])
 
 
-    def label_val_meta(self, start, end, matches, label, type):
+    def label_val(self, start, end, matches, label):
         """
         Queries label values for a corresponding metric.
         """
@@ -123,17 +127,7 @@ class PromClient():
 
         data = r.json()
         names = data["data"]
-        label_idx = np.arange(0, len(names))
-
-        # Format for preprocessor
-        if type == "preprocessor":
-            description = dict(zip(label_idx, names))
-            return description
-
-        # Format for plugin
-        elif type == "plugin":
-            description = (label_idx, names)
-            return description
+        return names
 
     def cgroup_info(self, uid, jobid, start, end):
         """
@@ -194,12 +188,13 @@ def formatforplugin(response, ctx):
 
 def formatvectorpreproc(response):
     """ """
+    first = next(iter(response))
 
     # Timestamp is the same for all instances in a vector
-    ts = int(response[0]["data"]["result"][0]["value"][0])
+    ts = int(response[first]["data"]["result"][0]["value"][0])
     
     data = []
-    for m in response:
+    for m in response.values():
         size = len(m["data"]["result"])
         idx = np.arange(size)
         vals = np.fromiter(populatematrix(m), np.float64, size)
@@ -208,7 +203,7 @@ def formatvectorpreproc(response):
     yield ts, data
     
 def formatmatrixpreproc(response, ctx):
-
+ 
     for metric, data in response.items():
         label = ctx.get_label(metric)
         for inst in data["data"]["result"]:
@@ -234,12 +229,13 @@ def formatmatrixpreproc(response, ctx):
         yield min_ts, data
 
 def formatvector(response):
-    
+    first = next(iter(response))
+
     # Timestamp is the same for all instances in a vector
-    ts = int(response[0]["data"]["result"][0]["value"][0])
+    ts = int(response[first]["data"]["result"][0]["value"][0])
 
     data = []
-    for m in response:
+    for m in response.values():
         size = len(m["data"]["result"])
         data.append(np.fromiter(populatevector(m), np.float64, size))
 
@@ -253,7 +249,7 @@ def formatmatrix(response, ctx):
             inst_id = inst["metric"][label]
             min_ts = inst["values"][0][0]
             ctx.add_inst(metric, inst_id, min_ts)
-
+    
     done = False
     while not done:
         data = []

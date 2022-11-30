@@ -80,7 +80,7 @@ class PromSummarize(Summarize):
 
         #TODO replace job.nodearchives
         if len(timeseries) > 0:
-            timeseries['hosts'] = dict((str(idx), name) for name, idx, _ in self.job.nodearchives())
+            timeseries['hosts'] = dict((str(idx), name) for idx, name in enumerate(self.job.nodenames()))
             timeseries['version'] = TIMESERIES_VERSION
             output['timeseries'] = timeseries
 
@@ -136,8 +136,22 @@ class PromSummarize(Summarize):
         for nodename in self.job.nodenames():
             idx = self.nodes_processed
             mdata = NodeMeta(nodename, idx)
-            # populate mapping string with nodename, resource 
+
+            start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
+            for pcp, prom in self.valid_metrics.items():
+                label = prom['label']
+                if not self.nodes_processed:
+                    try:
+                        self.valid_metrics[pcp]["query"] = prom["query"] % nodename
+                    except TypeError:
+                        cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start, end)
+                        self.valid_metrics[pcp]["query"] = prom["query"] % (nodename, cgroup)
+
+                base = self.valid_metrics[pcp]["query"].split()[0]
+                description = self.client.label_val(start, end, base, label)
+                self.valid_metrics[pcp].update({"description": description})
             try:
+                logging.info("Processing node %s for job %s" % (nodename, self.job.job_id))
                 self.processnode(mdata)
                 self.nodes_processed += 1
 
@@ -172,23 +186,15 @@ class PromSummarize(Summarize):
             self.processfirstlast(analytic, mdata, reqMetrics)
 
     def processforpreproc(self, mdata, preproc, reqMetrics):
-        # Serialize as unix timestamp here for prometheus metadata queries.
-        # Later on in this function the self.job.(start/end)_datetime python objects
-        # are used for chunking. Maybe determine chunks first (if necessary)? Include job's (start, end) then list of chunked (start, end)
         start_ts, end_ts = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         preproc.hoststart(mdata.nodename)
         logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
 
         ctx = Context()
         descriptions = []
-        for m in reqMetrics.values():
-            if preproc.name == "procprom":
-                cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start_ts, end_ts)
-                metric = m['metric'] % (cgroup, mdata.nodename)
-            else:
-                metric = m['metric'] % mdata.nodename
-
-            base = metric.split()[0]
+        for m in reqMetrics:
+            metric = self.valid_metrics[m]
+            base = metric["query"].split()[0]
 
             # Check if timeseries is available
             available = self.client.timeseries_meta(start_ts, end_ts, base)
@@ -197,25 +203,19 @@ class PromSummarize(Summarize):
                 preproc.hostend()
                 return
 
-            # Get metric label -> description from metric and label
-            label = m['label']
-            description = self.client.label_val_meta(start_ts, end_ts, base, m['label'], 'preprocessor')
+            # Format description
+            description = formatdescription(metric["description"], 'preprocessor')
             descriptions.append(description)
-            ctx.add_metric(base, label)
+            ctx.add_metric(base, metric['label'])
 
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime, self.chunk_size):
             rdata = OrderedDict()
 
-            for m in reqMetrics.values():
-                if preproc.name == "procprom":
-                    cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start_ts, end_ts)
-                    metric = m['metric'] % (cgroup, mdata.nodename)
-                else:
-                    metric = m['metric'] % mdata.nodename
+            for m in reqMetrics:
+                base = self.valid_metrics[m]["query"].split()[0]
+                query = self.client.query_range(self.valid_metrics[m]["query"], start, end)
 
-                base = metric.split()[0]
-                query = self.client.query_range(metric, start, end)
-                rdata.update({base : query})
+                rdata.update({base:query})
 
             if False == self.runpreproccall(preproc, mdata, rdata, descriptions, ctx):        
                 break
@@ -229,11 +229,10 @@ class PromSummarize(Summarize):
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
-        metrics = []
         descriptions = []
-        for m in reqMetrics.values():
-            metric = m['metric'] % mdata.nodename
-            base = metric.split()[0]
+        for m in reqMetrics:
+            metric = self.valid_metrics[m]
+            base = metric["query"].split()[0]
 
             # Check if timeseries is available
             available = self.client.timeseries_meta(start, end, base)
@@ -242,13 +241,17 @@ class PromSummarize(Summarize):
                 analytic.status = "failure"
                 return
 
-            # Get metric label -> description from metric and label
-            description = self.client.label_val_meta(start, end, base, m['label'], 'plugin')
-            metrics.append(metric)
+            description = formatdescription(metric["description"], 'plugin')
             descriptions.append(description)
 
         for ts in (start, end):
-            rdata = [self.client.query(m, ts) for m in metrics]
+            rdata = OrderedDict()
+
+            for m in reqMetrics:
+                base = self.valid_metrics[m]["query"].split()[0]
+                query = self.client.query(self.valid_metrics[m]["query"], ts)
+                rdata.update({base:query})
+
             self.runcallback(analytic, mdata, rdata, descriptions)
  
         analytic.status = "complete"
@@ -259,10 +262,9 @@ class PromSummarize(Summarize):
 
         ctx = Context()
         descriptions = []
-        for m in reqMetrics.values():
-            metric = m['metric'] % mdata.nodename
-            label = m['label']
-            base = metric.split()[0]
+        for m in reqMetrics:
+            metric = self.valid_metrics[m]
+            base = metric["query"].split()[0]
 
             # Check if timeseries is available
             available = self.client.timeseries_meta(start, end, base)
@@ -271,27 +273,23 @@ class PromSummarize(Summarize):
                 analytic.status = "failure"
                 return
 
-            # Get metric label -> description from metric and label
-            label = m['label']
-            description = self.client.label_val_meta(start, end, base, label, 'plugin')
+            description = formatdescription(metric["description"], 'plugin')
             descriptions.append(description)
-            ctx.add_metric(base, label)            
-
+            ctx.add_metric(base, metric['label'])
+        
         for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime, self.chunk_size):
             rdata = OrderedDict()
 
-            for m in reqMetrics.values():
-                metric = m['metric'] % mdata.nodename
-                base = metric.split()[0]
-
+            for m in reqMetrics:
+                base = self.valid_metrics[m]["query"].split()[0]
                 try:
-                    query = self.client.query_range(metric, start, end)
+                    query = self.client.query_range(self.valid_metrics[m]["query"], start, end)
                 except Exception as e:
                     logging.error("Exception with query: {}" % e)
                     raise e
 
-                rdata.update({base : query})
-            
+                rdata.update({base:query})
+
             try:
                 if False == self.runcallback(analytic, mdata, rdata, descriptions, ctx):        
                     continue
@@ -340,9 +338,10 @@ class PromSummarize(Summarize):
         Recursively checks if a mapping is available from a given metrics list or list of lists.
 
         params: reqMetrics - list of metrics from preproc/plugin 
-        return: OrderedDict of the mapping from PCP metric names to Prometheus metric names
+        return: List of required metrics if mapping is present.
                 False if a mapping is not present.
-        """ 
+        """
+
         if isinstance(reqMetrics[0], list):
             for metriclist in reqMetrics:
                 mapping = self.metric_mapping(metriclist)
@@ -350,21 +349,13 @@ class PromSummarize(Summarize):
                     return mapping
             return False
         else:
-            mapping = OrderedDict.fromkeys(reqMetrics, None)
-            for k in mapping.keys():
-                try:
-                    mapping[k] = self.valid_metrics[k]
-                    # Prometheus-only plugins/preprocs
-                    if k[:5] == "prom:":
-                        full_metric = mapping[k]['metric']
-                        if k[5:] not in full_metric:
-                            mapping[k]['metric'] = k[5:] + full_metric
-                        else:
-                            mapping[k]['metric'] = full_metric
-                except KeyError:
-                    logging.debug("Mapping unavailable for metric: %s", k)
+            for m in reqMetrics:
+                if m in self.valid_metrics.keys():
+                    continue
+                else:
+                    logging.debug("Mapping unavailable for metric: %s", m)
                     return False
-            return mapping
+            return reqMetrics
 
 def chunk_timerange(job_start, job_end, chunk_size):
     """
@@ -386,3 +377,12 @@ def chunk_timerange(job_start, job_end, chunk_size):
             break
         yield chunk_start.timestamp(), chunk_end.timestamp()
         chunk_start = chunk_end
+
+def formatdescription(labels, type='plugin'):
+    if type == 'plugin':
+        idx = np.arange(0, len(labels))
+        return (idx, labels)
+    elif type == 'preprocessor':
+        return {idx: d for idx, d in enumerate(labels)} 
+    else:
+        return []
