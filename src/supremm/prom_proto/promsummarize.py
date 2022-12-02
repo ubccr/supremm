@@ -373,8 +373,7 @@ def chunk_timerange(job_start, job_end, chunk_size):
     while True:
         chunk_end = chunk_start + datetime.timedelta(hours=chunk_size)
         if chunk_end > job_end:
-            yield chunk_start.timestamp(), job_end.timestamp()
-            break
+            return chunk_start.timestamp(), job_end.timestamp()
         yield chunk_start.timestamp(), chunk_end.timestamp()
         chunk_start = chunk_end
 
