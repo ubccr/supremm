@@ -36,7 +36,7 @@ def getoptions():
         if opt[0] in ("-c", "--config"):
             retdata['config'] = opt[1]
         if opt[0] in ("-s", "--section"):
-            retdata['section'] = opt[1]#.encode("utf-8")
+            retdata['section'] = opt[1]
         if opt[0] in ("-i", "--item"):
             retdata['item'] = opt[1]
         if opt[0] in ("-h", "--help"):
