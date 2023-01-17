@@ -9,26 +9,6 @@ import pkg_resources
 import logging
 
 
-def autodetectconfpath(filename):
-    """ search known paths for the configuration directory
-        List of paths support the three typical install locations
-        1) Environment variable SUPREMM_CONFIG_DIR
-        2) source install with pip
-        3) rpm based install
-        4) source install with python setup.py install
-        @returns Directory name or None if no suitable directory found
-    """
-    searchpaths = [
-        os.getenv('SUPREMM_CONFIG_DIR', os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm"),
-        "/etc/supremm",
-        pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
-    ]
-
-    for path in searchpaths:
-        if os.path.exists(os.path.join(path, filename)):
-            return os.path.abspath(path)
-
-    return None
 
 def iscomment(line):
     """ check is line is a c++ style comment """
@@ -67,8 +47,26 @@ class Config(object):
         self._xdmodconfig = None
 
     @staticmethod
-    def getpath(name):
-        return autodetectconfpath(name)
+    def autodetectconfpath(filename):
+        """ search known paths for the configuration directory
+            List of paths support the three typical install locations
+            1) Environment variable SUPREMM_CONFIG_DIR
+            2) source install with pip
+            3) rpm based install
+            4) source install with python setup.py install
+            @returns Directory name or None if no suitable directory found
+        """
+        searchpaths = [
+            os.getenv('SUPREMM_CONFIG_DIR', os.path.dirname(os.path.abspath(__file__)) + "/../../../../etc/supremm"),
+            "/etc/supremm",
+            pkg_resources.resource_filename(pkg_resources.Requirement.parse("supremm"), "etc/supremm")
+        ]
+
+        for path in searchpaths:
+            if os.path.exists(os.path.join(path, filename)):
+                return os.path.abspath(path)
+
+        return None
 
     def getsection(self, sectionname):
         """ return the dict for a given section """

@@ -31,7 +31,7 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self,  preprocessors, analytics, job, config, client, mapping, chunk=MAX_CHUNK):
+    def __init__(self,  preprocessors, analytics, job, config, mapping, client, chunk=MAX_CHUNK):
         super(PromSummarize, self).__init__(preprocessors, analytics, job, config)
         self.start = time.time()
 
@@ -373,7 +373,8 @@ def chunk_timerange(job_start, job_end, chunk_size):
     while True:
         chunk_end = chunk_start + datetime.timedelta(hours=chunk_size)
         if chunk_end > job_end:
-            return chunk_start.timestamp(), job_end.timestamp()
+            yield chunk_start.timestamp(), job_end.timestamp()
+            return
         yield chunk_start.timestamp(), chunk_end.timestamp()
         chunk_start = chunk_end
 

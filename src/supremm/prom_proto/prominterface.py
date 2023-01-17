@@ -6,7 +6,7 @@ import json
 
 import numpy as np
 import requests
-from supremm.config import autodetectconfpath
+from supremm.config import Config
 
 HTTP_TIMEOUT = 5
 MAX_DATA_POINTS = 11000 # Prometheus queries return maximum of 11,000 data points
@@ -18,7 +18,7 @@ def load_mapping():
     with corresponding PCP metric names.
     """
     # Load mapping
-    fpath = autodetectconfpath("mapping.json")
+    fpath = Config.autodetectconfpath("mapping.json")
     file = os.path.join(fpath, "mapping.json")
     with open(file, "r") as f:
         mapping = json.load(f)
