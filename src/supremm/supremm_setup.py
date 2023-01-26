@@ -302,7 +302,7 @@ def configure_resource(display, resource_id, resource, defaults):
         if key == "datasource":
             while True:
                 setting[key] = setting[key].lower()
-                if setting[key] == "pcp": 
+                if setting[key] == "pcp":
                     key = "pcp_log_dir"
                     setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
                     if not os.path.isdir(setting[key]):
@@ -331,7 +331,7 @@ Make sure the server is running and is accessible before running the summarizati
                         display.print_warning("""
 WARNING Status code {} returned from Prometheus at http://{}.
 """.format(build_info.status_code, setting[key]))
- 
+
                     display.print_text("""
 INFO Prometheus build version: {}
 """.format(build_info.json()["data"]["version"]))
