@@ -140,16 +140,16 @@ class PromSummarize(Summarize):
             start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
             for pcp, prom in self.valid_metrics.items():
                 label = prom['label']
-                if not self.nodes_processed:
-                    try:
-                        self.valid_metrics[pcp]["query"] = prom["query"] % nodename
-                    except TypeError:
-                        cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start, end)
-                        self.valid_metrics[pcp]["query"] = prom["query"] % (nodename, cgroup)
+                try:
+                    self.valid_metrics[pcp]["query"] = prom["metric"] % nodename
+                except TypeError:
+                    cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start, end)
+                    self.valid_metrics[pcp]["query"] = prom["metric"] % (nodename, cgroup)
 
                 base = self.valid_metrics[pcp]["query"].split()[0]
                 description = self.client.label_val(start, end, base, label)
                 self.valid_metrics[pcp].update({"description": description})
+
             try:
                 logging.info("Processing node %s for job %s" % (nodename, self.job.job_id))
                 self.processnode(mdata)

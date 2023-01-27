@@ -9,7 +9,6 @@ import pkg_resources
 import logging
 
 
-
 def iscomment(line):
     """ check is line is a c++ style comment """
     if re.search(r"^\s*//", line):
@@ -25,9 +24,8 @@ class Config(object):
 
     def __init__(self, confpath=None):
 
-        name = "config.json"
         if confpath == None:
-            confpath = self.getpath(name)
+            confpath = self.autodetectconfpath()
 
         if confpath is None or os.path.isdir(confpath) == False:
             raise Exception("Missing configuration path %s" % confpath)
@@ -47,7 +45,7 @@ class Config(object):
         self._xdmodconfig = None
 
     @staticmethod
-    def autodetectconfpath(filename):
+    def autodetectconfpath(filename="config.json"):
         """ search known paths for the configuration directory
             List of paths support the three typical install locations
             1) Environment variable SUPREMM_CONFIG_DIR
