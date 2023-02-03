@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import logging
 import requests
@@ -11,7 +12,7 @@ from collections import OrderedDict
 import requests
 import numpy as np
 
-from prominterface import PromClient, Context, formatforplugin, formatforpreproc # Use local import for debugging, testing
+from prominterface import PromClient, Context # Use local import for debugging, testing
 from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
 from supremm.summarize import Summarize
 
@@ -31,16 +32,15 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self,  preprocessors, analytics, job, config, mapping, client, chunk=MAX_CHUNK):
+    def __init__(self,  preprocessors, analytics, job, config, mapping, chunk=MAX_CHUNK):
         super(PromSummarize, self).__init__(preprocessors, analytics, job, config)
         self.start = time.time()
 
-        # Establish connection with server:
-        self.client = client
         self.chunk_size = chunk
 
-        # Translation Prom -> PCP metric names
-        self.valid_metrics = mapping
+        # Translation PCP -> Prometheus metric names
+        self.mapping = mapping
+        self.mapping.currentjob = job
         self.nodes_processed = 0
 
         # TODO use config query to parse yaml scrape interval config
@@ -137,19 +137,7 @@ class PromSummarize(Summarize):
             idx = self.nodes_processed
             mdata = NodeMeta(nodename, idx)
 
-            start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
-            for pcp, prom in self.valid_metrics.items():
-                label = prom['label']
-                try:
-                    self.valid_metrics[pcp]["query"] = prom["metric"] % nodename
-                except TypeError:
-                    cgroup = self.client.cgroup_info(self.job.acct['uid'], self.job.job_id, start, end)
-                    self.valid_metrics[pcp]["query"] = prom["metric"] % (nodename, cgroup)
-
-                base = self.valid_metrics[pcp]["query"].split()[0]
-                description = self.client.label_val(start, end, base, label)
-                self.valid_metrics[pcp].update({"description": description})
-
+            self.mapping.populate_queries(nodename)
             try:
                 logging.info("Processing node %s for job %s" % (nodename, self.job.job_id))
                 self.processnode(mdata)
@@ -164,225 +152,156 @@ class PromSummarize(Summarize):
         return success == 0
 
     def processnode(self, mdata):
+
+        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp() 
+        ctx = Context(start, end, self.mapping.client)
+
         for preproc in self.preprocs:
-            reqMetrics = self.metric_mapping(preproc.requiredMetrics)
-            if False == reqMetrics:
-                logging.warning("Skipping %s (%s). No metric mapping available." % (type(preproc).__name__, preproc.name))
-                continue
-            self.processforpreproc(mdata, preproc, reqMetrics)
+            ctx.mode = preproc.mode
+            self.processforpreproc(ctx, mdata, preproc)
 
         for analytic in self.alltimestamps:
-            reqMetrics = self.metric_mapping(analytic.requiredMetrics)
-            if False == reqMetrics:
-                logging.warning("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
-                continue
-            self.processforanalytic(analytic, mdata, reqMetrics)
+            ctx.mode = analytic.mode
+            self.processforanalytic(ctx, mdata, analytic)
 
         for analytic in self.firstlast:
-            reqMetrics = self.metric_mapping(analytic.requiredMetrics)
-            if False == reqMetrics:
-                logging.warning("Skipping %s (%s). No metric mapping available." % (type(analytic).__name__, analytic.name))
-                continue
-            self.processfirstlast(analytic, mdata, reqMetrics)
+            ctx.mode = analytic.mode
+            self.processfirstlast(ctx, mdata, analytic)
 
-    def processforpreproc(self, mdata, preproc, reqMetrics):
-        start_ts, end_ts = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
+    def processforpreproc(self, ctx, mdata, preproc):
+
         preproc.hoststart(mdata.nodename)
         logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
 
-        ctx = Context()
-        descriptions = []
-        for m in reqMetrics:
-            metric = self.valid_metrics[m]
-            base = metric["query"].split()[0]
+        reqMetrics = self.mapping.getmetricstofetch(preproc.requiredMetrics)
+        if False == reqMetrics:
+            logging.warning("Skipping %s (%s)." % (type(preproc).__name__, preproc.name))
+            preproc.hostend()
+            return
 
-            # Check if timeseries is available
-            available = self.client.timeseries_meta(start_ts, end_ts, base)
-            if not available:
-                logging.warning("Skipping %s (%s). No data available." % (type(preproc).__name__, preproc.name))
-                preproc.hostend()
-                return
-
-            # Format description
-            description = formatdescription(metric["description"], 'preprocessor')
-            descriptions.append(description)
-            ctx.add_metric(base, metric['label'])
-
-        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime, self.chunk_size):
-            rdata = OrderedDict()
-
-            for m in reqMetrics:
-                base = self.valid_metrics[m]["query"].split()[0]
-                query = self.client.query_range(self.valid_metrics[m]["query"], start, end)
-
-                rdata.update({base:query})
-
-            if False == self.runpreproccall(preproc, mdata, rdata, descriptions, ctx):        
-                break
-
-            ctx.reset()
+        try:
+            for result in ctx.fetch(reqMetrics):
+                if False == self.runpreproccall(preproc, result, ctx, mdata):
+                    break
+        #except HTTPException as exp:
+        #    # requests exception
+        #    preproc.status = "failure"
+        #    preproc.hostend()
+        #    raise exp
+        except Exception as exp:
+            preproc.status = "failure"
+            preproc.hostend()
+            raise exp
 
         preproc.status = "complete"
         preproc.hostend()
 
-    def processfirstlast(self, analytic, mdata, reqMetrics):
-        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
+    def processfirstlast(self, ctx, mdata, analytic):
+
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
-        descriptions = []
-        for m in reqMetrics:
-            metric = self.valid_metrics[m]
-            base = metric["query"].split()[0]
+        reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
+        if False == reqMetrics:
+            logging.warning("Skipping %s (%s)." % (type(analytic).__name__, analytic.name))
+            analytic.status = "Failure"
+            return
 
-            # Check if timeseries is available
-            available = self.client.timeseries_meta(start, end, base)
-            if not available:
-                logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
-                analytic.status = "failure"
-                return
+        try:
+            result = next(ctx.fetch(reqMetrics))
+        except StopIteration:
+            analytic.status = "failure"
+            return
+        #except HTTPException as exp:
+        #    # requests exception
+        #    analytic.status = "failure"
+        #    raise exp
+        except Exception as exp:
+            analytic.status = "failure"
+            raise exp
 
-            description = formatdescription(metric["description"], 'plugin')
-            descriptions.append(description)
+        if False == self.runcallback(analytic, result, ctx, mdata):
+            analytic.status = "failure"
+            return
 
-        for ts in (start, end):
-            rdata = OrderedDict()
+        try:
+            print("This doesn't execute")
+            result = next(ctx.fetch(reqMetrics))
+        except StopIteration:
+            analytic.status = "failure"
+            return
+        #except HTTPException as exp:
+        #    # requests exception
+        #    analytic.status = "failure"
+        #    raise exp
+        except Exception as exp:
+            analytic.status = "failure"
+            raise exp
 
-            for m in reqMetrics:
-                base = self.valid_metrics[m]["query"].split()[0]
-                query = self.client.query(self.valid_metrics[m]["query"], ts)
-                rdata.update({base:query})
+        if False == self.runcallback(analytic, result, ctx, mdata):
+            analytic.status = "failure"
+            return
 
-            self.runcallback(analytic, mdata, rdata, descriptions)
- 
-        analytic.status = "complete"
+        analytic.status = "complete" 
 
-    def processforanalytic(self, analytic, mdata, reqMetrics):
-        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
+    def processforanalytic(self, ctx, mdata, analytic):
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
-        ctx = Context()
-        descriptions = []
-        for m in reqMetrics:
-            metric = self.valid_metrics[m]
-            base = metric["query"].split()[0]
+        reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
+        if False == reqMetrics:
+            logging.warning("Skipping %s (%s)." % (type(analytic).__name__, analytic.name))
+            analytic.status = "failure"
+            return
 
-            # Check if timeseries is available
-            available = self.client.timeseries_meta(start, end, base)
-            if not available:
-                logging.warning("Skipping %s (%s). No data available." % (type(analytic).__name__, analytic.name))
-                analytic.status = "failure"
-                return
+        done = True
 
-            description = formatdescription(metric["description"], 'plugin')
-            descriptions.append(description)
-            ctx.add_metric(base, metric['label'])
-        
-        for start, end in chunk_timerange(self.job.start_datetime, self.job.end_datetime, self.chunk_size):
-            rdata = OrderedDict()
-
-            for m in reqMetrics:
-                base = self.valid_metrics[m]["query"].split()[0]
-                try:
-                    query = self.client.query_range(self.valid_metrics[m]["query"], start, end)
-                except Exception as e:
-                    logging.error("Exception with query: {}" % e)
-                    raise e
-
-                rdata.update({base:query})
-
+        while not done:
             try:
-                if False == self.runcallback(analytic, mdata, rdata, descriptions, ctx):        
-                    continue
-
+                result = next(ctx.fetch(reqMetrics))
+            except StopIteration:
+                done = True
+            #except HTTPException as exp:
+            #    # requests exception
+            #    logging.warning("%s (%s) error while connecting to Prometheus %s", type(analytic).__name__, analytic.name, str(exp))
+            #    analytic.status = "failure"
+            #    raise exp
             except Exception as exp:
                 logging.warning("%s (%s) raised exception %s", type(analytic).__name__, analytic.name, str(exp))
                 analytic.status = "failure"
                 raise exp
 
-            ctx.reset()
+            if False == self.runcallback(analytic, result, ctx, mdata):
+                done = True
 
         analytic.status = "complete"
 
-    def runpreproccall(self, preproc, mdata, rdata, descriptions, ctx):
+    def runpreproccall(self, preproc, result, ctx, mdata):
         """ Call the pre-processor data processing function """
 
-        for ts, vals in formatforpreproc(rdata, ctx):
-            try:
-                retval = preproc.process(ts, vals, descriptions)
-                if retval:
-                    break
-            except Exception as e:
-                logging.exception("%s %s @ %s", self.job.job_id, preproc.name, ts)
-                self.logerror(mdata.nodename, preproc.name, str(e))
-                raise e
+        retval = True
+        for data, description in ctx.extractpreproc_values(result):
 
-        return False
+            if data is None and description is None:
+                return False
 
-    def runcallback(self, analytic, mdata, rdata, description, ctx=None):
+            retval = preproc.process(ctx.timestamp, data, description)
+
+        return retval
+ 
+    def runcallback(self, analytic, result, ctx, mdata):
         """ Call the plugin data processing function """
 
-        for ts, vals in formatforplugin(rdata, ctx):
+        for data, description in ctx.extract_values(result):
+            if data is None and description is None:
+                return False
+
+            ts = ctx.timestamp
             try:
-                retval = analytic.process(mdata, ts, vals, description)
+                retval = analytic.process(mdata, ts, data, description)
                 if not retval:
                     break
-            except Exception as e:
+            except Exception as exc:
                 logging.exception("%s %s @ %s", self.job.job_id, analytic.name, ts)
-                self.logerror(mdata.nodename, analytic.name, str(e))
-                raise e
-                
+                self.logerror(mdata.nodename, analytic.name, str(exc))
+                return False
+
         return False
-
-    def metric_mapping(self, reqMetrics):
-        """
-        Recursively checks if a mapping is available from a given metrics list or list of lists.
-
-        params: reqMetrics - list of metrics from preproc/plugin 
-        return: List of required metrics if mapping is present.
-                False if a mapping is not present.
-        """
-
-        if isinstance(reqMetrics[0], list):
-            for metriclist in reqMetrics:
-                mapping = self.metric_mapping(metriclist)
-                if mapping:
-                    return mapping
-            return False
-        else:
-            for m in reqMetrics:
-                if m in self.valid_metrics.keys():
-                    continue
-                else:
-                    logging.debug("Mapping unavailable for metric: %s", m)
-                    return False
-            return reqMetrics
-
-def chunk_timerange(job_start, job_end, chunk_size):
-    """
-    Generator function to return chunked time ranges for a job of arbitrary length.
-    This is necessary due to Prometheus's hard-coded limit of 11,000 data points:
-    https://github.com/prometheus/prometheus/blob/30af47535d4d7c0a7566df78e63e77515ba26863/web/api/v1/api.go#L202
-
-    params: job_start, job_end - Python datetime objects of a job's start and end times
-    yield: chunk_start, chunk_end - Python datetime objects of a given chunk's start and end times
-
-    'chunk_end' will be the 'job_end' for the final chunk less than the maximum specified chunk size.
-    """
-
-    chunk_start = job_start
-    while True:
-        chunk_end = chunk_start + datetime.timedelta(hours=chunk_size)
-        if chunk_end > job_end:
-            yield chunk_start.timestamp(), job_end.timestamp()
-            return
-        yield chunk_start.timestamp(), chunk_end.timestamp()
-        chunk_start = chunk_end
-
-def formatdescription(labels, type='plugin'):
-    if type == 'plugin':
-        idx = np.arange(0, len(labels))
-        return (idx, labels)
-    elif type == 'preprocessor':
-        return {idx: d for idx, d in enumerate(labels)} 
-    else:
-        return []

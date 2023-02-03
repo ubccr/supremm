@@ -3,32 +3,17 @@ import logging
 import urllib.parse as urlparse
 import math
 import json
+import datetime
 
 import numpy as np
 import requests
+
 from supremm.config import Config
 
 HTTP_TIMEOUT = 5
+CHUNK_SIZE = 4 # HOURS
 MAX_DATA_POINTS = 11000 # Prometheus queries return maximum of 11,000 data points
 
-
-def load_mapping():
-    """
-    Update mapping of available Prometheus metrics
-    with corresponding PCP metric names.
-    """
-    # Load mapping
-    fpath = Config.autodetectconfpath("mapping.json")
-    file = os.path.join(fpath, "mapping.json")
-    with open(file, "r") as f:
-        mapping = json.load(f)
-
-    for pcp, prom in mapping.items():
-        query = mapping[pcp]["metric"]
-        mapping[pcp].update({"query": query})
-
-    logging.debug("Loaded metric mapping from {}".format(fpath))
-    return mapping
 
 class PromClient():
     def __init__(self, resconf):
@@ -79,7 +64,7 @@ class PromClient():
 
         return r.json()
 
-    def timeseries_meta(self, start, end, match):
+    def ispresent(self, match, start, end):
         # This is basis for checking if timeseries is available
         # Checks if a timeseries or list of timeseries ('match[]') are available
         # without returning any actual data
@@ -104,13 +89,13 @@ class PromClient():
         return bool(data["data"])
 
 
-    def label_val(self, start, end, matches, label):
+    def label_val(self, match, label, start, end):
         """
         Queries label values for a corresponding metric.
         """
 
         params = {
-            'match[]': matches,
+            'match[]': match,
             'start': str(start),
             'end': str(end)
         }
@@ -157,185 +142,302 @@ class PromClient():
         return cgroup
 
 
-def formatforpreproc(response, ctx):
-    """
-    Format Prometheus query response into the expected format for preprocessors.
-    
-    params: Prometheus json response
-    return: formatting generator for the
-            appropriate prometheus response type
-    """
-
-    if ctx:
-        return formatmatrixpreproc(response, ctx)
-    else:
-        return formatvectorpreproc(response)
-
-def formatforplugin(response, ctx):
-    """
-    Format Prometheus query response into the expected format for plugin.
-    
-    params: List of Prometheus json responses
-    return: Formatting generator for the
-            appropriate prometheus response type
-    """
-
-    if ctx:
-        return formatmatrix(response, ctx)
-    else:
-        return formatvector(response)        
-
-
-def formatvectorpreproc(response):
-    """ """
-    first = next(iter(response))
-
-    # Timestamp is the same for all instances in a vector
-    ts = int(response[first]["data"]["result"][0]["value"][0])
-    
-    data = []
-    for m in response.values():
-        size = len(m["data"]["result"])
-        idx = np.arange(size)
-        vals = np.fromiter(populatematrix(m), np.float64, size)
-        data.append(np.column_stack((vals, idx)))
-
-    yield ts, data
-    
-def formatmatrixpreproc(response, ctx):
- 
-    for metric, data in response.items():
-        label = ctx.get_label(metric)
-        for inst in data["data"]["result"]:
-            inst_id = inst["metric"][label]
-            min_ts = inst["values"][0][0]
-            ctx.add_inst(metric, inst_id, min_ts)
-
-    done = False
-    while not done:
-        data = []
-        for m, d in response.items():
-            size = len(d["data"]["result"])
-            idx = np.arange(size)
-            vals = np.fromiter(populatematrix(m, d, ctx), np.float64, size)
-            pdata = np.column_stack((vals, idx))
-            data.append(pdata)
-
-        min_ts = ctx.min_ts()
-        ctx.update_min_ts()
-        if np.inf == ctx.min_ts():
-            done = True
-
-        yield min_ts, data
-
-def formatvector(response):
-    first = next(iter(response))
-
-    # Timestamp is the same for all instances in a vector
-    ts = int(response[first]["data"]["result"][0]["value"][0])
-
-    data = []
-    for m in response.values():
-        size = len(m["data"]["result"])
-        data.append(np.fromiter(populatevector(m), np.float64, size))
-
-    yield ts, data
-
-def formatmatrix(response, ctx):
-
-    for metric, data in response.items():
-        label = ctx.get_label(metric)
-        for inst in data["data"]["result"]:
-            inst_id = inst["metric"][label]
-            min_ts = inst["values"][0][0]
-            ctx.add_inst(metric, inst_id, min_ts)
-    
-    done = False
-    while not done:
-        data = []
-        for m, d in response.items():
-            size = len(d["data"]["result"])
-            data.append(np.fromiter(populatematrix(m, d, ctx), np.float64, size))
-        
-        min_ts = ctx.min_ts()
-        ctx.update_min_ts()
-        if np.inf == ctx.min_ts():
-            done = True
-
-        yield min_ts, data
-
-def populatematrix(metric, data, context):
-    min_ts = context.min_ts()
-    label = context.get_label(metric)
-
-    for inst in data["data"]["result"]:
-        inst_id = inst["metric"][label]
-        idx = context.get_idx(metric, inst_id)
-        try:
-            ts = inst["values"][idx][0]
-        except IndexError:
-            yield np.NaN
-
-        if ts == min_ts:
-            value = inst["values"][idx][1]
-            try:
-                next_ts = inst["values"][idx+1][0]
-            except IndexError:
-                next_ts = np.inf
-            context.update(metric, inst_id, next_ts)
-            yield value
-        else:
-            yield np.NaN
-            
-def populatevector(metric):
-    """ Generator to populate numpy array 
-        from prometheus response data
-    """
-    for inst in metric["data"]["result"]:
-        yield inst["value"][1]
-
 class Context():
-    def __init__(self):
-        self._min_ts = np.inf
-        self._next_min_ts = np.inf
+    def __init__(self, start, end, client):
+        self.start = start
+        self.end = end
+        self.client = client
+
+        self.reqMetrics = None
+        self.timestamp = start
+        self.min_ts = start
+        self.next_min_ts = np.inf
+        self._result = None
         self._idx_dict = {}
 
     def __str__(self):
         return str(self._idx_dict)
 
-    def inst_cnt(self, metric):
-        return len(self._idx_dict[metric]["inst"].keys())        
+    @property
+    def mode(self):
+        return self._mode
 
-    def update(self, metric, inst, ts):
-        self._idx_dict[metric]["insts"][inst]["ts"] = ts
-        self._idx_dict[metric]["insts"][inst]["idx"] += 1
-        self._next_min_ts = min(self._next_min_ts, ts)
+    @mode.setter
+    def mode(self, m):
+        self._mode = m
 
-    def update_min_ts(self):
-        self._min_ts = self._next_min_ts
-        self._next_min_ts = np.inf
+    @property
+    def reqMetrics(self):
+        return self._reqMetrics
 
+    @reqMetrics.setter
+    def reqMetrics(self, rm):
+        self._reqMetrics = rm
+
+    @property
     def min_ts(self):
         return self._min_ts
+
+    @min_ts.setter
+    def min_ts(self, ts):
+        self._min_ts = ts
+
+    @property
+    def next_min_ts(self):
+        return self._next_min_ts
+
+    @next_min_ts.setter
+    def next_min_ts(self, ts):
+        self._next_min_ts = ts
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    @timestamp.setter
+    def timestamp(self, ts):
+        self._timestamp = ts
+
+    def fetch(self, required_metrics):
+
+        self.reqMetrics = required_metrics
+        self.init_internal_state()
+        if self.mode == "all" or self.mode == "timeseries":
+            for start, end in self.chunk_timerange():
+                yield [self.client.query_range(m.apply_scaling(), start, end) for m in required_metrics]
+                self.reset_internal_state()
+
+        elif self.mode == "firstlast":
+            for ts in (self.start, self.end):
+                yield [self.client.query(m.apply_scaling(), ts) for m in required_metrics]
+                self.reset_internal_state()
+
+    def chunk_timerange(self):
+        """
+        Generator function to return chunked time ranges for a job of arbitrary length.
+        """
+        chunk_start = datetime.datetime.fromtimestamp(self.start)
+
+        done = False
+        while not done:
+            chunk_end = chunk_start + datetime.timedelta(hours=CHUNK_SIZE)
+            if chunk_end.timestamp() > self.end:
+                yield chunk_start.timestamp(), self.end
+                done = True
+            yield chunk_start.timestamp(), chunk_end.timestamp()
+            chunk_start = chunk_end
+
+    def extractpreproc_values(self, result):
+
+        if self.mode == "all" or self.mode == "timeseries":
+            for data, description in self.formatmatrixpreproc(result):
+                yield data, description
+
+        elif self.mode == "firstlast":
+            for data, description in self.formatvectorpreproc(result):
+                yield data, description
+
+    def extract_values(self, result):
+
+        if self.mode == "all" or self.mode == "timeseries":
+            for data, description in self.formatmatrix(result):
+                yield data, description
+
+        elif self.mode == "firstlast":
+            for data, description in self.formatvector(result):
+                yield data, description
+
+    def getdescription(self, result, type, fmt):
+
+        metric_ids = {idx: metric for idx, metric in enumerate(self.reqMetrics)}
+
+        descriptions = []
+        for idx, datum in enumerate(result):
+            mmap = metric_ids[idx]
+            groupby = mmap.groupby
+            outfmt = mmap.outformat
+            for inst in datum["data"]["result"]:
+                id = inst["metric"][groupby]
+
+                # Vectors and matrices have different "value(s)" keys
+                if type == "vector":
+                    min_ts = inst["value"][0]
+                elif type == "matrix":
+                    min_ts = inst["values"][0][0]
+                self.min_ts = min(self.min_ts, min_ts)
+
+                if mmap.outformat == groupby:
+                    descriptions.append(inst["metric"][groupby])
+                    self.add_instance(idx, id, min_ts)
+                else:
+                    outstring = outfmt[0]
+                    args = outfmt[1:]
+                    out = []
+                    for arg in args:
+                        out.append(inst["metric"][arg])
+                    try:
+                        descriptions.append(outstring.format(*out))
+                        self.add_instance(idx, id, min_ts)
+                    except TypeError:
+                        logging.warning("Unable to format configured outstring %s with args: %s", outstring, args)
+                        return None
+
+        if fmt == "analytic":
+            return (np.arange(0, len(descriptions)), descriptions)
+
+        elif fmt == "preproc":
+            return {idx: d for idx, d in enumerate(descriptions)}
+
+    def formatvectorpreproc(self, result):
+        """
+
+        """
+        description = self.getdescription(result, "vector", "preproc")
+        if not description:
+            yield None, None
+
+        data = []
+        for datum in result:
+            size = len(datum["data"]["result"])
+            indices = np.arange(size)
+            vals = np.fromiter(self.populatevector(datum), np.float64, size)
+            data.append(np.column_stack((vals, indices)))
+
+        yield data, description
+
+    def formatvector(self, result):
+        """
+
+        """
+        description = self.getdescription(result, "vector", "analytic")
+        if not description:
+            yield None, None 
+
+        data = []
+        for datum in result:
+            size = len(datum["data"]["result"])
+            data.append(np.fromiter(self.populatevector(datum), np.float64, size))
+
+        yield data, description
+
+    def formatmatrixpreproc(self, result):
+        """
+
+        """
+        description = self.getdescription(result, "matrix", "preproc")
+        if not description:
+            yield None, None 
+
+        # Populate data array to pass to preproc
+        done = False
+        while not done:
+            data = []
+            for idx, datum in enumerate(result):
+                size = len(datum["data"]["result"])
+                indices = np.arange(size)
+                vals = np.fromiter(self.populatematrix(idx, datum), np.float64, size)
+                data.append(np.column_stack((vals, indices)))
+
+            self.update_min_ts()
+            if np.inf == self.min_ts:
+                done = True
+
+            yield data, description
+
+    def formatmatrix(self, result):
+        """
+        """
+        description = self.getdescription(result, "matrix", "analytic")
+        if not description:
+            yield None, None
+
+        done = False
+        while not done:
+            data = []
+            for idx, datum in result:
+                size = len(d["data"]["result"])
+                data.append(np.fromiter(self.populatematrix(idx, datum), np.float64, size))
+
+            min_ts = self.min_ts
+            self.update_min_ts()
+            if np.inf == self.min_ts:
+                done = True
+
+            yield data, description
+
+    def populatevector(self, data):
+        """ Generator to populate numpy array 
+            from prometheus vector resultType
+        """
+        for inst in data["data"]["result"]:
+            yield inst["value"][1]
+
+    def populatematrix(self, metric_idx, data):
+        """ Generator to populate numpy array 
+            from prometheus matrix resultType
+        """
+
+        mmap = self.reqMetrics[metric_idx]
+
+        min_ts = self.min_ts
+        groupby = mmap.groupby
+
+        for inst in data["data"]["result"]:
+            id = inst["metric"][groupby]
+            idx = self.get_idx(metric_idx, id)
+            try:
+                ts = inst["values"][idx][0]
+            except IndexError:
+                yield np.NaN
+
+            if ts == min_ts:
+                value = inst["values"][idx][1]
+                try:
+                    next_ts = inst["values"][idx+1][0]
+                except IndexError:
+                    next_ts = np.inf
+
+                self.next_min_ts = min(self.next_min_ts, next_ts)
+                self.update_inst_ts(metric_idx, id, next_ts)
+                yield value
+            else:
+                yield np.NaN
+
+    def init_internal_state(self):
+        self._idx_dict.update({metric_idx : {} for metric_idx, _ in enumerate(self.reqMetrics)})
+
+    def instance_count(self, metric):
+        return len(self._idx_dict[metric]["inst"].keys())        
+
+    def update_inst_ts(self, metric, inst, ts):
+        self._idx_dict[metric][inst]["ts"] = ts
+        self._idx_dict[metric][inst]["idx"] += 1
+
+    def update_min_ts(self):
+        # Save min_ts to timestamp attribute that is
+        # used externally when sent to the plugin callback
+        self.timestamp = self.min_ts
+        self.min_ts = self.next_min_ts
+        self.next_min_ts = np.inf
 
     def get_label(self, metric):
         return self._idx_dict[metric]["label"]
 
-    def get_idx(self, metric, inst):
-        return self._idx_dict[metric]["insts"][inst]["idx"]
-        
+    def get_idx(self, metric_idx, inst):
+        return self._idx_dict[metric_idx][inst]["idx"]
+
     def get_ts(self, metric, inst):
         return self._idx_dict[metric]["insts"][inst]["ts"]
 
     def add_metric(self, metric, label):
         self._idx_dict.update({metric : {"insts" : {}, "label" : label}})
 
-    def add_inst(self, metric, inst, ts):
-        idx_dict = {"idx" : 0, "ts" : np.inf}
-        self._idx_dict[metric]["insts"].update({inst : idx_dict})
-        self._min_ts = min(self._min_ts, ts)
+    def add_instance(self, metric_idx, inst, ts):
+        idx_dict = {"idx" : 0, "ts" : ts}
+        self._idx_dict[metric_idx].update({inst : idx_dict})
+        self.min_ts = min(self.min_ts, ts)
 
-    def reset(self):
-        for m in self._idx_dict.values():
-            for inst in m["insts"].values():
-                inst = {"idx" : 0, "ts" : np.inf}
+    def reset_internal_state(self):
+        for metric_idx, val in self._idx_dict.items():
+            for k, inst in val.items():
+                self._idx_dict[metrix_idx][k] = {"idx" : 0, "ts" : np.inf}
