@@ -192,7 +192,6 @@ class MetricMapping():
         self._scaling = scaling
         self._params = params
 
-        self._description = None
         self._query = None
 
     def __str__(self):

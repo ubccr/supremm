@@ -286,7 +286,7 @@ class Context():
             return (np.arange(0, len(descriptions)), descriptions)
 
         elif fmt == "preproc":
-            return {idx: d for idx, d in enumerate(descriptions)}
+            return [{idx: d} for idx, d in enumerate(descriptions)]
 
     def formatvectorpreproc(self, result):
         """
@@ -404,7 +404,7 @@ class Context():
                 yield np.NaN
 
     def init_internal_state(self):
-        self._idx_dict.update({metric_idx : {} for metric_idx, _ in enumerate(self.reqMetrics)})
+        self._idx_dict.update({midx : {} for midx, _ in enumerate(self.reqMetrics)})
 
     def instance_count(self, metric):
         return len(self._idx_dict[metric]["inst"].keys())        
@@ -440,4 +440,4 @@ class Context():
     def reset_internal_state(self):
         for metric_idx, val in self._idx_dict.items():
             for k, inst in val.items():
-                self._idx_dict[metrix_idx][k] = {"idx" : 0, "ts" : np.inf}
+                self._idx_dict[metric_idx][k] = {"idx" : 0, "ts" : np.inf}
