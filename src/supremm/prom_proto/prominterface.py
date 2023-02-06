@@ -359,7 +359,7 @@ class Context():
     def formatmatrix(self, result):
         """
         """
-        description = self.getdescriptions(result, "matrix", "analytic") 
+        description = self.getdescriptions(result, "matrix", "analytic")
         if not description:
             yield None, None
 

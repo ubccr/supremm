@@ -285,7 +285,7 @@ class PromSummarize(Summarize):
 
             retval = preproc.process(ctx.timestamp, data, description)
             if not retval:
-                return False 
+                return False
 
         return True
 
