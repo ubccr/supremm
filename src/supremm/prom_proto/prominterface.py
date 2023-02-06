@@ -1,8 +1,6 @@
 import os
 import logging
 import urllib.parse as urlparse
-import math
-import json
 import datetime
 
 import numpy as np
@@ -10,12 +8,13 @@ import requests
 
 from supremm.config import Config
 
-HTTP_TIMEOUT = 5
 CHUNK_SIZE = 4 # HOURS
 MAX_DATA_POINTS = 11000 # Prometheus queries return maximum of 11,000 data points
 
 
 class PromClient():
+    """ Client class to interface with Prometheus """
+
     def __init__(self, resconf):
         self._url = "{}:{}".format(resconf['prometheus_url'], resconf['prometheus_port'])
         self._step = '30s'
@@ -29,6 +28,7 @@ class PromClient():
         return self._url
 
     def query(self, query, time):
+        """ Query an instantateous value """
 
         params = {
             'query': query,
@@ -46,6 +46,7 @@ class PromClient():
         return r.json()
 
     def query_range(self, query, start, end):
+        """ Query a time range with a specified granularity """
 
         params = {
             'query': query,
@@ -65,9 +66,7 @@ class PromClient():
         return r.json()
 
     def ispresent(self, match, start, end):
-        # This is basis for checking if timeseries is available
-        # Checks if a timeseries or list of timeseries ('match[]') are available
-        # without returning any actual data
+        """ Query whether or not a timeseries is available """
 
         params = {
             'match[]': match,
@@ -90,9 +89,7 @@ class PromClient():
 
 
     def label_val(self, match, label, start, end):
-        """
-        Queries label values for a corresponding metric.
-        """
+        """ Queries label values for a corresponding metric """
 
         params = {
             'match[]': match,
@@ -115,9 +112,7 @@ class PromClient():
         return names
 
     def cgroup_info(self, uid, jobid, start, end):
-        """
-        Queries a job's cgroup
-        """
+        """ Queries a job's cgroup information """
 
         match = "cgroup_info{uid='%s',jobid='%s'}" % (uid, jobid)
 
@@ -139,7 +134,6 @@ class PromClient():
 
         data = r.json()
 
-        # TODO should handle no cgroup info more gracefully
         if len(data["data"]) == 0:
             logging.warning("No Cgroup info available.")
             return None
@@ -148,6 +142,10 @@ class PromClient():
 
 
 class Context():
+    """ Context class to track the current position
+        while iterating through a Prometheus response
+    """
+
     def __init__(self, start, end, client):
         self.start = start
         self.end = end
@@ -160,11 +158,9 @@ class Context():
         self._result = None
         self._idx_dict = {}
 
-    def __str__(self):
-        return str(self._idx_dict)
-
     @property
     def mode(self):
+        """ Processing mode (firstlast, all, or timeseries) """
         return self._mode
 
     @mode.setter
@@ -173,6 +169,7 @@ class Context():
 
     @property
     def reqMetrics(self):
+        """ A preproc/plugin's required metrics """
         return self._reqMetrics
 
     @reqMetrics.setter
@@ -181,6 +178,7 @@ class Context():
 
     @property
     def min_ts(self):
+        """ Current timestamp of context to evaluate """
         return self._min_ts
 
     @min_ts.setter
@@ -189,6 +187,7 @@ class Context():
 
     @property
     def next_min_ts(self):
+        """ Next timestamp of context to evaluate """
         return self._next_min_ts
 
     @next_min_ts.setter
@@ -197,6 +196,10 @@ class Context():
 
     @property
     def timestamp(self):
+        """ The current timestamp of context.
+            This preserves the timestamp that was just
+            processed after updated the next minimum timestamp.
+        """
         return self._timestamp
 
     @timestamp.setter
@@ -204,6 +207,7 @@ class Context():
         self._timestamp = ts
 
     def fetch(self, required_metrics):
+        """ Generator that yields a Prometheus response given the current context and required metrics """
 
         self.reqMetrics = required_metrics
         self.init_internal_state()
@@ -218,11 +222,9 @@ class Context():
                 self.reset_internal_state()
 
     def chunk_timerange(self):
-        """
-        Generator function to return chunked time ranges for a job of arbitrary length.
-        """
-        chunk_start = datetime.datetime.fromtimestamp(self.start)
+        """ Generator function that yields chunked time ranges for a job of arbitrary length """
 
+        chunk_start = datetime.datetime.fromtimestamp(self.start)
         if (self.end - self.start) < (CHUNK_SIZE * 60 * 60):
             yield self.start, self.end
             return
@@ -237,6 +239,7 @@ class Context():
             chunk_start = chunk_end
 
     def extractpreproc_values(self, result):
+        """ Generator to extract values from a Prometheus response """
 
         if self.mode == "all" or self.mode == "timeseries":
             for data, description in self.formatmatrixpreproc(result):
@@ -247,6 +250,7 @@ class Context():
                 yield data, description
 
     def extract_values(self, result):
+        """ Generator to extract values from a Prometheus response """
 
         if self.mode == "all" or self.mode == "timeseries":
             for data, description in self.formatmatrix(result):
@@ -257,6 +261,7 @@ class Context():
                 yield data, description
 
     def getdescriptions(self, result, type, fmt):
+        """ Format the description from a Prometheus response ""
 
         metric_ids = {idx: metric for idx, metric in enumerate(self.reqMetrics)}
 
@@ -301,9 +306,8 @@ class Context():
         return descriptions
 
     def formatvectorpreproc(self, result):
-        """
+        """ Format a vector response for a preprocessor  """
 
-        """
         description = self.getdescriptions(result, "vector", "preproc")
         if not description:
             yield None, None
@@ -318,9 +322,8 @@ class Context():
         yield data, description
 
     def formatvector(self, result):
-        """
+        """ Format a vector response for an analytic  """
 
-        """
         description = self.getdescriptions(result, "vector", "analytic")
         if not description:
             yield None, None 
@@ -333,9 +336,8 @@ class Context():
         yield data, description
 
     def formatmatrixpreproc(self, result):
-        """
+        """ Format a matrix response for a preprocessor """
 
-        """
         description = self.getdescriptions(result, "matrix", "preproc")
         if not description:
             yield None, None 
@@ -357,8 +359,8 @@ class Context():
             yield data, description
 
     def formatmatrix(self, result):
-        """
-        """
+        """ Format a matrix response for a plugin """
+
         description = self.getdescriptions(result, "matrix", "analytic")
         if not description:
             yield None, None
@@ -378,7 +380,7 @@ class Context():
             yield data, description
 
     def populatevector(self, data):
-        """ Generator to populate numpy array 
+        """ Generator to populate numpy array
             from prometheus vector resultType
         """
         for inst in data["data"]["result"]:
@@ -415,40 +417,37 @@ class Context():
                 yield np.NaN
 
     def init_internal_state(self):
+        """ Initialize the state tracking for the current context """
         self._idx_dict.update({midx : {} for midx, _ in enumerate(self.reqMetrics)})
 
     def reset_internal_state(self):
+        """ Reset state. This should be called to
+            preserve instance names between queries
+        """
         for metric_idx, val in self._idx_dict.items():
             for k, inst in val.items():
                 self._idx_dict[metric_idx][k] = {"idx" : 0, "ts" : np.inf}
 
-    def instance_count(self, metric):
-        return len(self._idx_dict[metric]["inst"].keys())        
-
     def update_inst_ts(self, metric, inst, ts):
+        """ Update an instance's timestamp """
         self._idx_dict[metric][inst]["ts"] = ts
         self._idx_dict[metric][inst]["idx"] += 1
 
     def update_min_ts(self):
+        """ Update the context's minimum timestamp and reset next timestamp """
+
         # Save min_ts to timestamp attribute that is
         # used externally when sent to the plugin callback
         self.timestamp = self.min_ts
         self.min_ts = self.next_min_ts
         self.next_min_ts = np.inf
 
-    def get_label(self, metric):
-        return self._idx_dict[metric]["label"]
-
     def get_idx(self, metric_idx, inst):
+        """ Get the index for a given metric's instance """
         return self._idx_dict[metric_idx][inst]["idx"]
 
-    def get_ts(self, metric, inst):
-        return self._idx_dict[metric]["insts"][inst]["ts"]
-
-    def add_metric(self, metric, label):
-        self._idx_dict.update({metric : {"insts" : {}, "label" : label}})
-
     def add_instance(self, metric_idx, inst, ts):
+        """ Initialize the timestamp and index for an instance """
         idx_dict = {"idx" : 0, "ts" : ts}
         self._idx_dict[metric_idx].update({inst : idx_dict})
         self.min_ts = min(self.min_ts, ts)

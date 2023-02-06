@@ -2,20 +2,17 @@ import os
 import time
 import logging
 import datetime
-import traceback
 
 import requests
 import numpy as np
 
 from prominterface import PromClient, Context # Use local import for debugging, testing
-from supremm.plugin import loadpreprocessors, loadplugins, NodeMetadata
+from supremm.plugin import NodeMetadata
 from supremm.summarize import Summarize
 
 
 VERSION = "2.0.0"
 TIMESERIES_VERSION = 4
-
-MAX_CHUNK = 4 #hours
 
 class NodeMeta(NodeMetadata):
     """ container for node metadata """
@@ -27,11 +24,9 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self,  preprocessors, analytics, job, config, mapping, chunk=MAX_CHUNK):
+    def __init__(self,  preprocessors, analytics, job, config, mapping):
         super(PromSummarize, self).__init__(preprocessors, analytics, job, config)
         self.start = time.time()
-
-        self.chunk_size = chunk
 
         # Translation PCP -> Prometheus metric names
         self.mapping = mapping
@@ -73,7 +68,6 @@ class PromSummarize(Summarize):
         output['acct'] = self.job.acct
         output['acct']['id'] = self.job.job_id
 
-        #TODO replace job.nodearchives
         if len(timeseries) > 0:
             timeseries['hosts'] = dict((str(idx), name) for idx, name in enumerate(self.job.nodenames()))
             timeseries['version'] = TIMESERIES_VERSION
@@ -97,6 +91,7 @@ class PromSummarize(Summarize):
 
     def adderror(self, category, errormsg):
         """ All errors reported with this function show up in the job summary """
+
         if category not in self.errors:
             self.errors[category] = set()
         if isinstance(errormsg, list):
@@ -105,10 +100,8 @@ class PromSummarize(Summarize):
             self.errors[category].add(errormsg)
 
     def logerror(self, nodename, analyticname, error):
-        """
-        Store the detail of processing errors
-        """
-        #if analyticname != "gpu":
+        """ Store the detail of processing errors """
+
         logging.debug("Processing exception: %s", analyticname)
         self.adderror("node", "{0} {1} {2}".format(nodename, analyticname, error))
 
@@ -134,7 +127,6 @@ class PromSummarize(Summarize):
 
             self.mapping.populate_queries(nodename)
             try:
-                logging.info("Processing node %s for job %s" % (nodename, self.job.job_id))
                 self.processnode(mdata)
                 self.nodes_processed += 1
 
@@ -147,6 +139,7 @@ class PromSummarize(Summarize):
         return success == 0
 
     def processnode(self, mdata):
+        """ Process a single node from a job """
 
         start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp() 
         ctx = Context(start, end, self.mapping.client)
@@ -164,6 +157,9 @@ class PromSummarize(Summarize):
             self.processfirstlast(ctx, mdata, analytic)
 
     def processforpreproc(self, ctx, mdata, preproc):
+        """ Fetch the data from Prometheus and pass entire response
+            to the preprocessor runcallback function
+        """
 
         preproc.hoststart(mdata.nodename)
         logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
@@ -177,7 +173,6 @@ class PromSummarize(Summarize):
         results = ctx.fetch(reqMetrics)
 
         done = False
-
         while not done:
             try:
                 result = next(results)
@@ -185,19 +180,21 @@ class PromSummarize(Summarize):
                     break
             except StopIteration:
                 done = True
-            #TODO HTTP exception
+            except requests.RequestException as exp:
+                analytic.status = "failure"
+                raise exp
             except Exception as exp:
-                traceback.print_exc()
                 preproc.status = "failure"
                 preproc.hostend()
                 raise exp
 
-        logging.debug("Preprocessor %s completed" % type(preproc).__name__)
         preproc.status = "complete"
         preproc.hostend()
 
     def processfirstlast(self, ctx, mdata, analytic):
-
+        """ Fetch the data from Prometheus and pass entire response
+            to the analytic runcallback function
+        """
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
         reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
@@ -213,10 +210,9 @@ class PromSummarize(Summarize):
         except StopIteration:
             analytic.status = "failure"
             return
-        #except HTTPException as exp:
-        #    # requests exception
-        #    analytic.status = "failure"
-        #    raise exp
+        except requests.RequestException as exp:
+            analytic.status = "failure"
+            raise exp
         except Exception as exp:
             analytic.status = "failure"
             raise exp
@@ -230,10 +226,9 @@ class PromSummarize(Summarize):
         except StopIteration:
             analytic.status = "failure"
             return
-        #except HTTPException as exp:
-        #    # requests exception
-        #    analytic.status = "failure"
-        #    raise exp
+        except requests.RequestException as exp:
+            analytic.status = "failure"
+            raise exp
         except Exception as exp:
             analytic.status = "failure"
             raise exp
@@ -245,6 +240,9 @@ class PromSummarize(Summarize):
         analytic.status = "complete" 
 
     def processforanalytic(self, ctx, mdata, analytic):
+        """ Fetch the data from Prometheus and pass entire response
+            to the analytic runcallback function
+        """
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
         reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
@@ -256,7 +254,6 @@ class PromSummarize(Summarize):
         results = ctx.fetch(reqMetrics)
 
         done = False
-
         while not done:
             try:
                 result = next(results)
@@ -264,11 +261,9 @@ class PromSummarize(Summarize):
                     break
             except StopIteration:
                 done = True
-            #except HTTPException as exp:
-            #    # requests exception
-            #    preproc.status = "failure"
-            #    preproc.hostend()
-            #    raise exp
+            except requests.RequestException as exp:
+                analytic.status = "failure"
+                raise exp
             except Exception as exp:
                 analytic.status = "failure"
                 raise exp
@@ -290,7 +285,7 @@ class PromSummarize(Summarize):
         return True
 
     def runcallback(self, analytic, result, ctx, mdata):
-        """ Call the plugin data processing function """
+        """ Call the plugin processing function """
 
         for data, description in ctx.extract_values(result):
 

@@ -7,6 +7,7 @@ from supremm.config import Config
 
 
 class MappingManager():
+    """ Helper class to manage the mappings between PCP metrics and Prometheus metrics """
 
     def __init__(self, client):
         self._mapping = MappingManager.load_mapping()
@@ -45,6 +46,7 @@ class MappingManager():
 
     @staticmethod
     def query_builder(params, defaults, prom_metric):
+        """ Build base queries from mapping configuration """
 
         # Metric, params, defaults
         p = [*params]
@@ -85,14 +87,17 @@ class MappingManager():
 
     @property
     def mapping(self):
+        """ Dictionary of mappings between a PCP metric and a MetricMapping """
         return self._mapping["metrics"]
 
     @property
     def client(self):
+        """ Client used to query metadata """
         return self._client
 
     @property
     def currentjob(self):
+        """ Current job being processed """
         return self._job
 
     @currentjob.setter
@@ -102,10 +107,12 @@ class MappingManager():
 
     @property
     def start(self):
+        """ Job's start """
         return self.currentjob.start_datetime.timestamp()
 
     @property
     def end(self):
+        """ Job's end """
         return self.currentjob.end_datetime.timestamp()
 
     @property
@@ -123,6 +130,8 @@ class MappingManager():
         self._cgroup = cgroup
 
     def populate_queries(self, nodename):
+        """ Format queries with nodenames and other parameters if necessary """
+
         for map in self.mapping.values():
             if not map.params:
                 map.query = map.queryformat.format(nodename)
@@ -146,7 +155,7 @@ class MappingManager():
         Recursively checks if a mapping is available from a given metrics list or list of lists.
 
         params: reqMetrics - list of metrics from preproc/plugin
-        return: List of metrics if mapping is present.
+        return: List of MetricMappings if mapping is present.
                 False if mapping not present.
         """
 
@@ -202,34 +211,32 @@ class MetricMapping():
 
     @property
     def queryformat(self):
+        """ Format string for metric query """
         return self._queryformat
 
     @property
     def outformat(self):
+        """ Description output format (default is groupby) """
         return self._outformat
 
     @property
     def params(self):
+        """ Additional parameters for a query """
         return self._params
 
     @property
     def groupby(self):
+        """ Label name for a metric's unique identifier """
         return self._groupby
 
     @property
     def scaling(self):
+        """ Mathematical operation that should be appended to query """
         return self._scaling
 
     @property
-    def description(self):
-        return self._description
-
-    @description.setter
-    def description(self, description):
-        self._description = description
-
-    @property
     def query(self):
+        """ Query populated with necessary parameters """
         return self._query
 
     @query.setter
@@ -237,4 +244,5 @@ class MetricMapping():
         self._query = query
 
     def apply_scaling(self):
+        """ Append scaling to query """
         return self.query + " " + self.scaling
