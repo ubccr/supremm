@@ -56,7 +56,7 @@ class PromClient():
 
         endpoint = "/api/v1/query_range"
         url = urlparse.urljoin(self._url, endpoint)
-        
+
         r = self._client.get(url, params=params)
         if r.status_code != 200:
             print(r.content)
@@ -138,8 +138,13 @@ class PromClient():
             return False
 
         data = r.json()
-        cgroup = data["data"][0]
-        return cgroup
+
+        # TODO should handle no cgroup info more gracefully
+        if len(data["data"]) == 0:
+            logging.warning("No Cgroup info available.")
+            return None
+
+        return data["data"][0]
 
 
 class Context():
@@ -218,6 +223,10 @@ class Context():
         """
         chunk_start = datetime.datetime.fromtimestamp(self.start)
 
+        if (self.end - self.start) < (CHUNK_SIZE * 60 * 60):
+            yield self.start, self.end
+            return
+
         done = False
         while not done:
             chunk_end = chunk_start + datetime.timedelta(hours=CHUNK_SIZE)
@@ -247,7 +256,7 @@ class Context():
             for data, description in self.formatvector(result):
                 yield data, description
 
-    def getdescription(self, result, type, fmt):
+    def getdescriptions(self, result, type, fmt):
 
         metric_ids = {idx: metric for idx, metric in enumerate(self.reqMetrics)}
 
@@ -256,6 +265,8 @@ class Context():
             mmap = metric_ids[idx]
             groupby = mmap.groupby
             outfmt = mmap.outformat
+
+            metric_descriptions = []
             for inst in datum["data"]["result"]:
                 id = inst["metric"][groupby]
 
@@ -267,7 +278,7 @@ class Context():
                 self.min_ts = min(self.min_ts, min_ts)
 
                 if mmap.outformat == groupby:
-                    descriptions.append(inst["metric"][groupby])
+                    metric_descriptions.append(inst["metric"][groupby])
                     self.add_instance(idx, id, min_ts)
                 else:
                     outstring = outfmt[0]
@@ -276,23 +287,24 @@ class Context():
                     for arg in args:
                         out.append(inst["metric"][arg])
                     try:
-                        descriptions.append(outstring.format(*out))
+                        metric_descriptions.append(outstring.format(*out))
                         self.add_instance(idx, id, min_ts)
                     except TypeError:
                         logging.warning("Unable to format configured outstring %s with args: %s", outstring, args)
                         return None
 
-        if fmt == "analytic":
-            return (np.arange(0, len(descriptions)), descriptions)
+            if fmt == "analytic":
+                descriptions.append( (np.arange(0, len(metric_descriptions)), metric_descriptions) )
+            elif fmt == "preproc":
+                descriptions.append({idx: md for idx, md in enumerate(metric_descriptions)})
 
-        elif fmt == "preproc":
-            return [{idx: d} for idx, d in enumerate(descriptions)]
+        return descriptions
 
     def formatvectorpreproc(self, result):
         """
 
         """
-        description = self.getdescription(result, "vector", "preproc")
+        description = self.getdescriptions(result, "vector", "preproc")
         if not description:
             yield None, None
 
@@ -309,7 +321,7 @@ class Context():
         """
 
         """
-        description = self.getdescription(result, "vector", "analytic")
+        description = self.getdescriptions(result, "vector", "analytic")
         if not description:
             yield None, None 
 
@@ -324,7 +336,7 @@ class Context():
         """
 
         """
-        description = self.getdescription(result, "matrix", "preproc")
+        description = self.getdescriptions(result, "matrix", "preproc")
         if not description:
             yield None, None 
 
@@ -347,15 +359,15 @@ class Context():
     def formatmatrix(self, result):
         """
         """
-        description = self.getdescription(result, "matrix", "analytic")
+        description = self.getdescriptions(result, "matrix", "analytic") 
         if not description:
             yield None, None
 
         done = False
         while not done:
             data = []
-            for idx, datum in result:
-                size = len(d["data"]["result"])
+            for idx, datum in enumerate(result):
+                size = len(datum["data"]["result"])
                 data.append(np.fromiter(self.populatematrix(idx, datum), np.float64, size))
 
             min_ts = self.min_ts
@@ -376,10 +388,7 @@ class Context():
         """ Generator to populate numpy array 
             from prometheus matrix resultType
         """
-
         mmap = self.reqMetrics[metric_idx]
-
-        min_ts = self.min_ts
         groupby = mmap.groupby
 
         for inst in data["data"]["result"]:
@@ -389,8 +398,9 @@ class Context():
                 ts = inst["values"][idx][0]
             except IndexError:
                 yield np.NaN
+                continue
 
-            if ts == min_ts:
+            if ts == self.min_ts:
                 value = inst["values"][idx][1]
                 try:
                     next_ts = inst["values"][idx+1][0]
@@ -400,11 +410,17 @@ class Context():
                 self.next_min_ts = min(self.next_min_ts, next_ts)
                 self.update_inst_ts(metric_idx, id, next_ts)
                 yield value
+
             else:
                 yield np.NaN
 
     def init_internal_state(self):
         self._idx_dict.update({midx : {} for midx, _ in enumerate(self.reqMetrics)})
+
+    def reset_internal_state(self):
+        for metric_idx, val in self._idx_dict.items():
+            for k, inst in val.items():
+                self._idx_dict[metric_idx][k] = {"idx" : 0, "ts" : np.inf}
 
     def instance_count(self, metric):
         return len(self._idx_dict[metric]["inst"].keys())        
@@ -436,8 +452,3 @@ class Context():
         idx_dict = {"idx" : 0, "ts" : ts}
         self._idx_dict[metric_idx].update({inst : idx_dict})
         self.min_ts = min(self.min_ts, ts)
-
-    def reset_internal_state(self):
-        for metric_idx, val in self._idx_dict.items():
-            for k, inst in val.items():
-                self._idx_dict[metric_idx][k] = {"idx" : 0, "ts" : np.inf}

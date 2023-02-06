@@ -1,13 +1,8 @@
 import os
-import sys
 import time
 import logging
-import requests
-import inspect
 import datetime
 import traceback
-import urllib.parse as urlparse
-from collections import OrderedDict
 
 import requests
 import numpy as np
@@ -179,20 +174,25 @@ class PromSummarize(Summarize):
             preproc.hostend()
             return
 
-        try:
-            for result in ctx.fetch(reqMetrics):
+        results = ctx.fetch(reqMetrics)
+
+        done = False
+
+        while not done:
+            try:
+                result = next(results)
                 if False == self.runpreproccall(preproc, result, ctx, mdata):
                     break
-        #except HTTPException as exp:
-        #    # requests exception
-        #    preproc.status = "failure"
-        #    preproc.hostend()
-        #    raise exp
-        except Exception as exp:
-            preproc.status = "failure"
-            preproc.hostend()
-            raise exp
+            except StopIteration:
+                done = True
+            #TODO HTTP exception
+            except Exception as exp:
+                traceback.print_exc()
+                preproc.status = "failure"
+                preproc.hostend()
+                raise exp
 
+        logging.debug("Preprocessor %s completed" % type(preproc).__name__)
         preproc.status = "complete"
         preproc.hostend()
 
@@ -206,8 +206,10 @@ class PromSummarize(Summarize):
             analytic.status = "Failure"
             return
 
+        results = ctx.fetch(reqMetrics)
+
         try:
-            result = next(ctx.fetch(reqMetrics))
+            result = next(results)
         except StopIteration:
             analytic.status = "failure"
             return
@@ -224,8 +226,7 @@ class PromSummarize(Summarize):
             return
 
         try:
-            print("This doesn't execute")
-            result = next(ctx.fetch(reqMetrics))
+            result = next(results)
         except StopIteration:
             analytic.status = "failure"
             return
@@ -252,56 +253,57 @@ class PromSummarize(Summarize):
             analytic.status = "failure"
             return
 
-        done = True
+        results = ctx.fetch(reqMetrics)
+
+        done = False
 
         while not done:
             try:
-                result = next(ctx.fetch(reqMetrics))
+                result = next(results)
+                if False == self.runcallback(analytic, result, ctx, mdata):
+                    break
             except StopIteration:
                 done = True
             #except HTTPException as exp:
             #    # requests exception
-            #    logging.warning("%s (%s) error while connecting to Prometheus %s", type(analytic).__name__, analytic.name, str(exp))
-            #    analytic.status = "failure"
+            #    preproc.status = "failure"
+            #    preproc.hostend()
             #    raise exp
             except Exception as exp:
-                logging.warning("%s (%s) raised exception %s", type(analytic).__name__, analytic.name, str(exp))
                 analytic.status = "failure"
                 raise exp
-
-            if False == self.runcallback(analytic, result, ctx, mdata):
-                done = True
 
         analytic.status = "complete"
 
     def runpreproccall(self, preproc, result, ctx, mdata):
         """ Call the pre-processor data processing function """
 
-        retval = True
         for data, description in ctx.extractpreproc_values(result):
 
             if data is None and description is None:
                 return False
 
             retval = preproc.process(ctx.timestamp, data, description)
+            if not retval:
+                return False 
 
-        return retval
- 
+        return True
+
     def runcallback(self, analytic, result, ctx, mdata):
         """ Call the plugin data processing function """
 
         for data, description in ctx.extract_values(result):
+
             if data is None and description is None:
                 return False
 
             ts = ctx.timestamp
             try:
-                retval = analytic.process(mdata, ts, data, description)
-                if not retval:
+                if False == analytic.process(mdata, ts, data, description):
                     break
             except Exception as exc:
                 logging.exception("%s %s @ %s", self.job.job_id, analytic.name, ts)
                 self.logerror(mdata.nodename, analytic.name, str(exc))
                 return False
 
-        return False
+        return True

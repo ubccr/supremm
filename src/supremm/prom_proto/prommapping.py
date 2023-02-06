@@ -110,7 +110,7 @@ class MappingManager():
 
     @property
     def cgroup(self):
-        if self._cgroup:
+        if self._cgroup is not None:
             return self._cgroup
         else:
             uid = self.currentjob.acct["uid"]
@@ -133,7 +133,6 @@ class MappingManager():
                         if self.cgroup:
                             args.append(self.cgroup)
                         else:
-                            logging.warning("No cgroup information available.")
                             map.query = None
 
                 if len(args) == 1:
