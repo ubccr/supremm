@@ -105,7 +105,7 @@ class PCPSummarize(Summarize):
             for analytic in self.firstlast:
                 if analytic.status != "uninitialized":
                     output[analytic.name] = analytic.results()
-                    
+ 
         output['summarization'] = {
             "version": VERSION,
             "elapsed": time.time() - self.start,

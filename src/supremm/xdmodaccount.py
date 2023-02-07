@@ -275,7 +275,7 @@ class XDMoDAcct(Accounting):
 
             for h in hostcur:
                 if h[0] not in hostarchives:
-                    if self.hostname_mode == "hostname":
+                    if self.hostnamemode == "hostname":
                         name = h[0].split(".")[0]
                         hostlist.append(name)
                     else:
