@@ -30,7 +30,7 @@ class Config(object):
         if confpath is None or os.path.isdir(confpath) == False:
             raise Exception("Missing configuration path %s" % confpath)
 
-        conffile = os.path.join(confpath, name)
+        conffile = os.path.join(confpath, "config.json")
         logging.debug("Using config file %s", conffile)
         with open(conffile, "r") as conffp:
             confdata = ""

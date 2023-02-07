@@ -261,7 +261,7 @@ class Context():
                 yield data, description
 
     def getdescriptions(self, result, type, fmt):
-        """ Format the description from a Prometheus response ""
+        """ Format the description from a Prometheus response """
 
         metric_ids = {idx: metric for idx, metric in enumerate(self.reqMetrics)}
 
