@@ -36,7 +36,7 @@ setup(
     packages=find_packages(where='src'),
     package_data={
         'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
-        'supremm.pcpcinterface': ['*.pxd', '*.pyx']
+        'supremm.datasource.pcp.pcpcinterface': ['*.pxd', '*.pyx']
     },
     data_files=[
         (confpath,                         ['config/config.json']),
@@ -52,7 +52,7 @@ setup(
             'gen-pmlogger-control.py = supremm.gen_pmlogger_control:main',
             'summarize_jobs.py = supremm.summarize_jobs:main',
             'summarize_mpi.py = supremm.summarize_mpi:main',
-            'indexarchives.py = supremm.indexarchives:runindexing',
+            'indexarchives.py = supremm.datasource.pcp.indexarchives:runindexing',
             'account.py = supremm.account:runingest',
             'supremmconf.py = supremm.supremmconf:main',
             'supremm-setup = supremm.supremm_setup:main',
@@ -68,10 +68,11 @@ setup(
         'Cython',
         'scipy',
         'pymongo',
-        'pytz'
+        'pytz',
+        'requests'
     ],
     ext_modules=cythonize([
-        Extension("supremm.pcpcinterface.pcpcinterface", ["src/supremm/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
+        Extension("supremm.datasource.pcp.pcpcinterface.pcpcinterface", ["src/supremm/datsource/pcp/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
     ])
 )
 

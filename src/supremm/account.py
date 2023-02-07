@@ -178,8 +178,8 @@ class DbAcct(Accounting):
     Helper class to get job records from the store
     """
 
-    def __init__(self, resource_id, conf):
-        super(DbAcct, self).__init__(resource_id, conf)
+    def __init__(self, resconf, conf):
+        super(DbAcct, self).__init__(resconf["resource_id"], conf)
 
         self._dblog = DbLogger(conf)
         dbconf = conf.getsection("accountdatabase")

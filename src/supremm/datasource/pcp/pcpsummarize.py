@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" Summarize module """
+""" Summarize module for PCP datasource """
 
 import datetime
 
@@ -11,7 +11,8 @@ import logging
 import traceback
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
-from supremm.pcpcinterface import pcpcinterface
+from supremm.summarize import Summarize
+from supremm.datasource.pcp import pcpcinterface
 
 import numpy
 import copy
@@ -31,23 +32,15 @@ class ArchiveMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
     archive = property(lambda self: self._archivedata)
 
-class Summarize(object):
+class PCPSummarize(Summarize):
     """
     Summarize class is responsible for iteracting with the pmapi python code
     and managing the calls to the various analytics to process the data
     """
 
     def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
-
-        self.preprocs = preprocessors
-        self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
-        self.firstlast = [x for x in analytics if x.mode == "firstlast"]
-        self.errors = {}
-        self.job = job
-        self.start = time.time()
+        super().__init__(preprocessors, analytics, job, config, fail_fast)
         self.archives_processed = 0
-        self.fail_fast = fail_fast
-
         self.rangechange = RangeChange(config)
 
     def adderror(self, category, errormsg):

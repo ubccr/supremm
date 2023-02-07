@@ -10,10 +10,11 @@ import logging
 
 class XDMoDAcct(Accounting):
     """ account reader that gets data from xdmod datawarehouse """
-    def __init__(self, resource_id, config):
-        super(XDMoDAcct, self).__init__(resource_id, config)
+    def __init__(self, resconf, config):
+        super(XDMoDAcct, self).__init__(resconf["resource_id"], config)
 
         self.dbsettings = config.getsection("datawarehouse")
+        self.hostnamemode = resconf["hostname_mode"]
 
         xdmod_schema_version = self.detectXdmodSchema()
 
@@ -271,9 +272,14 @@ class XDMoDAcct(Accounting):
 
             hostarchives = {}
             hostlist = []
+
             for h in hostcur:
                 if h[0] not in hostarchives:
-                    hostlist.append(h[0])
+                    if self.hostname_mode == "hostname":
+                        name = h[0].split(".")[0]
+                        hostlist.append(name)
+                    else:
+                        hostlist.append(h[0]
                     hostarchives[h[0]] = []
                 hostarchives[h[0]].append(h[1])
 
