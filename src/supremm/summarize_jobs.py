@@ -5,7 +5,6 @@
 
 import logging
 import os
-import shutil
 import time
 import traceback
 import multiprocessing as mp
@@ -16,6 +15,7 @@ from supremm import outputter
 from supremm.plugin import loadplugins, loadpreprocessors
 from supremm.proc_common import getoptions, summarizejob, override_defaults, filter_plugins
 from supremm.scripthelpers import setuplogger
+from supremm.datasource.factory import DatasourceFactory
 
 
 def get_jobs(opts, account):
@@ -29,12 +29,6 @@ def get_jobs(opts, account):
         return account.getbytimerange(opts['start'], opts['end'], opts)
     else:
         return account.get(None, None)
-
-
-def clean_jobdir(opts, job):
-    if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
-        # Clean up
-        shutil.rmtree(job.jobdir, ignore_errors=True)
 
 
 def process_summary(m, dbif, opts, job, summarize_time, result):
@@ -73,16 +67,17 @@ def processjobs(config, opts, process_pool=None):
         resconf = override_defaults(resconf, opts)
 
         preprocs, plugins = filter_plugins(resconf, allpreprocs, allplugins)
+        datasource = DatasourceFactory(preprocs, plugins, resconf)
 
         logging.debug("Using %s preprocessors", len(preprocs))
         logging.debug("Using %s plugins", len(plugins))
         if process_pool is not None:
-            process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, process_pool)
+            process_resource_multiprocessing(resconf, config, opts, datasource, process_pool)
         else:
-            process_resource(resconf, preprocs, plugins, config, opts)
+            process_resource(resconf, config, opts, datasource)
 
 
-def process_resource(resconf, preprocs, plugins, config, opts):
+def process_resource(resconf, config, opts, datasource):
     with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
 
         if resconf['batch_system'] == "XDMoD":
@@ -93,25 +88,25 @@ def process_resource(resconf, preprocs, plugins, config, opts):
         for job in get_jobs(opts, dbif):
             try:
                 summarize_start = time.time()
-                res = summarizejob(job, config, resconf, plugins, preprocs, opts)
-                if res is None:
-                    continue  # Extract-only mode
+                if not datasource.presummarize(job, config, resconf, opts):
+                    continue # Extract-only mode for PCP datasource
+                res = datasource.summarizejob(job, config, opts)
                 s, mdata, success, s_err = res
                 summarize_time = time.time() - summarize_start
                 summary_dict = s.get()
             except Exception as e:
                 logging.error("Failure for summarization of job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
-                clean_jobdir(opts, job)
+                datasource.cleanup(opts, job)
                 if opts["fail_fast"]:
                     raise
                 else:
                     continue
 
             process_summary(m, dbif, opts, job, summarize_time, (summary_dict, mdata, success, s_err))
-            clean_jobdir(opts, job)
+            datasource.cleanup(opts, job)
 
 
-def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, pool):
+def process_resource_multiprocessing(resconf, config, opts, datasource, pool):
     with outputter.factory(config, resconf, dry_run=opts['dry_run']) as m:
         if resconf['batch_system'] == "XDMoD":
             dbif = XDMoDAcct(resconf, config)

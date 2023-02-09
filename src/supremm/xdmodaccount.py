@@ -279,7 +279,7 @@ class XDMoDAcct(Accounting):
                         name = h[0].split(".")[0]
                         hostlist.append(name)
                     else:
-                        hostlist.append(h[0]
+                        hostlist.append(h[0])
                     hostarchives[h[0]] = []
                 hostarchives[h[0]].append(h[1])
 

@@ -72,7 +72,7 @@ setup(
         'requests'
     ],
     ext_modules=cythonize([
-        Extension("supremm.datasource.pcp.pcpcinterface.pcpcinterface", ["src/supremm/datsource/pcp/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
+        Extension("supremm.datasource.pcp.pcpcinterface.pcpcinterface", ["src/supremm/datasource/pcp/pcpcinterface/pcpcinterface.pyx"], libraries=["pcp"], include_dirs=[numpy.get_include()])
     ])
 )
 
