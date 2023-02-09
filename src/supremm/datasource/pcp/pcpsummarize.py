@@ -17,7 +17,7 @@ from supremm.datasource.pcp import pcpcinterface
 import numpy
 import copy
 
-VERSION = "1.0.6"
+VERSION = "2.0.0"
 TIMESERIES_VERSION = 4
 
 
@@ -40,6 +40,7 @@ class PCPSummarize(Summarize):
 
     def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
         super().__init__(preprocessors, analytics, job, config, fail_fast)
+        self.start = time.time()
         self.archives_processed = 0
         self.rangechange = RangeChange(config)
 
