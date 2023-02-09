@@ -297,7 +297,7 @@ def configure_resource(display, resource_id, resource, defaults):
         setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
         if key == "enabled" and setting[key] == False:
-            break
+            return {"resource_id": resource_id, "enabled": False}
 
         if key == "datasource":
             while True:
@@ -305,6 +305,7 @@ def configure_resource(display, resource_id, resource, defaults):
                 if setting[key] == "pcp":
                     key = "pcp_log_dir"
                     setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
+
                     if not os.path.isdir(setting[key]):
                         display.print_warning("""
 WARNING The directory {0} does not exist. Make sure to create and populate this
@@ -315,7 +316,9 @@ directory before running the summarization software.
 
                 elif setting[key] == "prometheus":
                     key = "prom_url"
+                    del setting["pcp_log_dir"]
                     setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
+
                     # Naive test connection to prometheus
                     url = "http://{}/api/v1/status/buildinfo".format(setting[key])
                     try:
@@ -325,17 +328,17 @@ directory before running the summarization software.
 WARNING Unable to reach prometheus server at http://{}.
 Make sure the server is running and is accessible before running the summarization software.
 """.format(setting[key]))
-                        continue
+                        break
 
                     if build_info.status_code != 200:
                         display.print_warning("""
 WARNING Status code {} returned from Prometheus at http://{}.
 """.format(build_info.status_code, setting[key]))
+                        break
 
                     display.print_text("""
 INFO Prometheus build version: {}
 """.format(build_info.json()["data"]["version"]))
-                    del setting["pcp_log_dir"]
                     break
 
                 else:

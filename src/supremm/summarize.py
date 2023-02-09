@@ -1,9 +1,8 @@
-""" Definition of the summarize API """
 from abc import ABC, abstractmethod
 
 
 class Summarize(ABC):
-    """ Abstract base class describing the job summarization interface """
+    """ Abstract base class of the job summarization interface """
 
     def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
         self.preprocs = preprocessors
@@ -29,7 +28,7 @@ class Summarize(ABC):
 
     @abstractmethod
     def process(self):
-        """ Main entry point. All archives are processed """
+        """ Main entry point. All of a job's nodes are processed """
         pass
 
     @abstractmethod
