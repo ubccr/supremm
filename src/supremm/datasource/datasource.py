@@ -16,11 +16,6 @@ class Datasource(ABC):
         self._error = None
         self._missingnodes = 0
 
-        # PCP: configure archive_out_dir and subdir_out_format
-        # 	args - archive_out_dir, subdir_out_format
-        # Prometheus: initialize client, mapping
-        #	args - prom_url
-
     @property
     def allpreprocs(self):
         return self._allpreprocs
