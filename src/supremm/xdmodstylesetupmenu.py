@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ simple curses-based menu interface, intended to have a similar look and
     feel to the xdmod-setup menu in Open XDMoD
 """

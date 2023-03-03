@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Memory usage plugin """
 
 from supremm.plugin import Plugin

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ GPU statistics """
 
 from supremm.plugin import Plugin

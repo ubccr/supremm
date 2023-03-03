@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ hardware inventory pre-processor """
 
 from supremm.plugin import PreProcessor

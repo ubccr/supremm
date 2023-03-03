@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Socket level performance counter plugin """
 
 from supremm.plugin import Plugin
