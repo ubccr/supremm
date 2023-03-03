@@ -15,8 +15,7 @@ def usage():
     """ print usage """
     print("usage: {0} [OPTS]".format(os.path.basename(__file__)))
     print("  -d --debug            set log level to debug")
-    print("  -c --config           specify the configuration file")
-    print("  -r --resources        output the configuration data for all enabled resources") 
+    print("  -c --config           specify the path to the configuration file")
     print("  -s --section SECTION  output the configuration data from the specified section")
     print("  -i --item ITEM        output the configuration data for the specified item")
     print("  -h --help             print this help message")
@@ -29,7 +28,7 @@ def getoptions():
                "section": None,
                "item"	: None}
 
-    opts, _ = getopt(sys.argv[1:], "dc:s:i:h", ["debug", "config=", "section=", "item="])
+    opts, _ = getopt(sys.argv[1:], "dc:s:i:h", ["debug", "config=", "section=", "item=", "help"])
 
     for opt in opts:
         if opt[0] in ("-d", "--debug"):
