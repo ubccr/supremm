@@ -24,17 +24,14 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self,  preprocessors, analytics, job, config, mapping):
-        super(PromSummarize, self).__init__(preprocessors, analytics, job, config)
+    def __init__(self,  preprocessors, analytics, job, config, mapping, fail_fast=False):
+        super(PromSummarize, self).__init__(preprocessors, analytics, job, config, fail_fast)
         self.start = time.time()
 
         # Translation PCP -> Prometheus metric names
         self.mapping = mapping
         self.mapping.currentjob = job
         self.nodes_processed = 0
-
-        # TODO use config query to parse yaml scrape interval config
-        self.timestep = "30s"
 
     def get(self):
         """ Return a dict with the summary information """
