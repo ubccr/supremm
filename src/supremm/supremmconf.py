@@ -86,7 +86,7 @@ def main():
         if isinstance(item, dict):
             item = json.dumps(item, indent=4)
  
-        print("{} : {}".format(opts['item'], item))
+        print(item)
 
     else:
         print(json.dumps(section, indent=4))
