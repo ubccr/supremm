@@ -243,6 +243,13 @@ class MetricMapping():
     def query(self, query):
         self._query = query
 
+    def apply_range(self, start, end):
+        """ Append range modifier for instant queries.
+            This enables the query to retrieve raw data from Prometheus.
+        """
+        range = start - end
+        return self.query + "[{}s]".format(range)
+
     def apply_scaling(self):
         """ Append scaling to query """
         return self.query + " " + self.scaling

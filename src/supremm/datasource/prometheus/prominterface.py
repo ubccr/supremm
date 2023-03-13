@@ -9,14 +9,13 @@ import requests
 from supremm.config import Config
 
 CHUNK_SIZE = 4 # HOURS
-MAX_DATA_POINTS = 11000 # Prometheus queries return maximum of 11,000 data points
 
 
 class PromClient():
     """ Client class to interface with Prometheus """
 
     def __init__(self, resconf):
-        self._url = "{}:{}".format(resconf['prometheus_url'], resconf['prometheus_port'])
+        self._url = resconf['prom_url']
         self._step = '30s'
 
         self._client = requests.Session()
@@ -24,11 +23,32 @@ class PromClient():
         self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded',
                                      'Accept': 'application/json'})
 
+        self.connection = build_info(self._client, self._url)
+
     def __str__(self):
         return self._url
 
+    @staticmethod
+    def build_info(client, test_url):
+        """ Query server build info. Test connection to server. """
+
+        endpoint = "/api/v1/status/buildinfo"
+        url = urlparse.urljoin(test_url, endpoint)
+
+        r = client.get(endpoint)
+        if r.status_code != 200:
+            print(str(r.content))
+            return False
+
+        result = r.json()
+        if result["status"] == "success":
+            return True
+        else:
+            logging.warning("Unable to connect to Prometheus server at %s", url)
+            return False
+
     def query(self, query, time):
-        """ Query an instantateous value """
+        """ Query an instantaneous value """
 
         params = {
             'query': query,
@@ -140,7 +160,6 @@ class PromClient():
 
         return data["data"][0]
 
-
 class Context():
     """ Context class to track the current position
         while iterating through a Prometheus response
@@ -213,7 +232,9 @@ class Context():
         self.init_internal_state()
         if self.mode == "all" or self.mode == "timeseries":
             for start, end in self.chunk_timerange():
-                yield [self.client.query_range(m.apply_scaling(), start, end) for m in required_metrics]
+                # Append a time range to an instant query to get raw data
+                required_metrics = [m.apply_range(start, end) for m in required_metrics]
+                yield [self.client.query(m.apply_scaling(), end) for m in required_metrics]
                 self.reset_internal_state()
 
         elif self.mode == "firstlast":
@@ -222,7 +243,9 @@ class Context():
                 self.reset_internal_state()
 
     def chunk_timerange(self):
-        """ Generator function that yields chunked time ranges for a job of arbitrary length """
+        """ Generator function that yields chunked time ranges for a job of arbitrary length
+            Prometheus returns a maximum of 11,000 data points per query.
+        """
 
         chunk_start = datetime.datetime.fromtimestamp(self.start)
         if (self.end - self.start) < (CHUNK_SIZE * 60 * 60):

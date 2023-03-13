@@ -6,7 +6,7 @@ import datetime
 import requests
 import numpy as np
 
-from prominterface import PromClient, Context # Use local import for debugging, testing
+from supremm.datasource.prometheus.prominterface import PromClient, Context
 from supremm.plugin import NodeMetadata
 from supremm.summarize import Summarize
 
