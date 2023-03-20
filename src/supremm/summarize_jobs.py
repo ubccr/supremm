@@ -88,9 +88,10 @@ def process_resource(resconf, config, opts, datasource):
         for job in get_jobs(opts, dbif):
             try:
                 summarize_start = time.time()
-                if not datasource.presummarize(job, config, resconf, opts):
+                jobmeta = datasource.presummarize(job, config, resconf, opts)
+                if not jobmeta:
                     continue # Extract-only mode for PCP datasource
-                res = datasource.summarizejob(job, config, opts)
+                res = datasource.summarizejob(job, jobmeta, config, opts)
                 s, mdata, success, s_err = res
                 summarize_time = time.time() - summarize_start
                 summary_dict = s.get()
