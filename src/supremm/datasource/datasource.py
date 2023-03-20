@@ -98,9 +98,9 @@ class JobMeta():
     def mdata(self):
         return self._mdata
 
-    @property.setter
+    @mdata.setter
     def mdata(self, md):
-        self._mdata = mdata
+        self._mdata = md
 
     @property
     def result(self):
