@@ -116,7 +116,7 @@ def process_resource_multiprocessing(resconf, config, opts, datasource, pool):
 
         jobs = get_jobs(opts, dbif)
 
-        it = iter_jobs(jobs, config, resconf, plugins, preprocs, opts)
+        it = iter_jobs(jobs, config, resconf, plugins, preprocs, opts, datasource)
         pool_iter = pool.imap_unordered(do_summarize, it)
         while True:
             try:
@@ -126,27 +126,30 @@ def process_resource_multiprocessing(resconf, config, opts, datasource, pool):
 
             if result is not None:
                 process_summary(m, dbif, opts, job, summarize_time, result)
-                clean_jobdir(opts, job)
+                datasource.cleanup(opts, job)
             else:
-                clean_jobdir(opts, job)
+                datasource.cleanup(opts, job)
 
 
-def iter_jobs(jobs, config, resconf, plugins, preprocs, opts):
+def iter_jobs(jobs, config, resconf, plugins, preprocs, opts, datasource):
     """
     Combines the db cursor job iterator with the other information needed to pass to summarizejob.
     """
     for job in jobs:
-        yield job, config, resconf, plugins, preprocs, opts
+        yield job, config, resconf, plugins, preprocs, opts, datasource
 
 
 def do_summarize(args):
     """
     used in a separate process
     """
-    job, config, resconf, plugins, preprocs, opts = args
+    job, config, resconf, plugins, preprocs, opts, datasource = args
     try:
         summarize_start = time.time()
-        res = summarizejob(job, config, resconf, plugins, preprocs, opts)
+        jobmeta = datasource.presummarize(job, config, resconf, opts)
+        if not jobmeta:
+            return job, None, None  # Extract-only mode for PCP datasource
+        res = datasource.summarizejob(job, jobmeta, config, opts)
         if res is None:
             return job, None, None  # Extract-only mode
         s, mdata, success, s_err = res

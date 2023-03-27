@@ -1,4 +1,5 @@
 """ Implementation for account reader that gets data from the XDMoD datawarehouse """
+import sys #debug
 
 from pymysql import OperationalError, ProgrammingError
 from supremm.config import Config
@@ -146,9 +147,23 @@ class XDMoDAcct(Accounting):
             ) tt ORDER BY 1 ASC, tt.start_time_ts ASC
         """.format(jobfacttable)
 
+        self.nodenamequery = """
+            SELECT
+                h.hostname
+            FROM
+                modw.`hosts` h,
+                modw.`jobhosts` jh,
+                modw.`{0}` j
+            WHERE
+                j.job_id = jh.job_id
+                AND jh.job_id = %s
+                AND jh.host_id = h.id;
+        """.format(jobfacttable)
+
         self.con = None
         self.hostcon = None
         self.madcon = None
+        self.nodenamecon = None
 
     def detectXdmodSchema(self):
         """ Query the XDMoD datawarehouse to determine which version of the data schema
@@ -258,6 +273,8 @@ class XDMoDAcct(Accounting):
             self.con = getdbconnection(self.dbsettings, True)
         if self.hostcon == None:
             self.hostcon = getdbconnection(self.dbsettings, False)
+        if self.nodenamecon == None:
+            self.nodenamecon = getdbconnection(self.dbsettings, False)
 
         cur = self.con.cursor()
         cur.execute(query, data)
@@ -266,20 +283,23 @@ class XDMoDAcct(Accounting):
         logging.info("Processing %s jobs", rows_returned)
 
         for record in cur:
-
             hostcur = self.hostcon.cursor()
             hostcur.execute(self.hostquery, (record['job_id'], record['job_id']))
 
+            nodenamecur = self.nodenamecon.cursor()
+            nodenamecur.execute(self.nodenamequery, record['job_id'])
+
             hostarchives = {}
             hostlist = []
+            for n in nodenamecur:
+                if self.hostnamemode == "hostname":
+                    name = n[0].split(".")[0]
+                    hostlist.append(name)
+                else:
+                    hostlist.append(h[0])
 
             for h in hostcur:
                 if h[0] not in hostarchives:
-                    if self.hostnamemode == "hostname":
-                        name = h[0].split(".")[0]
-                        hostlist.append(name)
-                    else:
-                        hostlist.append(h[0])
                     hostarchives[h[0]] = []
                 hostarchives[h[0]].append(h[1])
 

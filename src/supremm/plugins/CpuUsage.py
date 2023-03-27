@@ -97,9 +97,11 @@ class CpuUsage(Plugin):
         proc = self._job.getdata('proc')
 
         if proc == None:
-            return {"error": ProcessingError.CPUSET_UNKNOWN}, {"error": ProcessingError.CPUSET_UNKNOWN}
+            proc = self._job.getdata('procprom')
+            if proc == None:
+                return {"error": ProcessingError.CPUSET_UNKNOWN}, {"error": ProcessingError.CPUSET_UNKNOWN}
 
-        cpusallowed = self._job.getdata('proc')['cpusallowed']
+        cpusallowed = proc['cpusallowed']
 
         ratios = numpy.empty((self._ncpumetrics, self._totalcores), numpy.double)
 

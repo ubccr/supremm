@@ -77,6 +77,10 @@ class Job(object):
         self.job_id = job_id
         self.acct = acct
         self._nodecount = acct['nodes']
+
+        # NOTE datetimes for Prometheus do not need to be converted
+        # Prometheus summarize currently uses acct['(start/end)_time'] for time
+        # Different Job classes might need to be used
         self._start_datetime = datetimeconvert(acct['start_time'])
         self._end_datetime = datetimeconvert(acct['end_time'])
 

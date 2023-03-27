@@ -44,15 +44,6 @@ class PCPSummarize(Summarize):
         self.archives_processed = 0
         self.rangechange = RangeChange(config)
 
-    def adderror(self, category, errormsg):
-        """ All errors reported with this function show up in the job summary """
-        if category not in self.errors:
-            self.errors[category] = set()
-        if isinstance(errormsg, list):
-            self.errors[category].update(set(errormsg))
-        else:
-            self.errors[category].add(errormsg)
-
     def process(self):
         """ Main entry point. All archives are processed """
         success = 0

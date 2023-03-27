@@ -1,8 +1,14 @@
+""" Definition of the summarize API """
 from abc import ABC, abstractmethod
+
+VERSION = "2.0.0"
+TIMESERIES_VERSION = 4
 
 
 class Summarize(ABC):
-    """ Abstract base class of the job summarization interface """
+    """ Abstract base class describing the job summarization interface.
+        Currently only interfaces with PCP archives and is subject to change.
+    """
 
     def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
         self.preprocs = preprocessors
@@ -33,7 +39,7 @@ class Summarize(ABC):
 
     @abstractmethod
     def complete(self):
-        """ A job is complete if archives exist for all assigned nodes and they have
+        """ A job is complete if data exist for all assigned nodes and they have
             been processed sucessfullly
         """
         pass

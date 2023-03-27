@@ -8,6 +8,7 @@ import glob
 import pkg_resources
 import logging
 
+
 def iscomment(line):
     """ check is line is a c++ style comment """
     if re.search(r"^\s*//", line):
