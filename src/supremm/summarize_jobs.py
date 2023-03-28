@@ -72,7 +72,7 @@ def processjobs(config, opts, process_pool=None):
         logging.debug("Using %s preprocessors", len(preprocs))
         logging.debug("Using %s plugins", len(plugins))
         if process_pool is not None:
-            process_resource_multiprocessing(resconf, config, opts, datasource, process_pool)
+            process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, datasource, process_pool)
         else:
             process_resource(resconf, config, opts, datasource)
 
