@@ -13,7 +13,7 @@ from supremm.account import DbAcct
 from supremm.xdmodaccount import XDMoDAcct
 from supremm import outputter
 from supremm.plugin import loadplugins, loadpreprocessors
-from supremm.proc_common import getoptions, summarizejob, override_defaults, filter_plugins
+from supremm.proc_common import getoptions, override_defaults, filter_plugins
 from supremm.scripthelpers import setuplogger
 from supremm.datasource.factory import DatasourceFactory
 
@@ -107,7 +107,7 @@ def process_resource(resconf, config, opts, datasource):
             datasource.cleanup(opts, job)
 
 
-def process_resource_multiprocessing(resconf, config, opts, datasource, pool):
+def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, datasource, pool):
     with outputter.factory(config, resconf, dry_run=opts['dry_run']) as m:
         if resconf['batch_system'] == "XDMoD":
             dbif = XDMoDAcct(resconf, config)
