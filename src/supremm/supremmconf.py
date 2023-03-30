@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """ helper utiility to print out config info """
-from __future__ import print_function
 
 import sys
 import os
