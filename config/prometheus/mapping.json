@@ -1,0 +1,169 @@
+{
+	"common": {
+		"params": ["host"],
+		"defaults": {"environment": "prod"}
+	},
+	"metrics": {
+		"cgroup.memory.usage": {
+			"name": "cgroup_memory_used_bytes",
+			"params": ["cgroup"],
+			"groupby": "cgroup"
+		},
+		"cgroup.memory.limit": {
+			"name": "cgroup_memory_total_bytes",
+			"params": ["cgroup"],
+			"groupby": "cgroup"
+		},
+		"disk.dev.read": {
+			"name": "node_disk_reads_completed_total",
+			"groupby": "device"
+		},
+		"disk.dev.read_bytes": { 
+			"name": "node_disk_read_bytes_total",
+			"scaling": "0.0009765625",
+			"groupby": "device"
+		},
+		"disk.dev.write": {
+			"name": "node_disk_writes_completed_total",
+			"groupby": "device"
+		},
+		"disk.dev.write_bytes": {
+			"name": "node_disk_written_bytes_total",
+			"scaling": "0.0009765625",
+			"groupby": "device"
+		},
+		"infiniband.port.switch.in.bytes": {
+			"name": "node_infiniband_port_data_received_bytes_total",
+			"groupby": "port",
+			"out_fmt": ["{}:{}", "device", "port"]
+		},
+		"infiniband.port.switch.in.packets": {
+			"name": "node_infiniband_port_packets_received_total",
+			"groupby": "port",
+			"out_fmt": ["{}:{}", "device", "port"]
+		},
+		"infiniband.port.switch.out.bytes": {
+			"name": "node_infiniband_port_data_transmitted_bytes_total",
+			"groupby": "port",
+			"out_fmt": ["{}:{}", "device", "port"]
+		},
+		"infiniband.port.switch.out.packets": {
+			"name": "node_infiniband_port_packets_transmitted_total",
+			"groupby": "port",
+			"out_fmt": ["{}:{}", "device", "port"]
+		},
+		"ipmi.dcmi.power": {
+			"name": "ipmi_dcmi_power_consumption_watts",
+			"groupby": "host"
+		},
+		"kernel.all.load": {
+			"name": "node_load1",
+			"groupby": "host"
+		},
+		"kernel.percpu.cpu.user": {
+			"name": "node_cpu_seconds_total",
+                        "defaults": {"mode" : "user"},
+			"scaling": "1000",
+			"groupby": "cpu",
+			"out_fmt": ["cpu{}", "cpu"]
+		},
+		"kernel.percpu.cpu.idle": {
+			"name": "node_cpu_seconds_total",
+			"defaults": {"mode" : "idle"},
+			"scaling": "1000",
+			"groupby": "cpu",
+			"out_fmt": ["cpu{}", "cpu"]
+		},
+		"kernel.percpu.cpu.nice": {
+			"name": "node_cpu_seconds_total",
+			"defaults": {"mode" : "nice"},
+			"scaling": "1000",
+			"groupby": "cpu",
+			"out_fmt": ["cpu{}", "cpu"]
+		},
+		"kernel.percpu.cpu.sys": {
+			"name": "node_cpu_seconds_total",
+			"defaults": {"mode" : "system"},
+			"scaling": "1000",
+			"groupby": "cpu",
+			"out_fmt": ["cpu{}", "cpu"]
+		},
+		"kernel.percpu.cpu.wait.total": {
+			"name": "node_cpu_seconds_total",
+			"defaults": {"mode" : "iowait"},
+			"scaling": "1000",
+			"groupby": "cpu",
+			"out_fmt": ["cpu{}", "cpu"]
+		},
+		"kernel.percpu.cpu.irq.hard": {
+			"name": "node_cpu_seconds_total",
+			"defaults": {"mode" : "irq"},
+			"scaling": "1000",
+			"groupby": "cpu",
+			"out_fmt": ["cpu{}", "cpu"]
+		},
+		"kernel.percpu.cpu.irq.soft": {
+			"name": "node_cpu_seconds_total",
+			"defaults": {"mode" : "softirq"},
+			"scaling": "1000",
+			"groupby": "cpu",
+			"out_fmt": ["cpu{}", "cpu"]
+		},
+		"mem.numa.util.filePages": {
+			"name": "node_memory_numa_FilePages",
+			"groupby": "node"
+		},
+		"mem.numa.util.slab": { 
+			"name": "node_memory_numa_Slab",
+			"groupby": "node"
+		},
+		"mem.numa.util.used": {
+			"name": "node_memory_numa_MemUsed",
+			"groupby": "node"
+		},
+		"mem.freemem": {
+			"name": "node_memory_MemFree_bytes",
+			"scaling": "0.0009765625",
+			"groupby": "host"
+		},
+		"mem.physmem": {
+			"name": "node_memory_MemTotal_bytes",
+			"scaling": "0.0009765625",
+			"groupby": "host"
+		},
+		"network.interface.in.bytes": {
+			"name": "node_network_receive_bytes_total",
+			"groupby": "device"
+		},
+		"network.interface.out.bytes": {
+			"name": "node_network_transmit_bytes_total",
+			"groupby": "device"
+		},
+		"nvidia.gpuactive": {
+			"name": "DCGM_FI_DEV_GPU_UTIL",
+			"groupby": "gpu",
+			"out_fmt": ["gpu{}", "gpu"]
+		},
+		"nvidia.memused": {
+			"name": "DCGM_FI_DEV_FB_USED",
+			"groupby": "gpu",
+			"out_fmt": ["gpu{}", "gpu"]
+		},
+		"nvidia.powerused": {
+			"name": "DCGM_FI_DEV_POWER_USAGE",
+			"scaling": "1000",
+			"groupby": "gpu",
+			"out_fmt": ["gpu{}", "gpu"]
+		},
+		"prom:cgroup_cpu_info": {
+			"name": "cgroup_cpu_info",
+			"params": ["cgroup"],
+			"groupby": "cpus"
+		},
+		"prom:cgroup_process_exec_count": {
+			"name": "cgroup_process_exec_count",
+			"params": ["cgroup"],
+			"groupby": "exec"
+		}
+	}
+}
