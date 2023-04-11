@@ -1,4 +1,5 @@
 from supremm.datasource.pcp.pcpdatasource import PCPDatasource
+from supremm.datasource.prometheus.promdatasource import PromDatasource
 
 
 class DatasourceFactory():
@@ -8,14 +9,14 @@ class DatasourceFactory():
 
         if resconf["datasource"] == "pcp":
             self._datasource = PCPDatasource(preprocs, plugins)
-        #elif resconf["datasource"] == "prometheus":
-        #    self._datasource = PromDatasource(preprocs, plugins, config, resconf, opts)
+        elif resconf["datasource"] == "prometheus":
+            self._datasource = PromDatasource(preprocs, plugins, resconf)
 
     def presummarize(self, job, config, resconf, opts):
         return self._datasource.presummarize(job, config, resconf, opts)
 
-    def summarizejob(self, job, config, opts):
-        return self._datasource.summarizejob(job, config, opts)
+    def summarizejob(self, job, jobmeta, config, opts):
+        return self._datasource.summarizejob(job, jobmeta, config, opts)
 
     def cleanup(self, job, opts):
         return self._datasource.cleanup(job, opts)

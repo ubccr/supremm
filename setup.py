@@ -39,7 +39,7 @@ setup(
         'supremm.datasource.pcp.pcpcinterface': ['*.pxd', '*.pyx']
     },
     data_files=[
-        (confpath,                         ['config/config.json']),
+        (confpath,                         ['config/config.json', 'config/prometheus/mapping.json']),
         ('share/supremm/templates/slurm',       ['config/templates/slurm/slurm-epilog',  'config/templates/slurm/slurm-prolog']),
         ('share/supremm/templates/hotproc',       ['config/templates/hotproc/hotproc.conf']),
         ('share/supremm/templates/pmlogger',    ['config/templates/pmlogger/control',    'config/templates/pmlogger/pmlogger-supremm.config'])

@@ -15,7 +15,7 @@ class PromClient():
     """ Client class to interface with Prometheus """
 
     def __init__(self, resconf):
-        self._url = resconf['prom_url']
+        self._url = "http://{}".format(resconf['prom_url'])
         self._step = '30s'
 
         self._client = requests.Session()
@@ -23,7 +23,7 @@ class PromClient():
         self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded',
                                      'Accept': 'application/json'})
 
-        self.connection = build_info(self._client, self._url)
+        self.connection = PromClient.build_info(self._client, self._url)
 
     def __str__(self):
         return self._url
@@ -35,7 +35,7 @@ class PromClient():
         endpoint = "/api/v1/status/buildinfo"
         url = urlparse.urljoin(test_url, endpoint)
 
-        r = client.get(endpoint)
+        r = client.get(url)
         if r.status_code != 200:
             print(str(r.content))
             return False
@@ -233,13 +233,12 @@ class Context():
         if self.mode == "all" or self.mode == "timeseries":
             for start, end in self.chunk_timerange():
                 # Append a time range to an instant query to get raw data
-                required_metrics = [m.apply_range(start, end) for m in required_metrics]
-                yield [self.client.query(m.apply_scaling(), end) for m in required_metrics]
+                yield [self.client.query(m.apply_range(start, end), end) for m in required_metrics]
                 self.reset_internal_state()
 
         elif self.mode == "firstlast":
             for ts in (self.start, self.end):
-                yield [self.client.query(m.apply_scaling(), ts) for m in required_metrics]
+                yield [self.client.query(m.query, ts) for m in required_metrics]
                 self.reset_internal_state()
 
     def chunk_timerange(self):
@@ -415,6 +414,7 @@ class Context():
         """
         mmap = self.reqMetrics[metric_idx]
         groupby = mmap.groupby
+        scaling = 1 if mmap.scaling == "" else float(mmap.scaling)
 
         for inst in data["data"]["result"]:
             id = inst["metric"][groupby]
@@ -426,7 +426,7 @@ class Context():
                 continue
 
             if ts == self.min_ts:
-                value = inst["values"][idx][1]
+                value = float(inst["values"][idx][1]) * scaling
                 try:
                     next_ts = inst["values"][idx+1][0]
                 except IndexError:

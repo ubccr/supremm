@@ -94,12 +94,27 @@ class CpuUsage(Plugin):
     def computejobcpus(self):
         """ stats for the cores on the nodes that were assigend to the job (if available) """
 
-        proc = self._job.getdata('proc')
+        # Check both proc and procprom preprocessors for CPU information
+        proc = None
+        for preproc in ('proc', 'procprom'):
+            proc = self._job.getdata(preproc)
 
-        if proc == None:
-            proc = self._job.getdata('procprom')
-            if proc == None:
-                return {"error": ProcessingError.CPUSET_UNKNOWN}, {"error": ProcessingError.CPUSET_UNKNOWN}
+            # Preprocessor is disabled
+            if not proc:
+                continue
+
+            # Preprocessor is enabled but no data present
+            for host in proc['cpusallowed'].values():
+                if isinstance(host, list):
+                    # CPU list is present
+                    break
+                else:
+                    proc = None
+                    continue
+
+        # No preprocessor data found
+        if not proc:
+            return {"error": ProcessingError.CPUSET_UNKNOWN}, {"error": ProcessingError.CPUSET_UNKNOWN}
 
         cpusallowed = proc['cpusallowed']
 
@@ -159,4 +174,3 @@ class CpuUsage(Plugin):
             
 
         return {"nodecpus": nodecpus, "jobcpus": jobcpus, "effcpus": effcpus}
-

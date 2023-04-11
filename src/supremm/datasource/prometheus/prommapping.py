@@ -231,7 +231,7 @@ class MetricMapping():
 
     @property
     def scaling(self):
-        """ Mathematical operation that should be appended to query """
+        """ Operation that should be appended to query """
         return self._scaling
 
     @property
@@ -245,11 +245,8 @@ class MetricMapping():
 
     def apply_range(self, start, end):
         """ Append range modifier for instant queries.
-            This enables the query to retrieve raw data from Prometheus.
+            This queries raw data from Prometheus.
         """
-        range = start - end
-        return self.query + "[{}s]".format(range)
-
-    def apply_scaling(self):
-        """ Append scaling to query """
-        return self.query + " " + self.scaling
+        range = end - start
+        query = self.query + "[{}s]".format(int(range))
+        return query

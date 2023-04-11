@@ -12,11 +12,11 @@ from supremm.errors import ProcessingError
 class PromDatasource(Datasource):
     """ Instance of a Prometheus datasource class """
 
-    def __init__(self, preprocs, plugins):
+    def __init__(self, preprocs, plugins, resconf):
         super().__init__(preprocs, plugins)
 
-        self._client = None #PromClient(resconf)
-        self._mapping = None #MappingManager(client)
+        self._client = PromClient(resconf)
+        self._mapping = MappingManager(self.client)
 
     @property
     def client(self):
@@ -45,14 +45,9 @@ class PromDatasource(Datasource):
                 jobmeta.mdata["skipped_no_prom_connection"] = True
                 jobmeta.error = ProcessingError.PROMETHEUS_CONNECTION
                 logging.info("Skipping %s, skipped_no_prom_connection", job.job_id)
-            else:
-                # The client is an attribute of the mapping manager
-                self.mapping = MappingManager(client)
-
-        if jobmeta.result != 0 and jobmeta.error != None:
-            return
-        else:
-            jobmeta.missingnodes = job.nodecount
+                jobmeta.missingnodes = job.nodecount
+                return
+            self.mapping = MappingManager(client)
 
         return jobmeta
 
@@ -60,14 +55,14 @@ class PromDatasource(Datasource):
         # Instantiate preproc, plugins
         preprocessors, analytics = super().summarizejob(job, jobmeta, config, opts)
 
-        s = PromSummarize(preprocessors, analytics, job, conf, self.mapping, opts["fail-fast"])
+        s = PromSummarize(preprocessors, analytics, job, config, self.mapping, opts["fail_fast"])
 
         enough_nodes = False
 
         # missingnodes will always == nodecount if there is a Prometheus error
         if 0 == jobmeta.result or (job.nodecount !=0 and (jobmeta.missingnodes / job.nodecount < 0.05)):
             enough_nodes = True
-            logging.info("Success for %s (%s/%s)", job.job_id, jobmeta.missingnodes, job.nodecount)
+            logging.info("Success for prometheus presummarize checks, job %s (%s/%s)", job.job_id, jobmeta.missingnodes, job.nodecount)
             s.process()
         elif jobmeta.error == None and job.nodecount != 0 and (jobmeta.missingnodes / job.nodecount >= 0.5):
             # Don't overwrite existing error
@@ -98,7 +93,7 @@ class PromDatasource(Datasource):
 
         return s, jobmeta.mdata, success or force_success, jobmeta.error
 
-    def cleanup(opts, job):
+    def cleanup(self, opts, job):
         # Nothing to be done for Prometheus
         pass
 

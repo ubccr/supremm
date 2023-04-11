@@ -88,7 +88,7 @@ class Datasource(ABC):
 class JobMeta():
     """ Container class for a job's metadata """
 
-    def __init__():
+    def __init__(self):
         self.mdata = {}
         self.result = 0
         self.error = None

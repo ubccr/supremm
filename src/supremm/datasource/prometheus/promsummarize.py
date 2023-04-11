@@ -197,7 +197,7 @@ class PromSummarize(Summarize):
         reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
         if False == reqMetrics:
             logging.warning("Skipping %s (%s)." % (type(analytic).__name__, analytic.name))
-            analytic.status = "Failure"
+            analytic.status = "failure"
             return
 
         results = ctx.fetch(reqMetrics)
