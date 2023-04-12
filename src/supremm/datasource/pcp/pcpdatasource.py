@@ -2,6 +2,7 @@ import os
 import shutil
 import time
 import logging
+import datetime
 
 from supremm.datasource.datasource import Datasource
 from supremm.datasource.pcp.pcparchive import extract_and_merge_logs
@@ -32,7 +33,7 @@ class PCPDatasource(Datasource):
                 jobmeta.result = 1
                 jobmeta.mdata["skipped_rawarchives"] = True
                 jobmeta.error = ProcessingError.RAW_ARCHIVES
-                missingnodes = job.nodecount
+                jobmeta.missingnodes = job.nodecount
                 logging.info("Skipping %s, skipped_rawarchives", job.job_id)
             else:
                 jobmeta.result = extract_and_merge_logs(job, conf, resconf, opts)
@@ -50,10 +51,10 @@ class PCPDatasource(Datasource):
 
         return jobmeta
 
-    def summarizejob(self, job, jobmeta, config, opts):
-        preprocessors, analytics = super().summarizejob(job, jobmeta, config, opts)
+    def summarizejob(self, job, jobmeta, conf, opts):
+        preprocessors, analytics = super().summarizejob(job, jobmeta, conf, opts)
 
-        s = PCPSummarize(preprocessors, analytics, job, conf, opts["fail-fast"])
+        s = PCPSummarize(preprocessors, analytics, job, conf, opts["fail_fast"])
 
         enough_nodes = False
 
@@ -72,7 +73,7 @@ class PCPDatasource(Datasource):
             jobmeta.mdata['tag'] = opts['tag']
 
         if jobmeta.missingnodes > 0:
-            jobmeta.mdata['missingnodes'] = self.missingnodes
+            jobmeta.mdata['missingnodes'] = jobmeta.missingnodes
 
         success = s.good_enough()
 
