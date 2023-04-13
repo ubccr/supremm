@@ -34,7 +34,7 @@ cdef class Pool:
 
 cdef object topyobj(c_pcp.pmAtomValue atom, int dtype):
     if dtype == c_pcp.PM_TYPE_STRING:
-        ret = str(atom.cp)
+        ret = str(atom.cp, 'utf-8')
         free(atom.cp)
         return ret
     elif dtype == c_pcp.PM_TYPE_32:
@@ -61,7 +61,7 @@ cdef object strinnerloop(int numval, c_pcp.pmResult* res, int i):
         status = c_pcp.pmExtractValue(res.vset[i].valfmt, &res.vset[i].vlist[j], c_pcp.PM_TYPE_STRING, &atom, c_pcp.PM_TYPE_STRING)
         if status < 0:
             raise pmapi.pmErr(status)
-        tmp_data.append(str(atom.cp))
+        tmp_data.append(str(atom.cp, 'utf-8'))
         free(atom.cp)
     return numpy.array(tmp_data)
 
@@ -361,7 +361,7 @@ def extractpreprocValues(context, result, py_metric_id_array, mtypes):
             mem.add(inames)
             tmp_dict = dict()
             for j in xrange(status):
-                tmp_dict[ivals[j]] = inames[j]
+                tmp_dict[ivals[j]] = str(inames[j], 'utf-8')
             description.append(tmp_dict)
 
     # Initialize data

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
     Main script for converting host-based pcp archives to job-level summaries.
 """

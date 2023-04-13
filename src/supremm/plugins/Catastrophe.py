@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from supremm.plugin import Plugin
 from supremm.errors import ProcessingError

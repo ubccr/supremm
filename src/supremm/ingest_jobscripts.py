@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ script that ingests the job launch scripts """
 from datetime import datetime, timedelta
 import os

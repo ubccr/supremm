@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Proc information pre-processor """
 
 import re
@@ -116,7 +116,7 @@ class Proc(PreProcessor):
                 self.logerror("missing process name")
                 continue
 
-            s = str(description[1][pid], errors='replace')
+            s = description[1][pid]
             command = s[s.find(" ") + 1:]
 
             if self.cgroupparser is not None:

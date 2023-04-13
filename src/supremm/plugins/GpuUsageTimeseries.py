@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """ Timeseries generator module """
 
 from supremm.plugin import Plugin

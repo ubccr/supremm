@@ -440,5 +440,11 @@ var summarydef = {
 };
 
 db = db.getSiblingDB("supremm");
-db.schema.updateOne({_id: sdef._id}, {$set: sdef}, {upsert: true});
-db.schema.updateOne({_id: summarydef._id}, {$set: summarydef}, {upsert: true});
+var version = parseFloat(db.version());
+if (version < 5) {
+    db.schema.update({_id: sdef._id}, sdef, {upsert: true});
+    db.schema.update({_id: summarydef._id}, summarydef, {upsert: true});
+} else {
+    db.schema.updateOne({_id: sdef._id}, {$set: sdef}, {upsert: true});
+    db.schema.updateOne({_id: summarydef._id}, {$set: summarydef}, {upsert: true});
+}
