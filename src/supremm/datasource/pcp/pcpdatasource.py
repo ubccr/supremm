@@ -92,7 +92,7 @@ class PCPDatasource(Datasource):
 
         return s, jobmeta.mdata, success or force_success, jobmeta.error
 
-    def cleanup(opts, job):
+    def cleanup(self, opts, job):
         if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
             # Clean up
             shutil.rmtree(job.jobdir, ignore_errors=True)
