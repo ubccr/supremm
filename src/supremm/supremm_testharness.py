@@ -16,7 +16,7 @@ import math
 from pcp import pmapi
 import cpmapi as c_pmapi
 
-from supremm.datasource.pcpsummarize import PCPSummarize
+from supremm.datasource.pcp.pcpsummarize import PCPSummarize
 from supremm.plugin import loadplugins, loadpreprocessors
 from supremm.config import Config
 from supremm.proc_common import filter_plugins
