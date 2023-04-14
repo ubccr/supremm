@@ -18,7 +18,7 @@
 			"name": "node_disk_reads_completed_total",
 			"groupby": "device"
 		},
-		"disk.dev.read_bytes": { 
+		"disk.dev.read_bytes": {
 			"name": "node_disk_read_bytes_total",
 			"scaling": "0.0009765625",
 			"groupby": "device"
@@ -113,7 +113,7 @@
 			"name": "node_memory_numa_FilePages",
 			"groupby": "node"
 		},
-		"mem.numa.util.slab": { 
+		"mem.numa.util.slab": {
 			"name": "node_memory_numa_Slab",
 			"groupby": "node"
 		},

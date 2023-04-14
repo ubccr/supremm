@@ -52,7 +52,7 @@ class PromSummarize(Summarize):
             for analytic in self.firstlast:
                 if analytic.status != "uninitialized":
                     output[analytic.name] = analytic.results()
-                    
+
         output['summarization'] = {
             "version": VERSION,
             "elapsed": time.time() - self.start,
@@ -138,7 +138,7 @@ class PromSummarize(Summarize):
     def processnode(self, mdata):
         """ Process a single node from a job """
 
-        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp() 
+        start, end = self.job.start_datetime.timestamp(), self.job.end_datetime.timestamp()
         ctx = Context(start, end, self.mapping.client)
 
         for preproc in self.preprocs:
@@ -234,7 +234,7 @@ class PromSummarize(Summarize):
             analytic.status = "failure"
             return
 
-        analytic.status = "complete" 
+        analytic.status = "complete"
 
     def processforanalytic(self, ctx, mdata, analytic):
         """ Fetch the data from Prometheus and pass entire response

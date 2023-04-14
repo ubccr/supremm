@@ -83,7 +83,7 @@ class MappingManager():
         except KeyError:
             out_fmt = groupby
 
-        return MetricMapping(name, in_fmt, out_fmt, groupby, scaling, p[1:]) 
+        return MetricMapping(name, in_fmt, out_fmt, groupby, scaling, p[1:])
 
     @property
     def mapping(self):
@@ -147,7 +147,7 @@ class MappingManager():
                 if len(args) == 1:
                     # Cannot populate query
                     continue
-                
+
                 map.query = map.queryformat.format(*args)
 
     def getmetricstofetch(self, reqMetrics):

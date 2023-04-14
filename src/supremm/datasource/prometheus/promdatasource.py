@@ -24,7 +24,7 @@ class PromDatasource(Datasource):
 
     @client.setter
     def client(self, c):
-        self._client = c 
+        self._client = c
 
     @property
     def mapping(self):

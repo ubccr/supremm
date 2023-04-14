@@ -27,7 +27,6 @@ class ProcPrometheus(Proc):
         """ Override Proc process() method """
         # Set self.cgroupcpuset here using parsecpusallowed
         # The cgroupcpuset is returned as part of the description query
-        # label: "cpus" 
         if self.cpusallowed is None:
             allcores = set()
             try:
@@ -43,9 +42,5 @@ class ProcPrometheus(Proc):
         # All processes from the exporter are constrained
         for procname in description[1].values():
             self.output['procDump']['constrained'][procname] += 1
-        
-        # No unconstrained proc data from the exporter
-        #for procname in unconstrainedprocs.values():
-        #    self.output['procDump']['unconstrained'][procname] += 1
 
         return True

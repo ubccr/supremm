@@ -57,7 +57,7 @@ class PromClient():
 
         endpoint = "/api/v1/query"
         url = urlparse.urljoin(self._url, endpoint)
- 
+
         r = self._client.get(url, params=params)
         if r.status_code != 200:
             print(str(r.content))
@@ -104,7 +104,7 @@ class PromClient():
             return False
 
         # "data" is a list of zero or more timeseries present at the specified times
-        data = r.json() 
+        data = r.json()
         return bool(data["data"])
 
 
@@ -348,7 +348,7 @@ class Context():
 
         description = self.getdescriptions(result, "vector", "analytic")
         if not description:
-            yield None, None 
+            yield None, None
 
         data = []
         for datum in result:
@@ -362,7 +362,7 @@ class Context():
 
         description = self.getdescriptions(result, "matrix", "preproc")
         if not description:
-            yield None, None 
+            yield None, None
 
         # Populate data array to pass to preproc
         done = False
@@ -409,7 +409,7 @@ class Context():
             yield inst["value"][1]
 
     def populatematrix(self, metric_idx, data):
-        """ Generator to populate numpy array 
+        """ Generator to populate numpy array
             from prometheus matrix resultType
         """
         mmap = self.reqMetrics[metric_idx]
