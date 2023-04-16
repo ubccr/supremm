@@ -117,6 +117,9 @@ class PCPSummarize(Summarize):
 
         for preproc in self.preprocs:
             result = preproc.results()
+            # Don't overrwrite proc data if ProcPrometheus is enabled
+            if preproc.name == 'procprom':
+                continue
             if result != None:
                 output.update(result)
 
