@@ -341,14 +341,14 @@ class RateConvertingTimeseriesPlugin(Plugin, metaclass=ABCMeta):
             retdata = {
                 "min": self.collatedata(sortarr[:, 0], rates),
                 "max": self.collatedata(sortarr[:, -1], rates),
-                "med": self.collatedata(sortarr[:, sortarr.shape[1] / 2], rates),
+                "med": self.collatedata(sortarr[:, sortarr.shape[1] // 2], rates),
                 "times": values[0, 1:, 0].tolist(),
                 "hosts": {}
             }
 
             uniqhosts = Counter(sortarr[:, 0])
             uniqhosts.update(sortarr[:, -1])
-            uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
+            uniqhosts.update(sortarr[:, sortarr.shape[1] // 2])
             includelist = list(uniqhosts.keys())
         else:
             # Save data for all hosts

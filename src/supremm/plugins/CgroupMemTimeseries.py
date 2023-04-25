@@ -87,14 +87,14 @@ class CgroupMemTimeseries(Plugin):
             retdata = {
                 "min": self.collatedata(sortarr[:, 0], memdata),
                 "max": self.collatedata(sortarr[:, -1], memdata),
-                "med": self.collatedata(sortarr[:, sortarr.shape[1] / 2], memdata),
+                "med": self.collatedata(sortarr[:, sortarr.shape[1] // 2], memdata),
                 "times": values[0, :, 0].tolist(),
                 "hosts": {}
             }
 
             uniqhosts = Counter(sortarr[:, 0])
             uniqhosts.update(sortarr[:, -1])
-            uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
+            uniqhosts.update(sortarr[:, sortarr.shape[1] // 2])
             includelist = list(uniqhosts.keys())
         else:
             # Save data for all hosts
