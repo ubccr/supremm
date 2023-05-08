@@ -40,6 +40,7 @@
             "hostname_mode": "hostname",
             "pcp_log_dir": "/data/pcp-logs/my_cluster_name",
             "script_dir": "/data/jobscripts/my_cluster_name",
+            "job_uniq_mode": "local_job_id",
 
             // fast_index uses an alternative method of indexing job-level pcp archives which can significantly speed
             // up the indexarchives.py script. The tradeoff is that the indexed archive end time is not found and the
