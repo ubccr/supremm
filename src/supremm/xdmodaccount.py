@@ -13,6 +13,13 @@ class XDMoDAcct(Accounting):
     def __init__(self, resource_id, config):
         super(XDMoDAcct, self).__init__(resource_id, config)
 
+        job_uniq_mode = 'local_job_id'
+        for _, resconfig in config.resourceconfigs():
+            if resconfig['resource_id'] == resource_id:
+                if 'job_unique_mode' in resconfig:
+                    job_uniq_mode = resconfig['job_unique_mode']
+                break
+
         self.dbsettings = config.getsection("datawarehouse")
 
         xdmod_schema_version = self.detectXdmodSchema()
@@ -25,6 +32,13 @@ class XDMoDAcct(Accounting):
                     jf.`job_id` AS `job_id`,
                     jf.`resource_id` AS `resource_id`,
                     COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) AS `local_job_id`,
+            """
+            if job_uniq_mode == 'local_job_id':
+                self._query += "COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) as `job_uniq_id`, "
+            else:
+                self._query += "IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`)) as job_uniq_id, "
+
+            self._query += """
                     jf.`start_time_ts` AS `start_time`,
                     jf.`end_time_ts` AS `end_time`,
                     jf.`submit_time_ts` AS `submit`,
@@ -71,6 +85,13 @@ class XDMoDAcct(Accounting):
                     jf.`job_id` as `job_id`,
                     jf.`resource_id` as `resource_id`,
                     COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) as `local_job_id`,
+                """
+            if job_uniq_mode == 'local_job_id':
+                self._query += "COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) as `job_uniq_id`, "
+            else:
+                self._query += "IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`)) as job_uniq_id, "
+
+            self._query += """
                     jf.`start_time_ts` as `start_time`,
                     jf.`end_time_ts` as `end_time`,
                     jf.`submit_time_ts` as `submit`,
@@ -280,7 +301,7 @@ class XDMoDAcct(Accounting):
             jobpk = record['job_id']
             del record['job_id']
             record['host_list'] = hostlist
-            job = Job(jobpk, str(record['local_job_id']), record)
+            job = Job(jobpk, str(record['job_uniq_id']), record)
             job.set_nodes(hostlist)
             job.set_rawarchives(hostarchives)
 
