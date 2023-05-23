@@ -2,10 +2,16 @@
 set -euxo pipefail
 shopt -s extglob
 
-python3 setup.py bdist_rpm
-yum install -y dist/supremm-+([0-9.])*.x86_64.rpm
-~/bin/services start
-mongod -f /etc/mongod.conf --auth
+INSTALL_TYPE=$1
+case $INSTALL_TYPE in
+  "rpm")
+    dnf install -y /tmp/dist/supremm-+([0-9.])*.x86_64.rpm
+  "wheel")
+    pip3 install -y /tmp/dist/supremm-+([0-9.])*.whl
+  "src")
+    # install deps
+    python3 setup.py install
+fi
 
 mkdir -p /data/{phillips,pozidriv,frearson,mortorq,robertson}/{pcp-logs,jobscripts}
 mkdir -p "/data/mortorq/pcp-logs/hostname/2016/12/30"

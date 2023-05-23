@@ -1,0 +1,54 @@
+version: "3.9"
+
+services: 
+  prometheus:
+    image: prom/prometheus:latest
+    hostname: prometheus
+    container_name: prometheus
+    volumes:
+      - type: volume
+        source: tsdb
+        target: /var/lib/prometheus
+      - type: bind
+        source: prometheus
+        target: /etc/prometheus
+    command:
+      - '--storage.tsdb.path=/prometheus'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.config.file=/etc/prometheus/web.yml'
+    ports:
+      - "9090:9090"
+
+  mongo:
+    image:
+      mongo:6.0
+    hostname:
+      mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=supremm
+      - MONGO_INITDB_ROOT_PASSWORD=supremm-test123
+    volumes:
+      - type: volume
+        source: mongodb
+        target: /data/db
+      - type: bind
+        source: mongo
+        target: /docker-entrypoint-initdb.d/mongo_setup.js
+    expose:
+      - "27017:27017"
+
+  mariadb:
+    image:
+      mariadb:10.3
+    hostname:
+      mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: ubccr716
+      MARIADB_USER: xdmod
+      MARIADB_PASSWORD: xdmod123
+    expose:
+     - "3306:3306"
+
+volumes:
+  tsdb:
+  mongodb:

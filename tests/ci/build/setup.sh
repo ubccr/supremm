@@ -1,10 +1,12 @@
 #!/bin/bash
 
+dnf install -y epel-release
+
 # enable powertools repo for Cython
 sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/Rocky-PowerTools.repo
 
 # install development dependencies
-yum install -y \
+dnf install -y \
     gcc \
     python3-numpy \
     python3-scipy \
