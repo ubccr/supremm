@@ -28,7 +28,7 @@ class XDMoDAcct(Accounting):
                       WHEN jf.`local_job_id_raw` IS NULL THEN IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`))
                       WHEN sj.`source_format` = 'slurm' THEN jf.`local_job_id_raw`
                       ELSE IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`))
-                    END AS job_uniq_id,
+                    END AS `job_uniq_id`,
                     jf.`local_jobid` AS `local_job_id`,
                     jf.`local_job_array_index` AS `local_job_array_index`,
                     jf.`local_job_id_raw` AS `local_job_id_raw`,
@@ -81,7 +81,7 @@ class XDMoDAcct(Accounting):
                       WHEN jf.`local_job_id_raw` IS NULL THEN IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`))
                       WHEN sj.`source_format` = 'slurm' THEN jf.`local_job_id_raw`
                       ELSE IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`))
-                    END AS job_uniq_index,
+                    END AS `job_uniq_id`,
                     jf.`local_jobid` AS `local_job_id`,
                     jf.`local_job_array_index` AS `local_job_array_index`,
                     jf.`local_job_id_raw` AS `local_job_id_raw`,
