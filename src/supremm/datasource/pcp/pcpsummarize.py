@@ -258,7 +258,6 @@ class PCPSummarize(Summarize):
         """
         Store the detail of archive processing errors
         """
-        #if analyticname != "gpu":
         logging.debug("archive processing exception: %s %s %s", archive, analyticname, pmerrorcode)
         self.adderror("archive", "{0} {1} {2}".format(archive, analyticname, pmerrorcode))
 
