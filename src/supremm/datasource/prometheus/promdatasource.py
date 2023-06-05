@@ -96,26 +96,3 @@ class PromDatasource(Datasource):
     def cleanup(self, opts, job):
         # Nothing to be done for Prometheus
         pass
-
-def parse_scrape_interval(interval):
-    # function to parse scrape interval string
-    # "30s" -> 30, "1m" -> 60, "1m30s" -> 90, etc
-    times = re.split('(\d+[smhd])', interval)
-
-    scrape_interval = 0
-    for time in times:
-        t =  re.findall('\d+|\D+', time)
-        try:
-            result = int(t[0])
-        except ValueError:
-            logging.error("Could not parse configured scrape interval: (%s)", interval)
-            return None
-        modifier = t[-1]
-        if modifier == 's':
-            scrape_interval += result
-        elif modifier == 'm':
-            scrape_interval += (result * 60)
-        elif modifier == 'h':
-            scrape_interval += (result * (60 * 60))
-
-    return scrape_interval

@@ -37,7 +37,7 @@ class PromClient():
 
         r = client.get(url)
         if r.status_code != 200:
-            print(str(r.content))
+            logging.error(str(r.content))
             return False
 
         result = r.json()
@@ -60,7 +60,7 @@ class PromClient():
 
         r = self._client.get(url, params=params)
         if r.status_code != 200:
-            print(str(r.content))
+            logging.error(str(r.content))
             return None
 
         return r.json()
@@ -80,7 +80,7 @@ class PromClient():
 
         r = self._client.get(url, params=params)
         if r.status_code != 200:
-            print(r.content)
+            logging.error(r.content)
             return None
 
         return r.json()
