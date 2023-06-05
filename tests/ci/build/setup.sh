@@ -5,9 +5,13 @@ dnf install -y epel-release
 # enable powertools repo for Cython
 sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/Rocky-PowerTools.repo
 
-# install development dependencies
 dnf install -y \
     gcc \
+    pcp-devel \
+    rpm-build
+
+# install development dependencies
+dnf install -y \
     python3-numpy \
     python3-scipy \
     python36-devel \
@@ -21,4 +25,4 @@ dnf install -y \
     python3-pylint \
     python3-pcp \
     python3-requests \
-    pcp-devel
+    python3-wheel
