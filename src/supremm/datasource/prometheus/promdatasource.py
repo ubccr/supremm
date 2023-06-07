@@ -44,7 +44,7 @@ class PromDatasource(Datasource):
                 jobmeta.result = 1
                 jobmeta.mdata["skipped_no_prom_connection"] = True
                 jobmeta.error = ProcessingError.PROMETHEUS_CONNECTION
-                logging.info("Skipping %s, skipped_no_prom_connection", job.job_id)
+                logging.error("Skipping %s, skipped_no_prom_connection", job.job_id)
                 jobmeta.missingnodes = job.nodecount
                 return
             self.mapping = MappingManager(client)
@@ -68,7 +68,7 @@ class PromDatasource(Datasource):
             # Don't overwrite existing error
             # Don't have enough node data to even try summarization
             jobmeta.mdata["skipped_prom_error"] = True
-            logging.info("Skipping %s, skipped_prom_error", job.job_id)
+            logging.error("Skipping %s, skipped_prom_error", job.job_id)
             jobmeta.error = ProcessingError.PROMETHEUS_ERROR
 
         if opts['tag'] != None:
