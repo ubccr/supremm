@@ -9,10 +9,8 @@ jobs:
     steps:
       - checkout
       - run:
-          command: ls tests && ls tests/ci
-      - run:
           name: Install System Dependencies
-          command: ./tests/ci/build/setup.sh
+          command: ./tests/ci/setup.sh
       - run:
           name: Build Software Package
           command: ./tests/ci/build/build.sh << parameters.build-type >>
