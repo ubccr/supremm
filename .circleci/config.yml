@@ -17,7 +17,8 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - dist
+            - *.rpm
+            - *.whl
 
   test:
     parameters:
