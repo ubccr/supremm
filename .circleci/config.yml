@@ -46,7 +46,7 @@ jobs:
           name: Install Docker Compose
           command: |
             dnf install -y dnf-utils
-            dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+            dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
             dnf install -y docker-ce docker-ce-cli docker-compose-plugin
 
       - setup_remote_docker
