@@ -31,9 +31,6 @@ services:
       - type: volume
         source: mongodb
         target: /data/db
-      - type: bind
-        source: mongo
-        target: /docker-entrypoint-initdb.d/mongo_setup.js
     expose:
       - "27017:27017"
 
