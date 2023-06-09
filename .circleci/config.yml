@@ -45,7 +45,7 @@ jobs:
       - run:
           name: Install Docker Compose
           command: |
-            cat > /etc/yum.repos.d/docker-ce.repo <<EOF
+            cat > /etc/yum.repos.d/docker-ce.repo \<<EOF
             [docker-ce-stable]
             name=Docker CE Stable - $basearch
             baseurl=https://download.docker.com/linux/rhel/$releasever/$basearch/stable
