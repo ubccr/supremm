@@ -9,7 +9,7 @@ jobs:
     steps:
       - checkout
       - run:
-          command: ls && pwd
+          command: ls tests && ls tests/ci
       - run:
           name: Install System Dependencies
           command: ./tests/ci/build/setup.sh
