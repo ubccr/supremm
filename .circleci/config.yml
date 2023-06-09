@@ -99,3 +99,6 @@ workflows:
               build-type: ["rpm"]
 
       - test:
+          matrix:
+            parameters:
+              install-type: ["rpm"]
