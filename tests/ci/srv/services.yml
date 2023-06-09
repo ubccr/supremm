@@ -37,18 +37,6 @@ services:
     expose:
       - "27017:27017"
 
-  mariadb:
-    image:
-      mariadb:10.3
-    hostname:
-      mariadb
-    environment:
-      MARIADB_ROOT_PASSWORD: ubccr716
-      MARIADB_USER: xdmod
-      MARIADB_PASSWORD: xdmod123
-    expose:
-     - "3306:3306"
-
 volumes:
   tsdb:
   mongodb:
