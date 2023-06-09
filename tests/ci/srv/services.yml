@@ -10,9 +10,6 @@ services:
       - type: volume
         source: tsdb
         target: /var/lib/prometheus
-      - type: bind
-        source: ./prometheus
-        target: /etc/prometheus
     command:
       - '--storage.tsdb.path=/prometheus'
       - '--config.file=/etc/prometheus/prometheus.yml'
