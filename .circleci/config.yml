@@ -15,7 +15,9 @@ jobs:
           name: Build Software Package
           command: ./tests/ci/build.sh << parameters.build-type >>
       - persist_to_workspace:
-          root: ./dist
+          root: .
+          path:
+            - dist
 
   test:
     parameters:
