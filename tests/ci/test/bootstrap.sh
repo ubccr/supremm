@@ -3,6 +3,7 @@ set -euxo pipefail
 shopt -s extglob
 
 tests/ci/setup.sh test
+~/bin/services start
 
 INSTALL_TYPE=$1
 case $INSTALL_TYPE in
