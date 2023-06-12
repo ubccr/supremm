@@ -16,7 +16,7 @@ jobs:
           command: ./tests/ci/build.sh << parameters.build-type >>
       - persist_to_workspace:
           root: .
-          path:
+          paths:
             - dist
 
   test:
