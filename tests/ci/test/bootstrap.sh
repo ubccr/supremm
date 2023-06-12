@@ -2,24 +2,6 @@
 set -euxo pipefail
 shopt -s extglob
 
-# Install dependencies
-dnf install -y \
-    python3-numpy \
-    python3-scipy \
-    python36-devel \
-    python3-Cython \
-    python3-pymongo \
-    python3-PyMySQL \
-    python3-pytest \
-    python3-pytest-cov \
-    python3-mock \
-    python3-pexpect \
-    python3-pylint \
-    python3-pcp \
-    python3-pytz \
-    python3-requests \
-    pcp-devel \
-
 INSTALL_TYPE=$1
 case $INSTALL_TYPE in
   "rpm")
