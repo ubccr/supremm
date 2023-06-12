@@ -40,26 +40,27 @@ def main():
             i = p.expect(["Overwrite config file","frearson", "mortorq", "phillips", "pozidriv", "robertson", "openstack", "recex", "torx", "nutsetters"])
             if i > 1:
                 p.expect('Enable SUPReMM summarization for this resource?')
-            else:
-                break
             if i > 5:
                 p.sendline("n")
                 continue
             p.sendline("y")
             p.expect("Data collector backend \(pcp or prometheus\)")
-            if i > 0 and i <= 4: 
-                config_pcp(p)
-            elif i == 5:
-                config_prometheus(p)
+            if i != 0:
+                if i > 0 and i <= 4: 
+                    config_pcp(p)
+                elif i == 5:
+                    config_prometheus(p)
 
-            p.expect("Source of accounting data")
-            p.sendline()
-            p.expect("node name unique identifier")
-            p.sendline()
-            p.expect("Directory containing job launch scripts")
-            p.sendline()
-            p.expect("Job launch script timestamp lookup mode \('submit', 'start' or 'none'\)")
-            p.sendline(scriptsettings[i-1])
+                p.expect("Source of accounting data")
+                p.sendline()
+                p.expect("node name unique identifier")
+                p.sendline()
+                p.expect("Directory containing job launch scripts")
+                p.sendline()
+                p.expect("Job launch script timestamp lookup mode \('submit', 'start' or 'none'\)")
+                p.sendline(scriptsettings[i-1])
+            else:
+                break
 
         p.expect("Press ENTER to continue")
         p.sendline()
