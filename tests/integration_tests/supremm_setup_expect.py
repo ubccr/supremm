@@ -40,6 +40,8 @@ def main():
             i = p.expect(["Overwrite config file","frearson", "mortorq", "phillips", "pozidriv", "robertson", "openstack", "recex", "torx", "nutsetters"])
             if i > 1:
                 p.expect('Enable SUPReMM summarization for this resource?')
+            else:
+                break
             if i > 5:
                 p.sendline("n")
                 continue
@@ -49,8 +51,6 @@ def main():
                 config_pcp(p)
             elif i == 5:
                 config_prometheus(p)
-            else:
-                break
 
             p.expect("Source of accounting data")
             p.sendline()
