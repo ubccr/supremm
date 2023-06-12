@@ -17,7 +17,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - dist
+            - dist/*
 
   test:
     parameters:
@@ -41,7 +41,7 @@ jobs:
             mkdir -p shippable/testresults
             mkdir -p shippable/codecoverage
       - attach_workspace:
-          at: ./dist
+          at: .
       - run:
           name: Install Docker Compose
           command: |
