@@ -2,7 +2,9 @@
 set -euxo pipefail
 shopt -s extglob
 
+dnf install -y tree
 tree .
+tree ../../..
 
 INSTALL_TYPE=$1
 case $INSTALL_TYPE in
