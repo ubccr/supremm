@@ -44,13 +44,12 @@ def main():
                 p.sendline("n")
                 continue
             p.sendline("y")
-            p.expect("Data collector backend \(pcp or prometheus\)")
             if i != 0:
-                if i > 0 and i <= 4: 
+                p.expect("Data collector backend \(pcp or prometheus\)")
+                if i <= 4: 
                     config_pcp(p)
                 elif i == 5:
                     config_prometheus(p)
-
                 p.expect("Source of accounting data")
                 p.sendline()
                 p.expect("node name unique identifier")
