@@ -41,7 +41,7 @@ jobs:
             mkdir -p shippable/testresults
             mkdir -p shippable/codecoverage
       - attach_workspace:
-          at: /tmp
+          at: .
       - run:
           name: Install Docker Compose
           command: |
