@@ -2,6 +2,8 @@
 set -euxo pipefail
 shopt -s extglob
 
+tree .
+
 INSTALL_TYPE=$1
 case $INSTALL_TYPE in
   "rpm")
