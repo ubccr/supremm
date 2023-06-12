@@ -1,14 +1,14 @@
 import pexpect
 import sys
 
-def setup_pcp():
+def config_pcp(p):
     p.sendline()
     p.expect("Directory containing node-level PCP archives")
     p.sendline()
 
-def setup_prometheus():
+def config_prometheus(p):
     p.sendline("prometheus")
-    p.expect("Hostname for Prometheus server")
+    p.expect("URL for Prometheus server")
     p.sendline()
     p.expect("Username for basic authentication to Prometheus server \(enter [space] for none\)")
     p.sendline(" ")
@@ -44,11 +44,11 @@ def main():
                 p.sendline("n")
                 continue
             p.sendline("y")
-            p.expect("Data collector backend (pcp or prometheus)")
+            p.expect("Data collector backend \(pcp or prometheus\)")
             if i > 0 and i <= 4: 
-                config_pcp()
+                config_pcp(p)
             elif i == 5:
-                config_prometheus()
+                config_prometheus(p)
             else:
                 break
 
