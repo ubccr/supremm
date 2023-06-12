@@ -23,10 +23,7 @@ mkdir -p "/data/pcp_cluster/pcp-logs/hostname/2016/12/30"
 mkdir -p "/data/prom_cluster/jobscripts"
 
 # Run setup script
-
-export TERMINFO=/bin/bash
-export TERM=linux
-/usr/bin/supremm_setup_expect.py
+supremm_setup_expect.py
 
 # Copy node-level archives
 cp tests/integration_tests/pcp_logs_extracted/* /data/pcp_cluster/pcp-logs/hostname/2016/12/30
