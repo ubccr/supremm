@@ -10,7 +10,7 @@ def config_prometheus(p):
     p.sendline("prometheus")
     p.expect("Hostname for Prometheus server")
     p.sendline()
-    p.expect("Username for basic authentication to Prometheus server \(enter [space] for none\)")
+    p.expect("Username for basic authentication to Prometheus server")
     p.sendline(" ")
     #p.expect("Password for basic authentication to Prometheus server")
 
