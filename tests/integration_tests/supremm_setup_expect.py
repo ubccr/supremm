@@ -8,7 +8,7 @@ def config_pcp(p):
 
 def config_prometheus(p):
     p.sendline("prometheus")
-    p.expect("URL for Prometheus server")
+    p.expect("Hostname for Prometheus server")
     p.sendline()
     p.expect("Username for basic authentication to Prometheus server \(enter [space] for none\)")
     p.sendline(" ")
