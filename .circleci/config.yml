@@ -111,3 +111,5 @@ workflows:
           matrix:
             parameters:
               install-type: ["rpm"]
+          requires:
+            - build
