@@ -1,6 +1,19 @@
 import pexpect
 import sys
 
+def setup_pcp():
+    p.sendline()
+    p.expect("Directory containing node-level PCP archives")
+    p.sendline()
+
+def setup_prometheus():
+    p.sendline("prometheus")
+    p.expect("Hostname for Prometheus server")
+    p.sendline()
+    p.expect("Username for basic authentication to Prometheus server \(enter [space] for none\)")
+    p.sendline(" ")
+    #p.expect("Password for basic authentication to Prometheus server")
+
 def main():
     scriptsettings = ['start', 'start', 'start', 'end', 'submit']
     with open("supremm_expect_log", "wb") as f:
@@ -13,41 +26,32 @@ def main():
         p.expect("Enter path to configuration files")
         p.sendline()
         p.expect("Do you wish to specify the XDMoD install directory")
-        p.sendline("n")
-        p.expect("XDMoD mysqldb hostname")
         p.sendline()
-        p.expect("XDMoD mysqldb port number")
+        p.expect("XDMoD configuration directory path")
         p.sendline()
-        p.expect("XDMoD mysqldb username")
-        p.sendline("xdmod")
-        p.expect("XDMoD mysqldb password")
-        p.sendline("xdmod123")
-        p.expect("Location of my.cnf file \(where the username and passsword will be stored\)")
-        p.sendline()
-        p.expect("MongoDB URI")
-        p.sendline("mongodb://supremm:supremm-test123@localhost:27017/supremm")
-        p.expect("MongoDB database name")
-        p.sendline()
+        #p.expect("MongoDB URI")
+        #p.sendline("mongodb://supremm:supremm-test123@localhost:27017/supremm")
+        #p.expect("MongoDB database name")
+        #p.sendline()
         p.expect("Temporary directory to use for job archive processing")
         p.sendline()
 
         while True:
-            i = p.expect(["Overwrite config file", "pcp_cluster", "prom_cluster"])
+            i = p.expect(["Overwrite config file","frearson", "mortorq", "phillips", "pozidriv", "robertson", "openstack", "recex", "torx", "nutsetters"])
             if i > 1:
                 p.expect('Enable SUPReMM summarization for this resource?')
+            if i > 5:
+                p.sendline("n")
+                continue
             p.sendline("y")
             p.expect("Data collector backend (pcp or prometheus)")
-            if i == 1:
-                p.sendline()
-                p.expect("Directory containing node-level PCP archives")
-                p.sendline()
-            elif i == 2:
-                p.sendline("prometheus")
-                p.expect("Hostname for Prometheus server")
-                p.sendline()
-                p.expect("Username for basic authentication to Prometheus server \(enter [space] for none\)")
-                p.sendline(" ")
-                #p.expect("Password for basic authentication to Prometheus server")
+            if i > 0 and i <= 4: 
+                config_pcp()
+            elif i == 5:
+                config_prometheus()
+            else:
+                break
+
             p.expect("Source of accounting data")
             p.sendline()
             p.expect("node name unique identifier")
@@ -55,7 +59,7 @@ def main():
             p.expect("Directory containing job launch scripts")
             p.sendline()
             p.expect("Job launch script timestamp lookup mode \('submit', 'start' or 'none'\)")
-            p.sendline()
+            p.sendline(scriptsettings[i-1])
 
         p.expect("Press ENTER to continue")
         p.sendline()
