@@ -2,6 +2,8 @@
 set -euxo pipefail
 shopt -s extglob
 
+tests/ci/setup.sh test
+
 INSTALL_TYPE=$1
 case $INSTALL_TYPE in
   "rpm")

@@ -10,7 +10,7 @@ jobs:
       - checkout
       - run:
           name: Install System Dependencies
-          command: ./tests/ci/setup.sh
+          command: ./tests/ci/setup.sh build
       - run:
           name: Build Software Package
           command: ./tests/ci/build.sh << parameters.build-type >>
