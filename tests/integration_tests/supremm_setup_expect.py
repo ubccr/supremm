@@ -2,7 +2,6 @@ import pexpect
 import sys
 
 def main():
-    print("START EXPECT SCRIPT")
     scriptsettings = ['start', 'start', 'start', 'end', 'submit']
     with open("supremm_expect_log", "wb") as f:
         p = pexpect.spawn('supremm-setup')
@@ -21,7 +20,7 @@ def main():
         p.sendline()
         p.expect("XDMoD mysqldb username")
         p.sendline("xdmod")
-        p.expec("XDMoD mysqldb password")
+        p.expect("XDMoD mysqldb password")
         p.sendline("xdmod123")
         p.expect("Location of my.cnf file \(where the username and passsword will be stored\)")
         p.sendline()
