@@ -15,9 +15,7 @@ jobs:
           name: Build Software Package
           command: ./tests/ci/build.sh << parameters.build-type >>
       - persist_to_workspace:
-          root: .
-          paths:
-            - dist
+          root: ./dist
 
   test:
     parameters:
@@ -41,7 +39,7 @@ jobs:
             mkdir -p shippable/testresults
             mkdir -p shippable/codecoverage
       - attach_workspace:
-          at: .
+          at: ./dist
       - run:
           name: Install Docker Compose
           command: |

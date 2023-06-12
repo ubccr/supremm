@@ -5,7 +5,7 @@ shopt -s extglob
 INSTALL_TYPE=$1
 case $INSTALL_TYPE in
   "rpm")
-    dnf install -y /tmp/dist/supremm-+([0-9.])*.x86_64.rpm
+    dnf install -y ../../../dist/supremm-+([0-9.])*.x86_64.rpm
     ;;
   "wheel")
     pip3 install -y /tmp/dist/supremm-+([0-9.])*.whl
