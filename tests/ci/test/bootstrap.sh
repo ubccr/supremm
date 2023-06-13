@@ -27,7 +27,7 @@ mkdir -p "/data/mortorq/pcp-logs/hostname/2016/12/30"
 python3 tests/integration_tests/supremm_setup_expect.py
 
 # Copy node-level archives
-cp tests/integration_tests/pcp_logs_extracted/* /data/pcp_cluster/pcp-logs/hostname/2016/12/30
+cp tests/integration_tests/pcp_logs_extracted/* /data/mortorq/pcp-logs/hostname/2016/12/30
 
 # Create files containing 'job scripts' for 'start' jobs
 jspath=/data/phillips/jobscripts/20170101
