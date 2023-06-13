@@ -35,7 +35,7 @@ services:
     command:
       - /bin/bash
       - -c
-      - sed -i 's/bindIp: 127.0.0.1/#bindIp: 127.0.0.1/' /etc/mongod.conf
+      - "sed -i 's/bindIp: 127.0.0.1/#bindIp: 127.0.0.1/' /etc/mongod.conf"
 
 volumes:
   tsdb:
