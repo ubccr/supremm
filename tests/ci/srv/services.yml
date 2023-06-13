@@ -30,9 +30,8 @@ services:
       - type: volume
         source: mongodb
         target: /data/db
-    expose:
-      - 27017
-    network_mode: host
+    ports:
+      - "27017:27017"
 
 volumes:
   tsdb:
