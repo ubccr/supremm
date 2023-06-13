@@ -14,7 +14,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--web.config.file=/etc/prometheus/web.yml'
-    network_mode: host
+    network_mode: "host"
 
   mongod:
     image:
@@ -26,7 +26,7 @@ services:
       - type: volume
         source: mongodb
         target: /data/db
-    network_mode: host
+    network_mode: "host"
 
 volumes:
   tsdb:
