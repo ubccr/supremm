@@ -18,7 +18,7 @@ services:
       - "9090:9090"
     network_mode: host
 
-  mongo:
+  mongo_service:
     image:
       mongo:6.0
     environment:
