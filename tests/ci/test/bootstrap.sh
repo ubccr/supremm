@@ -3,9 +3,6 @@ set -euxo pipefail
 shopt -s extglob
 
 tests/ci/setup.sh test
-sed -i 's/uri = "mongodb:\/\/xdmod:uvVA6bIC9DMts30ZiLRaH@localhost:27017\/supremm?authSource=auth"/uri = "mongodb:\/\/localhost\/supremm/' \
-       /etc/xdmod/portal_settings.d/supremm.ini
-~/bin/services start
 
 INSTALL_TYPE=$1
 case $INSTALL_TYPE in
@@ -20,10 +17,11 @@ case $INSTALL_TYPE in
     ;;
 esac
 
-# Prepare archive and jobscript directories
-mkdir -p /data/pcp_cluster/{pcp-logs,jobscripts}
-mkdir -p "/data/pcp_cluster/pcp-logs/hostname/2016/12/30"
-mkdir -p "/data/prom_cluster/jobscripts"
+~/bin/services start
+mongod -f /etc/mongod.conf --auth
+
+mkdir -p /data/{phillips,pozidriv,frearson,mortorq,robertson}/{pcp-logs,jobscripts}
+mkdir -p "/data/mortorq/pcp-logs/hostname/2016/12/30"
 
 # Run setup script
 python3 tests/integration_tests/supremm_setup_expect.py
@@ -31,18 +29,26 @@ python3 tests/integration_tests/supremm_setup_expect.py
 # Copy node-level archives
 cp tests/integration_tests/pcp_logs_extracted/* /data/pcp_cluster/pcp-logs/hostname/2016/12/30
 
-# Create files containing job scripts
-jspath=/data/pcp_cluster/jobscripts/20161230
+# Create files containing 'job scripts' for 'start' jobs
+jspath=/data/phillips/jobscripts/20170101
 mkdir $jspath
-for jobid in 972366
+for jobid in 197155 197182 197186 197199 1234234[21] 123424[]
 do
     echo "Job script for job $jobid" > $jspath/$jobid.savescript
 done
 
 # Create job scripts for a submit jobs
-jspath=/data/prom_cluster/jobscripts/20230602
+jspath=/data/robertson/jobscripts/20161212
 mkdir $jspath
-for jobid in 123456 789012 345678 901234
+for jobid in 6066098
+do
+    echo "Job script for job $jobid" > $jspath/$jobid.savescript
+done
+
+# Create job script for end jobs
+jspath=/data/pozidriv/jobscripts/20161230
+mkdir $jspath
+for jobid in 983936
 do
     echo "Job script for job $jobid" > $jspath/$jobid.savescript
 done
