@@ -3,6 +3,8 @@ set -euxo pipefail
 shopt -s extglob
 
 tests/ci/setup.sh test
+sed -i 's/uri = "mongodb:\/\/xdmod:uvVA6bIC9DMts30ZiLRaH@localhost:27017\/supremm?authSource=auth"/uri = "mongodb:\/\/supremm:supremm-test123@mongo:27017\/supremm?authSource=auth/' \
+       /etc/xdmod/portal_settings.d/supremm.ini
 ~/bin/services start
 
 INSTALL_TYPE=$1
