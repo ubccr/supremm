@@ -31,7 +31,8 @@ services:
         source: mongodb
         target: /data/db
     ports:
-      - "37017:27017"
+      - target: 27017
+        published: 37017
     command:
       - /bin/bash
       - -c
