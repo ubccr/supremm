@@ -47,7 +47,7 @@ class PromDatasource(Datasource):
                 logging.info("Skipping %s, skipped_no_prom_connection", job.job_id)
                 jobmeta.missingnodes = job.nodecount
                 return
-            self.mapping = MappingManager(client)
+            self.mapping = MappingManager(self.client)
 
         return jobmeta
 

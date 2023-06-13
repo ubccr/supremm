@@ -72,7 +72,7 @@ class PromClient():
             'query': query,
             'start': start,
             'end': end,
-            'step': self._step
+            'step': '30s'
         }
 
         endpoint = "/api/v1/query_range"
