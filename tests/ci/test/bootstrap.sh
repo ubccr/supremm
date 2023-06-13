@@ -3,7 +3,7 @@ set -euxo pipefail
 shopt -s extglob
 
 tests/ci/setup.sh test
-sed -i 's/uri = "mongodb:\/\/xdmod:uvVA6bIC9DMts30ZiLRaH@localhost:27017\/supremm?authSource=auth"/uri = "mongodb:\/\/supremm:supremm-test123@mongo_service:27017\/supremm?authSource=auth/' \
+sed -i 's/uri = "mongodb:\/\/xdmod:uvVA6bIC9DMts30ZiLRaH@localhost:27017\/supremm?authSource=auth"/uri = "mongodb:\/\/supremm:supremm-test123@127.0.0.1\/supremm?authSource=auth/' \
        /etc/xdmod/portal_settings.d/supremm.ini
 ~/bin/services start
 

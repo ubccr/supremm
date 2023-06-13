@@ -14,11 +14,9 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--web.config.file=/etc/prometheus/web.yml'
-    ports:
-      - "9090:9090"
     network_mode: host
 
-  mongo_service:
+  mongod:
     image:
       mongo:6.0
     environment:
@@ -28,12 +26,11 @@ services:
       - type: volume
         source: mongodb
         target: /data/db
-    expose:
-      - 27017
     command:
       - /bin/bash
       - -c
       - "sed -i 's/bindIp: 127.0.0.1/bindIp: 0.0.0.0/' /etc/mongod.conf"
+    network_mode: host
 
 volumes:
   tsdb:
