@@ -82,7 +82,7 @@ def main():
         p.expect("Enter path to configuration files")
         p.sendline()
         p.expect("URI")
-        p.sendline("mongodb://supremm:supremm-test123@mongod/supremm?authSource=auth")
+        p.sendline("mongodb://supremm:supremm-test123@localhost/supremm?authSource=auth")
         p.expect("Do you wish to proceed")
         p.sendline("y")
         p.expect("Press ENTER to continue")
