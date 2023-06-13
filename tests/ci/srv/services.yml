@@ -21,8 +21,6 @@ services:
   mongo:
     image:
       mongo:6.0
-    hostname:
-      mongo
     environment:
       - MONGO_INITDB_ROOT_USERNAME=supremm
       - MONGO_INITDB_ROOT_PASSWORD=supremm-test123
@@ -30,13 +28,12 @@ services:
       - type: volume
         source: mongodb
         target: /data/db
-    ports:
-      - target: 27017
-        published: 37017
+    expose:
+      - 27017
     command:
       - /bin/bash
       - -c
-      - "sed -i 's/bindIp: 127.0.0.1/#bindIp: 127.0.0.1/' /etc/mongod.conf"
+      - "sed -i 's/bindIp: 127.0.0.1/bindIp: 0.0.0.0/' /etc/mongod.conf"
 
 volumes:
   tsdb:
