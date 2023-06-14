@@ -69,7 +69,7 @@ class PromDatasource(Datasource):
             # Don't have enough node data to even try summarization
             jobmeta.mdata["skipped_prom_error"] = True
             logging.info("Skipping %s, skipped_prom_error", job.job_id)
-            jobmeta.error = ProcessingError.PROMETHEUS_ERROR
+            jobmeta.error = ProcessingError.PROMETHEUS_CONNECTION
 
         if opts['tag'] != None:
             jobmeta.mdata['tag'] = opts['tag']
