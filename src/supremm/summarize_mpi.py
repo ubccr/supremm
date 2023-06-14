@@ -144,7 +144,7 @@ def processjobs(config, opts, procid, comm):
                         logging.warning("MPI send/recv took %s/%s", mpisendtime, mpirecvtime)
                     if job != None:
                         logging.debug("Rank: %s, Starting: %s", procid, job.job_id)
-                        process_job(config, dbif, job, m, opts, plugins, preprocs, resconf)
+                        process_job(config, dbif, job, m, opts, plugins, preprocs, resconf, datasource)
                         logging.debug("Rank: %s, Finished: %s", procid, job.job_id)
                         sendtime = time.time()
                         comm.send(procid, dest=0, tag=1)
@@ -170,7 +170,7 @@ def processjobs(config, opts, procid, comm):
                         break
 
 
-def process_job(config, dbif, job, m, opts, plugins, preprocs, resconf):
+def process_job(config, dbif, job, m, opts, plugins, preprocs, resconf, datasource):
     try:
         summarize_start = time.time()
         jobmeta = datasource.presummarize(job, config, resconf, opts)
