@@ -1,6 +1,7 @@
 import unittest
 from mock import patch, Mock
-from supremm.datasource.pcp.pcpdatasource import summarizejob
+from supremm.datasource.datasource import JobMeta
+from supremm.datasource.pcp.pcpdatasource import PCPDatasource
 from supremm.config import Config
 from supremm.Job import Job
 from supremm.errors import ProcessingError
@@ -12,6 +13,8 @@ import tempfile
 class TestPCPSummarizeJob(unittest.TestCase):
 
     def setUp(self):
+        self.datasource = PCPDatasource([], [])
+
         confattrs = {'getsection.return_value': {}}
         self.mockconf = Mock(spec=Config, **confattrs)
 
@@ -55,6 +58,7 @@ class TestPCPSummarizeJob(unittest.TestCase):
             'end_datetime': datetime.datetime(2016,1,1),
             'jobdir': None
         }
+
         self.mockjob = Mock(spec=Job, **confjob)
 
     @staticmethod
@@ -65,71 +69,68 @@ class TestPCPSummarizeJob(unittest.TestCase):
         assert actual_mdata[expectedMdata]
 
     @patch('supremm.datasource.pcp.pcpdatasource.extract_and_merge_logs')
-    @patch('supremm.datasource.pcp.pcpdatasource.PCPSummarize')
-    def test_job_too_short(self, summaryclass, extract):
+    def test_job_too_short(self, extract):
         extract.return_value = 0
 
         self.mockjob.configure_mock(walltime = 128)
         self.options['min_duration'] = 129
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
 
-        self.verify_errors(ProcessingError.TIME_TOO_SHORT, 'skipped_too_short', error, mdata)
+        self.verify_errors(ProcessingError.TIME_TOO_SHORT, 'skipped_too_short', jobmeta.error, jobmeta.mdata)
 
     @patch('supremm.datasource.pcp.pcpdatasource.extract_and_merge_logs')
-    @patch('supremm.datasource.pcp.pcpdatasource.PCPSummarize')
-    def test_parallel_too_short(self, summaryclass, extract):
+    def test_parallel_too_short(self, extract):
         extract.return_value = 0
 
         self.mockjob.configure_mock(walltime = 599, nodecount = 10)
         self.options['min_parallel_duration'] = 600
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
 
-        self.verify_errors(ProcessingError.PARALLEL_TOO_SHORT, 'skipped_parallel_too_short', error, mdata)
+        self.verify_errors(ProcessingError.PARALLEL_TOO_SHORT, 'skipped_parallel_too_short', jobmeta.error, jobmeta.mdata)
 
     @patch('supremm.datasource.pcp.pcpdatasource.extract_and_merge_logs')
-    @patch('supremm.datasource.pcp.pcpdatasource.PCPSummarize')
-    def test_invlid_nodecount(self, summaryclass, extract):
+    def test_invlid_nodecount(self, extract):
         extract.return_value = 0
 
         self.mockjob.configure_mock(nodecount = 0)
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
 
-        self.verify_errors(ProcessingError.INVALID_NODECOUNT, 'skipped_invalid_nodecount', error, mdata)
+        self.verify_errors(ProcessingError.INVALID_NODECOUNT, 'skipped_invalid_nodecount', jobmeta.error, jobmeta.mdata)
 
     @patch('supremm.datasource.pcp.pcpdatasource.extract_and_merge_logs')
-    @patch('supremm.datasource.pcp.pcpdatasource.PCPSummarize')
-    def test_jobtoolong(self, summaryclass, extract):
+    def test_jobtoolong(self, extract):
         extract.return_value = 0
 
         self.mockjob.configure_mock(walltime = 99999999)
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
 
-        self.verify_errors(ProcessingError.TIME_TOO_LONG, 'skipped_too_long', error, mdata)
+        self.verify_errors(ProcessingError.TIME_TOO_LONG, 'skipped_too_long', jobmeta.error, jobmeta.mdata)
 
     @patch('supremm.datasource.pcp.pcpdatasource.extract_and_merge_logs')
-    @patch('supremm.datasource.pcp.pcpdatasource.PCPSummarize')
-    def test_jobtoonodehours(self, summaryclass, extract):
+    def test_jobtoonodehours(self, extract):
         """ test the too many nodehours error """
         extract.return_value = 0
 
         self.mockjob.configure_mock(walltime=1000, nodecount=500)
         self.options['max_nodetime'] = 499999
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
 
-        self.verify_errors(ProcessingError.JOB_TOO_MANY_NODEHOURS, 'skipped_job_nodehours', error, mdata)
+        self.verify_errors(ProcessingError.JOB_TOO_MANY_NODEHOURS, 'skipped_job_nodehours', jobmeta.error, jobmeta.mdata)
 
-    @patch('supremm.datasource.pcp.pcpdatasource.pcparchive.adjust_job_start_end')
-    @patch('supremm.datasource.pcp.pcpdatasource.pcparchive.pmlogextract')
+    @patch('supremm.datasource.pcp.pcparchive.adjust_job_start_end')
+    @patch('supremm.datasource.pcp.pcparchive.pmlogextract')
     def test_pmlogextract(self, pmlogextracnfn, adjustjobfn):
-        
+
         pmlogextracnfn.return_value = -10
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, {}, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
+        print(jobmeta.result, jobmeta.mdata, jobmeta.error, jobmeta.missingnodes)
+        _, mdata, _, error = self.datasource.summarizejob(self.mockjob, jobmeta, self.mockconf, self.options)
 
         self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
@@ -137,7 +138,7 @@ class TestPCPSummarizeJob(unittest.TestCase):
     @patch('supremm.datasource.pcp.pcparchive.getextractcmdline')
     @patch('subprocess.Popen')
     def test_pmlogextractfail0(self, popen, getextractcmdline, adjustjobfn):
-        
+ 
         popensettings = {
                 'communicate.return_value': ("","__pmLogPutResult2: write failed: returns 804876 expecting 954704: No space left on device"), 
                 'returncode': 1
@@ -147,7 +148,8 @@ class TestPCPSummarizeJob(unittest.TestCase):
         configres = {'getsection.return_value': {'subdir_out_format': '%j', 'archive_out_dir': tempfile.mkdtemp()}}
         self.mockconf.configure_mock(**configres)
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
+        _, mdata, _, error = self.datasource.summarizejob(self.mockjob, jobmeta, self.mockconf, self.options)
 
         self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
@@ -165,7 +167,8 @@ class TestPCPSummarizeJob(unittest.TestCase):
         configres = {'getsection.return_value': {'subdir_out_format': '%j', 'archive_out_dir': tempfile.mkdtemp()}}
         self.mockconf.configure_mock(**configres)
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
+        _, mdata, _, error = self.datasource.summarizejob(self.mockjob, jobmeta, self.mockconf, self.options)
 
         self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
@@ -183,7 +186,8 @@ class TestPCPSummarizeJob(unittest.TestCase):
         configres = {'getsection.return_value': {'subdir_out_format': '%j', 'archive_out_dir': tempfile.mkdtemp()}}
         self.mockconf.configure_mock(**configres)
 
-        _, mdata, _, error = summarizejob(self.mockjob, self.mockconf, self.mockresconf, [], [], self.options)
+        jobmeta = self.datasource.presummarize(self.mockjob, self.mockconf, self.mockresconf, self.options)
+        _, mdata, _, error = self.datasource.summarizejob(self.mockjob, jobmeta, self.mockconf, self.options)
 
         self.verify_errors(ProcessingError.PMLOGEXTRACT_ERROR, 'skipped_pmlogextract_error', error, mdata)
 
