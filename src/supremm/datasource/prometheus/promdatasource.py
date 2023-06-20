@@ -44,10 +44,10 @@ class PromDatasource(Datasource):
                 jobmeta.result = 1
                 jobmeta.mdata["skipped_no_prom_connection"] = True
                 jobmeta.error = ProcessingError.PROMETHEUS_CONNECTION
-                logging.error("Skipping %s, skipped_no_prom_connection", job.job_id)
+                logging.info("Skipping %s, skipped_no_prom_connection", job.job_id)
                 jobmeta.missingnodes = job.nodecount
                 return
-            self.mapping = MappingManager(client)
+            self.mapping = MappingManager(self.client)
 
         return jobmeta
 
@@ -68,8 +68,8 @@ class PromDatasource(Datasource):
             # Don't overwrite existing error
             # Don't have enough node data to even try summarization
             jobmeta.mdata["skipped_prom_error"] = True
-            logging.error("Skipping %s, skipped_prom_error", job.job_id)
-            jobmeta.error = ProcessingError.PROMETHEUS_ERROR
+            logging.info("Skipping %s, skipped_prom_error", job.job_id)
+            jobmeta.error = ProcessingError.PROMETHEUS_CONNECTION
 
         if opts['tag'] != None:
             jobmeta.mdata['tag'] = opts['tag']
@@ -96,3 +96,26 @@ class PromDatasource(Datasource):
     def cleanup(self, opts, job):
         # Nothing to be done for Prometheus
         pass
+
+def parse_scrape_interval(interval):
+    # function to parse scrape interval string
+    # "30s" -> 30, "1m" -> 60, "1m30s" -> 90, etc
+    times = re.split('(\d+[smhd])', interval)
+
+    scrape_interval = 0
+    for time in times:
+        t =  re.findall('\d+|\D+', time)
+        try:
+            result = int(t[0])
+        except ValueError:
+            logging.error("Could not parse configured scrape interval: (%s)", interval)
+            return None
+        modifier = t[-1]
+        if modifier == 's':
+            scrape_interval += result
+        elif modifier == 'm':
+            scrape_interval += (result * 60)
+        elif modifier == 'h':
+            scrape_interval += (result * (60 * 60))
+
+    return scrape_interval

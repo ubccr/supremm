@@ -37,7 +37,7 @@ class PromClient():
 
         r = client.get(url)
         if r.status_code != 200:
-            logging.error(str(r.content))
+            print(str(r.content))
             return False
 
         result = r.json()
@@ -60,7 +60,7 @@ class PromClient():
 
         r = self._client.get(url, params=params)
         if r.status_code != 200:
-            logging.error(str(r.content))
+            print(str(r.content))
             return None
 
         return r.json()
@@ -72,7 +72,7 @@ class PromClient():
             'query': query,
             'start': start,
             'end': end,
-            'step': self._step
+            'step': '30s'
         }
 
         endpoint = "/api/v1/query_range"
@@ -80,7 +80,7 @@ class PromClient():
 
         r = self._client.get(url, params=params)
         if r.status_code != 200:
-            logging.error(r.content)
+            print(r.content)
             return None
 
         return r.json()

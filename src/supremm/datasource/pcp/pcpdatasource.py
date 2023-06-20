@@ -37,7 +37,7 @@ class PCPDatasource(Datasource):
                 logging.info("Skipping %s, skipped_rawarchives", job.job_id)
             else:
                 jobmeta.result = extract_and_merge_logs(job, conf, resconf, opts)
-                missingnodes = -1.0 * jobmeta.result
+                jobmeta.missingnodes = -1.0 * jobmeta.result
 
         mergeend = time.time()
         jobmeta.mdata["mergetime"] = mergeend - mergestart

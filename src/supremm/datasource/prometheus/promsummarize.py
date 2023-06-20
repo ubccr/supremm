@@ -178,7 +178,7 @@ class PromSummarize(Summarize):
             except StopIteration:
                 done = True
             except requests.RequestException as exp:
-                analytic.status = "failure"
+                preproc.status = "failure"
                 raise exp
             except Exception as exp:
                 preproc.status = "failure"
