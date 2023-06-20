@@ -15,13 +15,15 @@ from supremm.account import DbAcct
 from supremm.xdmodaccount import XDMoDAcct
 from supremm import outputter
 from supremm.plugin import loadplugins, loadpreprocessors
-from supremm.proc_common import getoptions, summarizejob, override_defaults, filter_plugins
+from supremm.proc_common import getoptions, override_defaults, filter_plugins
 from supremm.scripthelpers import setuplogger
+from supremm.datasource.factory import DatasourceFactory
 
 import sys
 import time
 import psutil
 import json
+
 
 def processjobs(config, opts, procid, comm):
     """ main function that does the work. One run of this function per process """
@@ -41,6 +43,7 @@ def processjobs(config, opts, procid, comm):
         resconf = override_defaults(resconf, opts)
 
         preprocs, plugins = filter_plugins(resconf, allpreprocs, allplugins)
+        datasource = DatasourceFactory(preprocs, plugins, resconf)
 
         logging.debug("Using %s preprocessors", len(preprocs))
         logging.debug("Using %s plugins", len(plugins))
@@ -141,7 +144,7 @@ def processjobs(config, opts, procid, comm):
                         logging.warning("MPI send/recv took %s/%s", mpisendtime, mpirecvtime)
                     if job != None:
                         logging.debug("Rank: %s, Starting: %s", procid, job.job_id)
-                        process_job(config, dbif, job, m, opts, plugins, preprocs, resconf)
+                        process_job(config, dbif, job, m, opts, plugins, preprocs, resconf, datasource)
                         logging.debug("Rank: %s, Finished: %s", procid, job.job_id)
                         sendtime = time.time()
                         comm.send(procid, dest=0, tag=1)
@@ -167,10 +170,16 @@ def processjobs(config, opts, procid, comm):
                         break
 
 
-def process_job(config, dbif, job, m, opts, plugins, preprocs, resconf):
+def process_job(config, dbif, job, m, opts, plugins, preprocs, resconf, datasource):
     try:
         summarize_start = time.time()
-        summary, mdata, success, summarize_error = summarizejob(job, config, resconf, plugins, preprocs, opts)
+        jobmeta = datasource.presummarize(job, config, resconf, opts)
+        if not jobmeta:
+            return job, None, None
+        res = datasource.summarizejob(job, config, resconf, opts)
+        if res is None:
+            return job, None, None
+        summary, mdata, success, summarize_error = res
         summarize_time = time.time() - summarize_start
 
         # TODO: change behavior so markasdone only happens if this is successful
@@ -183,10 +192,7 @@ def process_job(config, dbif, job, m, opts, plugins, preprocs, resconf):
         logging.error("Failure for job %s %s. Error: %s %s", job.job_id, job.jobdir, str(e), traceback.format_exc())
 
     finally:
-        if opts['dodelete'] and job.jobdir is not None and os.path.exists(job.jobdir):
-            # Clean up
-            shutil.rmtree(job.jobdir)
-
+        datasource.cleanup(opts, job)
 
 def main():
     """

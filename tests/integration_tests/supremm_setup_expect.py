@@ -1,10 +1,21 @@
 import pexpect
 import sys
 
+def config_pcp(p):
+    p.sendline()
+    p.expect("Directory containing node-level PCP archives")
+    p.sendline()
+
+def config_prometheus(p):
+    p.sendline("prometheus")
+    p.expect("Hostname for Prometheus server")
+    p.sendline()
+    p.expect("Username for basic authentication to Prometheus server")
+    p.sendline(" ")
+    #p.expect("Password for basic authentication to Prometheus server")
+
 def main():
-
     scriptsettings = ['start', 'start', 'start', 'end', 'submit']
-
     with open("supremm_expect_log", "wb") as f:
         p = pexpect.spawn('supremm-setup')
         p.logfile = f
@@ -22,7 +33,7 @@ def main():
         p.sendline()
 
         while True:
-            i = p.expect(["Overwrite config file", "frearson", "mortorq", "phillips", "pozidriv", "robertson", "openstack", "recex", "torx", "nutsetters"])
+            i = p.expect(["Overwrite config file","frearson", "mortorq", "phillips", "pozidriv", "robertson", "openstack", "recex", "torx", "nutsetters"])
             if i > 1:
                 p.expect('Enable SUPReMM summarization for this resource?')
             if i > 5:
@@ -30,8 +41,11 @@ def main():
                 continue
             p.sendline("y")
             if i != 0:
-                p.expect("Directory containing node-level PCP archives")
-                p.sendline()
+                p.expect("Data collector backend \(pcp or prometheus\)")
+                if i <= 4: 
+                    config_pcp(p)
+                elif i == 5:
+                    config_prometheus(p)
                 p.expect("Source of accounting data")
                 p.sendline()
                 p.expect("node name unique identifier")
@@ -55,9 +69,9 @@ def main():
         p.expect("DB port")
         p.sendline()
         p.expect("DB Admin Username")
-        p.sendline()
+        p.sendline("xdmod")
         p.expect("DB Admin Password")
-        p.sendline()
+        p.sendline("xdmod123")
         p.expect("Do you wish to proceed")
         p.sendline("y")
         p.expect("Press ENTER to continue")
@@ -68,7 +82,7 @@ def main():
         p.expect("Enter path to configuration files")
         p.sendline()
         p.expect("URI")
-        p.sendline()
+        p.sendline("mongodb://localhost/supremm")
         p.expect("Do you wish to proceed")
         p.sendline("y")
         p.expect("Press ENTER to continue")

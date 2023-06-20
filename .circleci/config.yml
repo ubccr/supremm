@@ -2,13 +2,32 @@ version: 2.1
 jobs:
   build:
     parameters:
+      build-type:
+        type: string
+    docker:
+      - image: rockylinux:8
+    steps:
+      - checkout
+      - run:
+          name: Install System Dependencies
+          command: ./tests/ci/setup.sh build
+      - run:
+          name: Build Software Package
+          command: ./tests/ci/build.sh << parameters.build-type >>
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist/*
+
+  test:
+    parameters:
       install-type:
         type: string
     docker:
-      # The first image entry here will be used as the image for the parent container.
       - image: tools-ext-01.ccr.xdmod.org/xdmod-job_performance-10.0.0:rockylinux8-0.1
     environment:
       TERM: xterm
+      TERMINFO: /bin/bash
       COMPOSER_ALLOW_SUPERUSER: 1
       XDMOD_REALMS: 'jobs,storage,cloud'
       XDMOD_IS_CORE: yes
@@ -17,16 +36,29 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install System Dependencies
-          command: ./tests/ci/setup.sh
-      - run:
           name: Create Test Result Directories
           command: |
             mkdir -p shippable/testresults
             mkdir -p shippable/codecoverage
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install Docker Compose
+          command: |
+            dnf install -y dnf-utils
+            dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            dnf install -y docker-ce docker-ce-cli docker-compose-plugin
+
+      - setup_remote_docker
+      - run:
+          name: Build services
+          command: docker compose -f ./tests/ci/srv/services.yml build
+      - run:
+          name: Start services
+          command: docker compose -f ./tests/ci/srv/services.yml up -d
       - run:
           name: Run Bootstrap
-          command: ./tests/integration_tests/bootstrap.sh
+          command: ./tests/ci/test/bootstrap.sh $XDMOD_TEST_MODE
       - run:
           name: Run Integration Tests
           command: ./tests/integration_tests/integration_test.bash
@@ -73,4 +105,11 @@ workflows:
       - build:
           matrix:
             parameters:
-              install-type: ["fresh_install", "upgrade"]
+              build-type: ["rpm"]
+
+      - test:
+          matrix:
+            parameters:
+              install-type: ["rpm"]
+          requires:
+            - build
