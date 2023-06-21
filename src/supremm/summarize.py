@@ -18,7 +18,7 @@ class Summarize(ABC):
         self.fail_fast = fail_fast
 
         self.version = VERSION
-        self.timseries_version = TIMESERIES_VERSION
+        self.timeseries_version = TIMESERIES_VERSION
 
     @abstractmethod
     def get(self):
