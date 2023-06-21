@@ -32,7 +32,8 @@ jobs:
       XDMOD_REALMS: 'jobs,storage,cloud'
       XDMOD_IS_CORE: yes
       XDMOD_INSTALL_DIR: /xdmod
-      XDMOD_TEST_MODE: << parameters.install-type >>
+      XDMOD_TEST_MODE: << parameters.test-mode >>
+      SUPREMM_INSTALL_TYPE: << parameters. install-type >> 
     steps:
       - checkout
       - run:
@@ -58,7 +59,7 @@ jobs:
           command: docker compose -f ./tests/ci/srv/services.yml up -d
       - run:
           name: Run Bootstrap
-          command: ./tests/ci/test/bootstrap.sh $XDMOD_TEST_MODE
+          command: ./tests/ci/test/bootstrap.sh $SUPREMM_INSTALL_TYPE
       - run:
           name: Run Integration Tests
           command: ./tests/integration_tests/integration_test.bash
@@ -75,12 +76,6 @@ jobs:
           name: Ingest Jobs
           command: ingest_jobscripts.py -d
       - run:
-          name: Remove Currently Installed SUPREMM
-          command: yum remove -y supremm
-      - run:
-          name: Install SUPREMM
-          command: python3 setup.py install --user --prefix=
-      - run:
           name: Pylint
           command: pylint-3 --errors-only supremm
       - run:
@@ -92,6 +87,9 @@ jobs:
       - run:
           name: Index Archives
           command: /root/.local/bin/indexarchives.py -h > /dev/null
+      - run:
+          name: Remove Currently Installed SUPREMM
+          command: dnf remove -y supremm
       - store_test_results:
           path: shippable/testresults
       - store_artifacts:
@@ -105,11 +103,12 @@ workflows:
       - build:
           matrix:
             parameters:
-              build-type: ["rpm"]
+              build-type: ["rpm", "wheel", "src"]
 
       - test:
           matrix:
             parameters:
-              install-type: ["rpm"]
+              test-type: ["fresh_install", "upgrade"]
+              install-type: ["rpm", "wheel", "src"]
           requires:
             - build
