@@ -1,13 +1,12 @@
 """ Definition of the summarize API """
 from abc import ABC, abstractmethod
 
-VERSION = "2.0.0"
+VERSION = "1.0.6"
 TIMESERIES_VERSION = 4
 
 
 class Summarize(ABC):
     """ Abstract base class describing the job summarization interface.
-        Currently only interfaces with PCP archives and is subject to change.
     """
 
     def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
@@ -17,6 +16,9 @@ class Summarize(ABC):
         self.errors = {}
         self.job = job
         self.fail_fast = fail_fast
+
+        self.version = VERSION
+        self.timseries_version = TIMESERIES_VERSION
 
     @abstractmethod
     def get(self):

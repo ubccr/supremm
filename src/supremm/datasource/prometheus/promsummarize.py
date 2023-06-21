@@ -11,9 +11,6 @@ from supremm.plugin import NodeMetadata
 from supremm.summarize import Summarize
 
 
-VERSION = "2.0.0"
-TIMESERIES_VERSION = 4
-
 class NodeMeta(NodeMetadata):
     """ container for node metadata """
     def __init__(self, nodename, idx):
@@ -54,7 +51,7 @@ class PromSummarize(Summarize):
                     output[analytic.name] = analytic.results()
 
         output['summarization'] = {
-            "version": VERSION,
+            "version": self.version,
             "elapsed": time.time() - self.start,
             "created": time.time(),
             "srcdir": self.job.jobdir,
@@ -67,7 +64,7 @@ class PromSummarize(Summarize):
 
         if len(timeseries) > 0:
             timeseries['hosts'] = dict((str(idx), name) for idx, name in enumerate(self.job.nodenames()))
-            timeseries['version'] = TIMESERIES_VERSION
+            timeseries['version'] = self.timeseries_version
             output['timeseries'] = timeseries
 
         for preproc in self.preprocs:

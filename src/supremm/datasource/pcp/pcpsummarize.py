@@ -17,9 +17,6 @@ from supremm.datasource.pcp.pcpcinterface import pcpcinterface
 import numpy
 import copy
 
-VERSION = "2.0.0"
-TIMESERIES_VERSION = 4
-
 
 class ArchiveMeta(NodeMetadata):
     """ container for achive metadata """
@@ -99,7 +96,7 @@ class PCPSummarize(Summarize):
                     output[analytic.name] = analytic.results()
 
         output['summarization'] = {
-            "version": VERSION,
+            "version": self.version
             "elapsed": time.time() - self.start,
             "created": time.time(),
             "srcdir": self.job.jobdir,
@@ -112,7 +109,7 @@ class PCPSummarize(Summarize):
 
         if len(timeseries) > 0:
             timeseries['hosts'] = dict((str(idx), name) for name, idx, _ in self.job.nodearchives())
-            timeseries['version'] = TIMESERIES_VERSION
+            timeseries['version'] = self.timeseries_version
             output['timeseries'] = timeseries
 
         for preproc in self.preprocs:
