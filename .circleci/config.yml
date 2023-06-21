@@ -1,9 +1,6 @@
 version: 2.1
 jobs:
   build:
-    parameters:
-      build-type:
-        type: string
     docker:
       - image: rockylinux:8
     steps:
