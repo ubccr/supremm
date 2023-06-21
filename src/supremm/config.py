@@ -44,6 +44,9 @@ class Config(object):
 
         self._xdmodconfig = None
 
+    def __str__(self):
+        return json.dumps(self._config, indent=4)
+
     @staticmethod
     def autodetectconfpath(filename="config.json"):
         """ search known paths for the configuration directory

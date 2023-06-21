@@ -62,7 +62,7 @@ class TotalMemUsageTimeseries(Plugin):
 
             uniqhosts = Counter(sortarr[:, 0])
             uniqhosts.update(sortarr[:, -1])
-            uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
+            uniqhosts.update(sortarr[:, sortarr.shape[1] // 2])
             includelist = list(uniqhosts.keys())
         else:
             # Save data for all hosts

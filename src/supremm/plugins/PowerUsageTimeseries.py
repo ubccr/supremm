@@ -67,14 +67,14 @@ class PowerUsageTimeseries(Plugin):
             retdata = {
                 "min": self.collatedata(sortarr[:, 0], power),
                 "max": self.collatedata(sortarr[:, -1], power),
-                "med": self.collatedata(sortarr[:, sortarr.shape[1] / 2], power),
+                "med": self.collatedata(sortarr[:, sortarr.shape[1] // 2], power),
                 "times": values[0, :, 0].tolist(),
                 "hosts": {}
             }
 
             uniqhosts = Counter(sortarr[:, 0])
             uniqhosts.update(sortarr[:, -1])
-            uniqhosts.update(sortarr[:, sortarr.shape[1] / 2])
+            uniqhosts.update(sortarr[:, sortarr.shape[1] // 2])
             includelist = list(uniqhosts.keys())
         else:
             # Save data for all hosts
