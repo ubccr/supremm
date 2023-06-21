@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euxo pipefail
 
-BUILD=$1
-case $BUILD in
+build=( "rpm" "wheel" "src" )
+for $BUILD in {}
   "rpm")
     python3 setup.py bdist_rpm
     ;;
@@ -11,7 +11,10 @@ case $BUILD in
     python3 setup.py bdist_wheel
     ;;
 
+  "src")
+    tar -czf supremm.tar.gz -C dist
+    ;;
+
   *)
-    # EXIT
     ;;
 esac

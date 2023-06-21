@@ -13,7 +13,7 @@ jobs:
           command: ./tests/ci/setup.sh build
       - run:
           name: Build Software Package
-          command: ./tests/ci/build.sh << parameters.build-type >>
+          command: ./tests/ci/build.sh
       - persist_to_workspace:
           root: .
           paths:
@@ -103,10 +103,6 @@ workflows:
   full-build:
     jobs:
       - build:
-          matrix:
-            parameters:
-              build-type: ["rpm", "wheel", "src"]
-
       - test:
           matrix:
             parameters:
