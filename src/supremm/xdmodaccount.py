@@ -512,7 +512,7 @@ def test():
     """ simple test function """
 
     config = Config()
-    xdm = XDMoDAcct(13, config)
+    xdm = XDMoDAcct(13, 'hostname', config)
     for job in xdm.get(1444151688, None):
         print(job)
 
