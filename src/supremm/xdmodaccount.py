@@ -9,11 +9,11 @@ import logging
 
 class XDMoDAcct(Accounting):
     """ account reader that gets data from xdmod datawarehouse """
-    def __init__(self, resconf, config):
-        super(XDMoDAcct, self).__init__(resconf["resource_id"], config)
+    def __init__(self, resource_id, hostname_mode, config):
+        super(XDMoDAcct, self).__init__(resource_id, config)
 
         self.dbsettings = config.getsection("datawarehouse")
-        self.hostnamemode = resconf["hostname_mode"]
+        self.hostnamemode = hostname_mode
 
         xdmod_schema_version = self.detectXdmodSchema()
 

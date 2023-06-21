@@ -81,9 +81,9 @@ def process_resource(resconf, config, opts, datasource):
     with outputter.factory(config, resconf, dry_run=opts["dry_run"]) as m:
 
         if resconf['batch_system'] == "XDMoD":
-            dbif = XDMoDAcct(resconf, config)
+            dbif = XDMoDAcct(resconf['resource_id'], resconf['hostname_mode'], config)
         else:
-            dbif = DbAcct(resconf, config)
+            dbif = DbAcct(resconf['resource_id'], config)
 
         for job in get_jobs(opts, dbif):
             try:
@@ -110,9 +110,9 @@ def process_resource(resconf, config, opts, datasource):
 def process_resource_multiprocessing(resconf, preprocs, plugins, config, opts, datasource, pool):
     with outputter.factory(config, resconf, dry_run=opts['dry_run']) as m:
         if resconf['batch_system'] == "XDMoD":
-            dbif = XDMoDAcct(resconf, config)
+             dbif = XDMoDAcct(resconf['resource_id'], resconf['hostname_mode'], config)
         else:
-            dbif = DbAcct(resconf, config)
+            dbif = DbAcct(resconf['resource_id'], config)
 
         jobs = get_jobs(opts, dbif)
 
