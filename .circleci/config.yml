@@ -110,7 +110,7 @@ workflows:
       - test:
           matrix:
             parameters:
-              test-type: ["fresh_install", "upgrade"]
+              test-mode: ["fresh_install", "upgrade"]
               install-type: ["rpm", "wheel", "src"]
           requires:
             - build
