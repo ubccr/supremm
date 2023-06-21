@@ -96,7 +96,7 @@ class PCPSummarize(Summarize):
                     output[analytic.name] = analytic.results()
 
         output['summarization'] = {
-            "version": self.version
+            "version": self.version,
             "elapsed": time.time() - self.start,
             "created": time.time(),
             "srcdir": self.job.jobdir,
