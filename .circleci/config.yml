@@ -21,6 +21,8 @@ jobs:
 
   test:
     parameters:
+      test-mode:
+        type: string
       install-type:
         type: string
     docker:
