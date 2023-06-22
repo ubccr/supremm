@@ -14,7 +14,8 @@ case $BUILD in
     ;;
 
   "src")
-    tar --exclude={'*.rpm','*.whl'} -czf dist/supremm.tar.gz .
+    tar --exclude={'*.rpm','*.whl'} -czf /tmp/supremm.tar.gz .
+    mv /tmp/supremm.tar.gz dist
     ;;
 
   *)
