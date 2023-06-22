@@ -14,7 +14,7 @@ case $BUILD in
     ;;
 
   "src")
-    tar -czf supremm.tar.gz -C dist
+    tar --exclude={'*.rpm','*.whl'} -czf dist/supremm.tar.gz .
     ;;
 
   *)
