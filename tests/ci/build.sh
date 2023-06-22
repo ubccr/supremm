@@ -2,9 +2,9 @@
 set -euxo pipefail
 
 declare -a builds=("rpm" "wheel" "src")
-for $BUILD in "${builds[@]}"
+for BUILD in "${builds[@]}";
 do
-case
+case $BUILD in
   "rpm")
     python3 setup.py bdist_rpm
     ;;
