@@ -34,7 +34,6 @@ jobs:
       XDMOD_TEST_MODE: << parameters.test-mode >>
       SUPREMM_INSTALL_TYPE: << parameters.install-type >> 
     steps:
-      - checkout
       - run:
           name: Create Test Result Directories
           command: |
@@ -80,12 +79,6 @@ jobs:
       - run:
           name: Pytest
           command: pytest-3 --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
-      - run:
-          name: Summarize Jobs
-          command: /root/.local/bin/summarize_jobs.py -h > /dev/null
-      - run:
-          name: Index Archives
-          command: /root/.local/bin/indexarchives.py -h > /dev/null
       - run:
           name: Remove Currently Installed SUPREMM
           command: dnf remove -y supremm

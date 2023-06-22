@@ -10,11 +10,11 @@ case $INSTALL_TYPE in
     dnf install -y dist/supremm-+([0-9.])*.x86_64.rpm
     ;;
   "wheel")
-    pip3 install -y dist/supremm-+([0-9.])*.whl
+    pip3 install dist/supremm-+([0-9.])*.whl
     ;;
   "src")
+    tar -xzf dist/supremm.tar.gz .
     python3 setup.py install
-    ;;
 esac
 
 ~/bin/services start
