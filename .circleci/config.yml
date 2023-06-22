@@ -99,7 +99,7 @@ jobs:
 workflows:
   full-build:
     jobs:
-      - build:
+      - build
       - test:
           matrix:
             parameters:
