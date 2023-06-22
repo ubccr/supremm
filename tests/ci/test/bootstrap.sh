@@ -15,6 +15,7 @@ case $INSTALL_TYPE in
   "src")
     tar -xzf dist/supremm.tar.gz .
     python3 setup.py install
+    ;;
 esac
 
 ~/bin/services start
