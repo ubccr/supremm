@@ -94,12 +94,12 @@ class CpuUsage(Plugin):
     def computejobcpus(self):
         """ stats for the cores on the nodes that were assigend to the job (if available) """
 
-        proc = self._job.getdata(preproc)
+        proc = self._job.getdata('proc')
 
         if proc == None:
             return {"error": ProcessingError.CPUSET_UNKNOWN}, {"error": ProcessingError.CPUSET_UNKNOWN}
 
-        cpusallowed = proc['cpusallowed']
+        cpusallowed = self._job.getdata('proc')['cpusallowed']
 
         ratios = numpy.empty((self._ncpumetrics, self._totalcores), numpy.double)
 
