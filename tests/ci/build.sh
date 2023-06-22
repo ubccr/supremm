@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-build=( "rpm" "wheel" "src" )
+build=("rpm" "wheel" "src")
 for $BUILD in "${build[@]}"
 do
 case
