@@ -12,8 +12,6 @@ class ProcPrometheus(Proc):
         from SLRUM and PBS/Torque (if available).
     """
 
-    name = property(lambda x: "procprom")
-    mode = property(lambda x: "timeseries")
     requiredMetrics = property(lambda x: ["prom:cgroup_cpu_info",
                                           "prom:cgroup_process_exec_count"])
 

@@ -114,10 +114,7 @@ class PCPSummarize(Summarize):
 
         for preproc in self.preprocs:
             result = preproc.results()
-            # Don't overrwrite proc data if ProcPrometheus is enabled
-            if preproc.name == 'procprom':
-                continue
-            if result != None:
+            if preproc.status != "uninitialized" and result is not None:
                 output.update(result)
 
         for source, data in self.job.data().items():

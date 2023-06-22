@@ -69,7 +69,7 @@ class PromSummarize(Summarize):
 
         for preproc in self.preprocs:
             result = preproc.results()
-            if result != None:
+            if preproc.status != "uninitialized" and result is not None:
                 output.update(result)
 
         for source, data in self.job.data().items():

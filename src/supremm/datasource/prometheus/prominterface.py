@@ -22,7 +22,11 @@ class PromClient():
         self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded',
                                      'Accept': 'application/json'})
 
-        self._client.auth = (resconf['prom_user'], resconf['prom_password'])
+        if resconf["prom_user"] == "":
+            self._client.auth = (None, None)
+        else:
+            self._client.auth = (resconf['prom_user'], resconf['prom_password'])
+
         self.connection = PromClient.build_info(self._client, self._url)
 
     def __str__(self):
