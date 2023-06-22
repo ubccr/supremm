@@ -34,6 +34,7 @@ jobs:
       XDMOD_TEST_MODE: << parameters.test-mode >>
       SUPREMM_INSTALL_TYPE: << parameters.install-type >> 
     steps:
+      - checkout
       - run:
           name: Create Test Result Directories
           command: |

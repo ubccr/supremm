@@ -13,8 +13,8 @@ case $INSTALL_TYPE in
     pip3 install dist/supremm-+([0-9.])*.whl
     ;;
   "src")
-    tar -xzf dist/supremm.tar.gz .
-    python3 setup.py install
+    tar -xzf dist/supremm.tar.gz -C /tmp
+    python3 /tmp/setup.py install
     ;;
 esac
 
