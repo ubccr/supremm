@@ -1,3 +1,5 @@
+import logging
+
 from supremm.datasource.pcp.pcpdatasource import PCPDatasource
 from supremm.datasource.prometheus.promdatasource import PromDatasource
 
@@ -11,6 +13,8 @@ class DatasourceFactory():
             self._datasource = PCPDatasource(preprocs, plugins)
         elif resconf["datasource"] == "prometheus":
             self._datasource = PromDatasource(preprocs, plugins, resconf)
+        else:
+            logging.error("Invalid datasource in configuration (%)", resconf["datasource"])
 
     def presummarize(self, job, config, resconf, opts):
         return self._datasource.presummarize(job, config, resconf, opts)
