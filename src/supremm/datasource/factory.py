@@ -14,7 +14,7 @@ class DatasourceFactory():
         elif resconf["datasource"] == "prometheus":
             self._datasource = PromDatasource(preprocs, plugins, resconf)
         else:
-            logging.error("Invalid datasource in configuration: %", resconf["datasource"])
+            logging.error("Invalid datasource in configuration: %s", resconf["datasource"])
 
     def presummarize(self, job, config, resconf, opts):
         return self._datasource.presummarize(job, config, resconf, opts)
