@@ -35,6 +35,8 @@ class CpuUsage(Plugin):
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
+    IDLE_INDEX = 1
+
     def __init__(self, job):
         super(CpuUsage, self).__init__(job)
         self._first = {}
@@ -42,6 +44,7 @@ class CpuUsage(Plugin):
         self._totalcores = 0
         self._outnames = None
         self._ncpumetrics = -1
+        self._hyperthreadedratios = {}
 
     def process(self, nodemeta, timestamp, data, description):
 
@@ -55,6 +58,7 @@ class CpuUsage(Plugin):
 
         if nodemeta.nodename not in self._first:
             self._first[nodemeta.nodename] = numpy.array(data)
+            self._hyperthreadedratios[nodemeta.nodename] = nodemeta.hyperthreadedratio
             return True
 
         self._last[nodemeta.nodename] = numpy.array(data)
@@ -133,6 +137,70 @@ class CpuUsage(Plugin):
 
         return results, effectiveresults
         
+    def computephyscpus(self):
+        """ overall stats for the physical cores when hyperthreading is on """
+
+        totalphyscores = 0
+        for node in self._last:
+            if self._hyperthreadedratios[node]:
+                totalphyscores += len(self._last[node][0]) / self._hyperthreadedratios[node]
+            else:
+                totalphyscores += len(self._last[node][0])
+
+        ratios = numpy.empty((self._ncpumetrics, totalphyscores), numpy.double)
+
+        coreindex = 0
+        for host, last in self._last.iteritems():
+            try:
+                elapsed = last - self._first[host]
+
+                if numpy.amin(numpy.sum(elapsed, 0)) < 1.0:
+                    # typically happens if the job was very short and the datapoints are too close together
+                    return {"error": ProcessingError.JOB_TOO_SHORT}
+
+                # Rescale elasped if virtual/physical core ratio is provided
+                if self._hyperthreadedratios[host]:
+                    coresperhost = len(last[0, :]) / self._hyperthreadedratios[host]
+                    # Map data from virtual cores to physical cores
+                    mappedelapsed = numpy.zeros((len(elapsed), coresperhost))
+                    for i in range(len(elapsed)):
+                        for cpuidx, usage in enumerate(elapsed[i]):
+                            realidx = cpuidx % coresperhost
+                            if mappedelapsed[i][realidx] == 0:
+                                mappedelapsed[i][realidx] = usage
+                            else:
+                                mappedelapsed[i][realidx] += usage
+                    # Rescale the data
+                    for i in range(coresperhost):
+                        totalticks = sum(mappedelapsed[:, i])
+                        if totalticks != 0:
+                            idle = mappedelapsed[self.IDLE_INDEX][i] / totalticks
+                            if idle > (self._hyperthreadedratios[host] - 1.) / self._hyperthreadedratios[host]:
+                                mappedelapsed[self.IDLE_INDEX][i] -= numpy.uint64((self._hyperthreadedratios[host] - 1.) / self._hyperthreadedratios[host] * sum(mappedelapsed[:, i]))
+                            else:
+                                # Total counts
+                                newticks = 1. / self._hyperthreadedratios[host] * sum(mappedelapsed[:, i])
+
+                                # Set idle to zero and preserve the relative proportions of the other counters
+                                mappedelapsed[self.IDLE_INDEX][i] = numpy.uint64(0)
+                                nonidleticks = sum(mappedelapsed[:, i])
+                                mappedelapsed[:, i] = numpy.uint64(mappedelapsed[:, i] * newticks / nonidleticks)
+                    elapsed = mappedelapsed
+                else:
+                    coresperhost = len(last[0, :])
+                ratios[:, coreindex:(coreindex+coresperhost)] = 1.0 * elapsed / numpy.sum(elapsed, 0)
+                coreindex += coresperhost
+            except ValueError:
+                # typically happens if the linux pmda crashes during the job
+                return {"error": ProcessingError.INSUFFICIENT_DATA}
+ 
+        results = {}
+        for i, name in enumerate(self._outnames):
+            results[name] = calculate_stats(ratios[i, :])
+ 
+        results['physall'] = {"cnt": totalphyscores}
+ 
+        return results
 
     def results(self):
 
@@ -153,8 +221,10 @@ class CpuUsage(Plugin):
             jobcpus, effcpus = self.computejobcpus()
         else:
             jobcpus = nodecpus
-            effcpus = nodecpus
-            
-
+            effcpus = nodecpus            
+        if any(self._hyperthreadedratios.itervalues()):
+            physcpus = self.computephyscpus()
+            return {"nodecpus": nodecpus, "jobcpus": jobcpus, "effcpus": effcpus, "physcpus": physcpus}
+        
         return {"nodecpus": nodecpus, "jobcpus": jobcpus, "effcpus": effcpus}
 

@@ -147,11 +147,15 @@ def main():
 
     job = MockJob(archivelist, opts)
     config = Config(confpath=opts['config'])
+    resconfig = None
+    for _, rc in config.resourceconfigs():
+        resconfig = rc
+        break
 
     preprocessors = [x(job) for x in preprocs]
     analytics = [x(job) for x in plugins]
 
-    s = Summarize(preprocessors, analytics, job, config)
+    s = Summarize(preprocessors, analytics, job, config, resconfig)
     s.process()
     result = s.get()
     print json.dumps(result, indent=4, default=str)

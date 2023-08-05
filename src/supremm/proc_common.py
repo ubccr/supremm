@@ -320,7 +320,7 @@ def summarizejob(job, conf, resconf, plugins, preprocs, opts):
 
     preprocessors = instantiatePlugins(preprocs, job)
     analytics = instantiatePlugins(plugins, job)
-    s = Summarize(preprocessors, analytics, job, conf, opts["fail_fast"])
+    s = Summarize(preprocessors, analytics, job, conf, resconf, opts["fail_fast"])
 
     enough_nodes = False
 
