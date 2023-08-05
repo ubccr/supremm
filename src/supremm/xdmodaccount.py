@@ -24,7 +24,14 @@ class XDMoDAcct(Accounting):
                 SELECT
                     jf.`job_id` AS `job_id`,
                     jf.`resource_id` AS `resource_id`,
-                    COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) AS `local_job_id`,
+                    CASE
+                      WHEN jf.`local_job_id_raw` IS NULL THEN IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`))
+                      WHEN sj.`source_format` = 'slurm' THEN jf.`local_job_id_raw`
+                      ELSE IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`))
+                    END AS `job_uniq_id`,
+                    jf.`local_jobid` AS `local_job_id`,
+                    jf.`local_job_array_index` AS `local_job_array_index`,
+                    jf.`local_job_id_raw` AS `local_job_id_raw`,
                     jf.`start_time_ts` AS `start_time`,
                     jf.`end_time_ts` AS `end_time`,
                     jf.`submit_time_ts` AS `submit`,
@@ -70,7 +77,14 @@ class XDMoDAcct(Accounting):
                 SELECT
                     jf.`job_id` as `job_id`,
                     jf.`resource_id` as `resource_id`,
-                    COALESCE(jf.`local_job_id_raw`, jf.`local_jobid`) as `local_job_id`,
+                    CASE
+                      WHEN jf.`local_job_id_raw` IS NULL THEN IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`))
+                      WHEN sj.`source_format` = 'slurm' THEN jf.`local_job_id_raw`
+                      ELSE IF(jf.`local_job_array_index` = -1, jf.`local_jobid`, CONCAT(jf.`local_jobid`, '_', jf.`local_job_array_index`))
+                    END AS `job_uniq_id`,
+                    jf.`local_jobid` AS `local_job_id`,
+                    jf.`local_job_array_index` AS `local_job_array_index`,
+                    jf.`local_job_id_raw` AS `local_job_id_raw`,
                     jf.`start_time_ts` as `start_time`,
                     jf.`end_time_ts` as `end_time`,
                     jf.`submit_time_ts` as `submit`,
@@ -280,7 +294,7 @@ class XDMoDAcct(Accounting):
             jobpk = record['job_id']
             del record['job_id']
             record['host_list'] = hostlist
-            job = Job(jobpk, str(record['local_job_id']), record)
+            job = Job(jobpk, str(record['job_uniq_id']), record)
             job.set_nodes(hostlist)
             job.set_rawarchives(hostarchives)
 
@@ -302,20 +316,20 @@ class XDMoDAcct(Accounting):
         data = (job.job_pk_id, version, elapsedtime, version, elapsedtime)
 
         if self.madcon == None:
-            self.madcon = getdbconnection(self.dbsettings, False)
+            self.madcon = getdbconnection(self.dbsettings, False, {'autocommit': True})
 
         cur = self.madcon.cursor()
 
         try:
             cur.execute(query, data)
-        except OperationalError:
-            logging.warning("Lost MySQL Connection. Attempting single reconnect")
-            self.madcon = getdbconnection(self.dbsettings, False)
+        except OperationalError as e:
+            logging.warning("Lost MySQL Connection. " + str(e))
+            cur.close()
+            self.madcon.close()
+            logging.warning("Attempting reconnect")
+            self.madcon = getdbconnection(self.dbsettings, False, {'autocommit': True})
             cur = self.madcon.cursor()
             cur.execute(query, data)
-
-        self.madcon.commit()
-
 
 class XDMoDArchiveCache(ArchiveCache):
     """ Helper class that adds job accounting records to the database """

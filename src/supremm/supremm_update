@@ -27,7 +27,7 @@ reportfail()
     # Run index and ingest
     
     if [ "$1" != "process" ]; then
-        indexarchives.py
+        indexarchives.py -t $THREADS -q
         summarize_jobs.py -t $THREADS -q
     else
         summarize_jobs.py -t $THREADS -d
