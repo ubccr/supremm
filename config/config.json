@@ -38,7 +38,8 @@
             "resource_id": 1,
             "batch_system": "XDMoD",
             "hostname_mode": "hostname",
-            "pcp_log_dir": "/data/pcp-logs/my_cluster_name",
+            "datasource": "pcp",
+	    "pcp_log_dir": "/data/pcp-logs/my_cluster_name",
             "script_dir": "/data/jobscripts/my_cluster_name",
 
             // fast_index uses an alternative method of indexing job-level pcp archives which can significantly speed

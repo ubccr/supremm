@@ -13,7 +13,7 @@ class PromDatasource(Datasource):
     """ Instance of a Prometheus datasource class """
 
     def __init__(self, preprocs, plugins, resconf):
-        super().__init__(preprocs, plugins)
+        super().__init__(preprocs, plugins, resconf)
 
         self._client = PromClient(resconf)
         self._mapping = MappingManager(self.client)

@@ -12,8 +12,8 @@ from supremm.errors import ProcessingError
 class PCPDatasource(Datasource):
     """ Instance of a PCP datasource class """
 
-    def __init__(self, preprocs, plugins):
-        super().__init__(preprocs, plugins)
+    def __init__(self, preprocs, plugins, resconf):
+        super().__init__(preprocs, plugins, resconf)
 
     def presummarize(self, job, conf, resconf, opts):
         jobmeta = super().presummarize(job, conf, resconf, opts)

@@ -10,7 +10,7 @@ class DatasourceFactory():
     def __init__(self, preprocs, plugins, resconf):
 
         if resconf["datasource"] == "pcp":
-            self._datasource = PCPDatasource(preprocs, plugins)
+            self._datasource = PCPDatasource(preprocs, plugins, resconf)
         elif resconf["datasource"] == "prometheus":
             self._datasource = PromDatasource(preprocs, plugins, resconf)
         else:
@@ -22,5 +22,5 @@ class DatasourceFactory():
     def summarizejob(self, job, jobmeta, config, opts):
         return self._datasource.summarizejob(job, jobmeta, config, opts)
 
-    def cleanup(self, job, opts):
-        return self._datasource.cleanup(job, opts)
+    def cleanup(self, opts, job):
+        return self._datasource.cleanup(opts, job)

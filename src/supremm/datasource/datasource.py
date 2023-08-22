@@ -7,9 +7,10 @@ from supremm.proc_common import instantiatePlugins
 class Datasource(ABC):
     """ Definition of the Datasource API """
 
-    def __init__(self, preprocs, plugins):
+    def __init__(self, preprocs, plugins, resconf):
         self._allpreprocs = preprocs
         self._allplugins = plugins
+        self._datasource = resconf["datasource"]
 
     @property
     def allpreprocs(self):
@@ -26,6 +27,14 @@ class Datasource(ABC):
     @allplugins.setter
     def allplugins(self, plugins):
         self._allplugins = plugins
+
+    @property
+    def datasource(self):
+        return self._datasource
+
+    @datasource.setter
+    def datasource(self, ds):
+        self._datasource = ds
 
     @abstractmethod
     def presummarize(self, job, config, resconf, opts):
