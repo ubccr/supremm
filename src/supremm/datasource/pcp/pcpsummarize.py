@@ -13,7 +13,7 @@ from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
 from supremm.summarize import Summarize
 from supremm.datasource.pcp.pcpcinterface import pcpcinterface
-from supremm.datasource.pcpdatasource import PCP_STR
+from supremm.datasource.pcp.pcpdatasource import PCP_STR
 
 import numpy
 import copy
