@@ -9,14 +9,14 @@ from supremm.datasource.pcp.pcparchive import extract_and_merge_logs
 from supremm.datasource.pcp.pcpsummarize import PCPSummarize
 from supremm.errors import ProcessingError
 
-PCP = "pcp"
+PCP_STR = "pcp"
 
 
 class PCPDatasource(Datasource):
     """ Instance of a PCP datasource class """
 
-    def __init__(self, preprocs, plugins, resconf):
-        super().__init__(preprocs, plugins, resconf)
+    def __init__(self, preprocs, plugins):
+        super().__init__(preprocs, plugins)
 
     def presummarize(self, job, conf, resconf, opts):
         jobmeta = super().presummarize(job, conf, resconf, opts)

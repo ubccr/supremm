@@ -8,14 +8,14 @@ from supremm.datasource.prometheus.prominterface import PromClient
 from supremm.datasource.prometheus.promsummarize import PromSummarize
 from supremm.errors import ProcessingError
 
-PROMETHEUS = "prometheus"
+PROMETHEUS_STR = "prometheus"
 
 
 class PromDatasource(Datasource):
     """ Instance of a Prometheus datasource class """
 
     def __init__(self, preprocs, plugins, resconf):
-        super().__init__(preprocs, plugins, resconf)
+        super().__init__(preprocs, plugins)
 
         self._client = PromClient(resconf)
         self._mapping = MappingManager(self.client)

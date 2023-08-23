@@ -6,7 +6,7 @@ import datetime
 import requests
 import numpy as np
 
-from supremm.datasource.prometheus.promdatasource import PROMETHEUS
+from supremm.datasource.prometheus.promdatasource import PROMETHEUS_STR
 from supremm.datasource.prometheus.prominterface import PromClient, Context
 from supremm.plugin import NodeMetadata
 from supremm.summarize import Summarize
@@ -57,7 +57,7 @@ class PromSummarize(Summarize):
             "created": time.time(),
             "srcdir": self.job.jobdir,
             "complete": self.complete(),
-            "datasource": PROMETHEUS
+            "datasource": PROMETHEUS_STR
         }
 
         output['created'] = datetime.datetime.utcnow()
