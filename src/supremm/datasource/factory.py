@@ -1,7 +1,7 @@
 import logging
 
-from supremm.datasource.pcp.pcpdatasource import PCPDatasource, PROMETHEUS_STR
-from supremm.datasource.prometheus.promdatasource import PromDatasource, PCP_STR
+from supremm.datasource.pcp.pcpdatasource import PCPDatasource, PCP_STR
+from supremm.datasource.prometheus.promdatasource import PromDatasource, PROMETHEUS_STR
 
 
 class DatasourceFactory():
