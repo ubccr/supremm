@@ -9,7 +9,7 @@ class Summarize(ABC):
     """ Abstract base class describing the job summarization interface.
     """
 
-    def __init__(self, preprocessors, analytics, job, config, fail_fast=False, datasource):
+    def __init__(self, preprocessors, analytics, job, config, datasource, fail_fast=False):
         self.preprocs = preprocessors
         self.alltimestamps = [x for x in analytics if x.mode in ("all", "timeseries")]
         self.firstlast = [x for x in analytics if x.mode == "firstlast"]
