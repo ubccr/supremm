@@ -90,7 +90,7 @@ class Datasource(ABC):
         return preprocessors, analytics
 
     @abstractmethod
-    def cleanup(self, job, opts):
+    def cleanup(self, opts, job):
         pass
 
 

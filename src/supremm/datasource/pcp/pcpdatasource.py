@@ -9,6 +9,9 @@ from supremm.datasource.pcp.pcparchive import extract_and_merge_logs
 from supremm.datasource.pcp.pcpsummarize import PCPSummarize
 from supremm.errors import ProcessingError
 
+PCP = "pcp"
+
+
 class PCPDatasource(Datasource):
     """ Instance of a PCP datasource class """
 

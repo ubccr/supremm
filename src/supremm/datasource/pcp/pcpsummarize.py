@@ -13,6 +13,7 @@ from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
 from supremm.summarize import Summarize
 from supremm.datasource.pcp.pcpcinterface import pcpcinterface
+from supremm.datasource.pcpdatasource import PCP
 
 import numpy
 import copy
@@ -101,7 +102,7 @@ class PCPSummarize(Summarize):
             "created": time.time(),
             "srcdir": self.job.jobdir,
             "complete": self.complete(),
-            "datasource": self.datasource
+            "datasource": PCP
         }
 
         output['created'] = datetime.datetime.utcnow()

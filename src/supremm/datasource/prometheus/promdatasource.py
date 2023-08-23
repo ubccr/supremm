@@ -8,6 +8,8 @@ from supremm.datasource.prometheus.prominterface import PromClient
 from supremm.datasource.prometheus.promsummarize import PromSummarize
 from supremm.errors import ProcessingError
 
+PROMETHEUS = "prometheus"
+
 
 class PromDatasource(Datasource):
     """ Instance of a Prometheus datasource class """
