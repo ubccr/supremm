@@ -6,7 +6,6 @@ import datetime
 import requests
 import numpy as np
 
-from supremm.datasource.prometheus.promdatasource import PROMETHEUS_STR
 from supremm.datasource.prometheus.prominterface import PromClient, Context
 from supremm.plugin import NodeMetadata
 from supremm.summarize import Summarize
@@ -22,8 +21,8 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self,  preprocessors, analytics, job, config, mapping, fail_fast=False):
-        super(PromSummarize, self).__init__(preprocessors, analytics, job, config, fail_fast)
+    def __init__(self,  preprocessors, analytics, job, config, mapping, fail_fast=False, datasource):
+        super(PromSummarize, self).__init__(preprocessors, analytics, job, config, fail_fast, datasource)
         self.start = time.time()
 
         # Translation PCP -> Prometheus metric names
@@ -57,7 +56,7 @@ class PromSummarize(Summarize):
             "created": time.time(),
             "srcdir": self.job.jobdir,
             "complete": self.complete(),
-            "datasource": PROMETHEUS_STR
+            "datasource": self.datasource
         }
 
         output['created'] = datetime.datetime.utcnow()

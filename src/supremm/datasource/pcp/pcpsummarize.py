@@ -13,7 +13,6 @@ from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
 from supremm.summarize import Summarize
 from supremm.datasource.pcp.pcpcinterface import pcpcinterface
-from supremm.datasource.pcp.pcpdatasource import PCP_STR
 
 import numpy
 import copy
@@ -36,8 +35,8 @@ class PCPSummarize(Summarize):
     and managing the calls to the various analytics to process the data
     """
 
-    def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
-        super().__init__(preprocessors, analytics, job, config, fail_fast)
+    def __init__(self, preprocessors, analytics, job, config, fail_fast=False, datasource):
+        super().__init__(preprocessors, analytics, job, config, fail_fast, datasource)
         self.start = time.time()
         self.archives_processed = 0
         self.rangechange = RangeChange(config)
@@ -102,7 +101,7 @@ class PCPSummarize(Summarize):
             "created": time.time(),
             "srcdir": self.job.jobdir,
             "complete": self.complete(),
-            "datasource": PCP_STR
+            "datasource": self.datasource
         }
 
         output['created'] = datetime.datetime.utcnow()

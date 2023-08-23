@@ -57,7 +57,7 @@ class PromDatasource(Datasource):
         # Instantiate preproc, plugins
         preprocessors, analytics = super().summarizejob(job, jobmeta, config, opts)
 
-        s = PromSummarize(preprocessors, analytics, job, config, self.mapping, opts["fail_fast"])
+        s = PromSummarize(preprocessors, analytics, job, config, self.mapping, opts["fail_fast"], PROMETHEUS_STR)
 
         enough_nodes = False
 

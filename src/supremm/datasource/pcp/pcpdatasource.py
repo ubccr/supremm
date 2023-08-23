@@ -57,7 +57,7 @@ class PCPDatasource(Datasource):
     def summarizejob(self, job, jobmeta, conf, opts):
         preprocessors, analytics = super().summarizejob(job, jobmeta, conf, opts)
 
-        s = PCPSummarize(preprocessors, analytics, job, conf, opts["fail_fast"])
+        s = PCPSummarize(preprocessors, analytics, job, conf, opts["fail_fast"], PCP_STR)
 
         enough_nodes = False
 
