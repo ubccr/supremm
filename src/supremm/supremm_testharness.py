@@ -16,6 +16,7 @@ import math
 from pcp import pmapi
 import cpmapi as c_pmapi
 
+from supremm.datasource.pcp.pcpdatasource import PCP_STR
 from supremm.datasource.pcp.pcpsummarize import PCPSummarize
 from supremm.plugin import loadplugins, loadpreprocessors
 from supremm.config import Config
@@ -151,7 +152,7 @@ def main():
     preprocessors = [x(job) for x in preprocs]
     analytics = [x(job) for x in plugins]
 
-    s = PCPSummarize(preprocessors, analytics, job, config)
+    s = PCPSummarize(preprocessors, analytics, job, config, PCP_STR)
     s.process()
     result = s.get()
     print(json.dumps(result, indent=4, default=str))
