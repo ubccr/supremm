@@ -8,7 +8,7 @@ import cpmapi as c_pmapi
 import numpy
 from ctypes import c_uint
 
-from supremm.pcpcinterface cimport c_pcp
+from supremm.datasource.pcp.pcpcinterface cimport c_pcp
 cimport numpy
 
 # Memory pool

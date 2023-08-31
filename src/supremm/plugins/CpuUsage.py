@@ -157,4 +157,3 @@ class CpuUsage(Plugin):
             
 
         return {"nodecpus": nodecpus, "jobcpus": jobcpus, "effcpus": effcpus}
-

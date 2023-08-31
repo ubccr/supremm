@@ -22,6 +22,7 @@ class ProcessingError(object):
     RAW_ARCHIVES = 17
     JOB_TOO_MANY_NODEHOURS = 18
     MAX_ERROR = 19
+    PROMETHEUS_CONNECTION = 20
 
     def __init__(self, err_id):
         self._id = err_id
@@ -45,7 +46,8 @@ class ProcessingError(object):
             ProcessingError.NO_ARCHIVES: "None of the nodes in the job have pcp archives",
             ProcessingError.SUMMARIZATION_ERROR: "There were enough archives to try summarization, but too few archives were successfully processed",
             ProcessingError.RAW_ARCHIVES: "Not enough raw archives to try pmlogextract",
-            ProcessingError.JOB_TOO_MANY_NODEHOURS: "Total job node hours exceeded threshold"
+            ProcessingError.JOB_TOO_MANY_NODEHOURS: "Total job node hours exceeded threshold",
+            ProcessingError.PROMETHEUS_CONNECTION: "An error occurred with the Prometheus server during summarization"
         }
         return names[self._id]
 

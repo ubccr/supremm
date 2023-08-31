@@ -12,6 +12,7 @@ import subprocess
 import sys
 import signal
 import pkg_resources
+import requests
 
 
 def promptconfig(display):
@@ -258,7 +259,11 @@ def configure_resource(display, resource_id, resource, defaults):
                "batch_system": "XDMoD",
                "hostname_mode": "hostname",
                "host_name_ext": get_hostname_ext(),
+               "datasource": "pcp",
                "pcp_log_dir": "/data/" + resource + "/pcp-logs",
+               "prom_host": "localhost:9090",
+               "prom_user": "username",
+               "prom_password": "password",
                "batchscript.path": "/data/" + resource + "/jobscripts",
                "batchscript.timestamp_mode": "start"}
 
@@ -267,11 +272,15 @@ def configure_resource(display, resource_id, resource, defaults):
                     "batch_system": "Source of accounting data",
                     "hostname_mode": "node name unique identifier ('hostname' or 'fqdn')",
                     "host_name_ext": "domain name for resource",
+                    "datasource": "Data collector backend (pcp or prometheus)",
                     "pcp_log_dir": "Directory containing node-level PCP archives",
+                    "prom_host": "Hostname for Prometheus server",
+                    "prom_user": "Username for basic authentication to Prometheus server (enter [space] for none)",
+                    "prom_password": "Password for basic authentication to Prometheus server",
                     "batchscript.path": "Directory containing job launch scripts (enter [space] for none)",
                     "batchscript.timestamp_mode": "Job launch script timestamp lookup mode ('submit', 'start' or 'none')"}
 
-    keys = ["enabled", "pcp_log_dir", "batch_system", "hostname_mode", "host_name_ext", "batchscript.path", "batchscript.timestamp_mode"]
+    keys = ["enabled", "datasource", "batch_system", "hostname_mode", "host_name_ext", "batchscript.path", "batchscript.timestamp_mode"]
 
     resdefault = {}
 
@@ -292,14 +301,69 @@ def configure_resource(display, resource_id, resource, defaults):
         setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
         if key == "enabled" and setting[key] == False:
-            break
+            return {"resource_id": resource_id, "enabled": False}
 
-        if key == 'pcp_log_dir':
-            if not os.path.isdir(setting[key]):
-                display.print_warning("""
+        if key == "datasource":
+            while True:
+                setting[key] = setting[key].lower()
+                if setting[key] == "pcp":
+                    key = "pcp_log_dir"
+                    setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
+
+                    if not os.path.isdir(setting[key]):
+                        display.print_warning("""
 WARNING The directory {0} does not exist. Make sure to create and populate this
 directory before running the summarization software.
 """.format(setting[key]))
+                    del setting["prom_host"]
+                    break
+
+                elif setting[key] == "prometheus":
+                    key = "prom_host"
+                    del setting["pcp_log_dir"]
+                    setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
+
+                    key = "prom_user"
+                    setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
+                    if setting[key] is not " ":
+                        key = "prom_password"
+                        setting[key] = display.prompt_password(descriptions[key])
+                    else:
+                        setting["prom_user"] = ""
+                        setting["prom_password"] = ""
+
+                    # Naive test connection to prometheus
+                    url = "http://{}/api/v1/status/buildinfo".format(setting["prom_host"])
+                    try:
+                        build_info = requests.get(url, auth=(setting["prom_user"], setting["prom_password"]))
+                    except requests.exceptions.RequestException as exc:
+                        display.print_warning("""
+WARNING Unable to reach prometheus server at http://{}.
+Make sure the server is running and is accessible before running the summarization software.
+""".format(setting["prom_host"]))
+                        break
+
+                    if build_info.status_code == 401:
+                        display.print_warning("""
+WARNING invalid authentication to Prometheus.
+Please try another username and password.
+""")
+                        break
+
+                    elif build_info.status_code != 200:
+                        display.print_warning("""
+WARNING Status code {} returned from Prometheus at http://{}.
+""".format(build_info.status_code, setting["prom_host"]))
+                        break
+
+                    display.print_text("""
+INFO Prometheus build version: {}
+""".format(build_info.json()["data"]["version"]))
+                    break
+
+                else:
+                   display.print_warning("Invalid datasource specified ({}) (Ctrl+C to exit)".format(setting[key]))
+                   setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
     setting['batchscript'] = {
         'path': setting['batchscript.path'].strip(),

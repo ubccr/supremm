@@ -1,32 +1,64 @@
 version: 2.1
 jobs:
   build:
-    parameters:
-      install-type:
-        type: string
     docker:
-      # The first image entry here will be used as the image for the parent container.
-      - image: tools-ext-01.ccr.xdmod.org/xdmod-job_performance-10.0.0:rockylinux8-0.1
-    environment:
-      TERM: xterm
-      COMPOSER_ALLOW_SUPERUSER: 1
-      XDMOD_REALMS: 'jobs,storage,cloud'
-      XDMOD_IS_CORE: yes
-      XDMOD_INSTALL_DIR: /xdmod
-      XDMOD_TEST_MODE: << parameters.install-type >>
+      - image: rockylinux:8
     steps:
       - checkout
       - run:
           name: Install System Dependencies
-          command: ./tests/ci/setup.sh
+          command: ./tests/ci/setup.sh build
+      - run:
+          name: Build Software Package
+          command: ./tests/ci/build.sh
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist/*
+
+  test:
+    parameters:
+      test-mode:
+        type: string
+      install-type:
+        type: string
+    docker:
+      - image: tools-ext-01.ccr.xdmod.org/xdmod-job_performance-10.0.0:rockylinux8-0.1
+    environment:
+      TERM: xterm
+      TERMINFO: /bin/bash
+      COMPOSER_ALLOW_SUPERUSER: 1
+      XDMOD_REALMS: 'jobs,storage,cloud'
+      XDMOD_IS_CORE: yes
+      XDMOD_INSTALL_DIR: /xdmod
+      XDMOD_TEST_MODE: << parameters.test-mode >>
+      SUPREMM_INSTALL_TYPE: << parameters.install-type >> 
+    steps:
+      - checkout
       - run:
           name: Create Test Result Directories
           command: |
             mkdir -p shippable/testresults
             mkdir -p shippable/codecoverage
+      - attach_workspace:
+          at: .
+      - run:
+          name: Install Docker Compose
+          command: |
+            dnf install -y dnf-utils
+            dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            dnf install -y docker-ce docker-ce-cli docker-compose-plugin
+
+      - setup_remote_docker
+      - run:
+          name: Build services
+          command: docker compose -f ./tests/ci/srv/services.yml build
+      - run:
+          name: Start services
+          command: docker compose -f ./tests/ci/srv/services.yml up -d
       - run:
           name: Run Bootstrap
-          command: ./tests/integration_tests/bootstrap.sh
+          command: ./tests/ci/test/bootstrap.sh $SUPREMM_INSTALL_TYPE
       - run:
           name: Run Integration Tests
           command: ./tests/integration_tests/integration_test.bash
@@ -43,23 +75,14 @@ jobs:
           name: Ingest Jobs
           command: ingest_jobscripts.py -d
       - run:
-          name: Remove Currently Installed SUPREMM
-          command: yum remove -y supremm
-      - run:
-          name: Install SUPREMM
-          command: python3 setup.py install --user --prefix=
-      - run:
           name: Pylint
           command: pylint-3 --errors-only supremm
       - run:
           name: Pytest
           command: pytest-3 --junitxml=shippable/testresults/testreport.xml --cov=supremm --cov-report xml:shippable/codecoverage/coverage.xml
       - run:
-          name: Summarize Jobs
-          command: /root/.local/bin/summarize_jobs.py -h > /dev/null
-      - run:
-          name: Index Archives
-          command: /root/.local/bin/indexarchives.py -h > /dev/null
+          name: Remove Currently Installed SUPREMM
+          command: dnf remove -y supremm
       - store_test_results:
           path: shippable/testresults
       - store_artifacts:
@@ -70,7 +93,11 @@ jobs:
 workflows:
   full-build:
     jobs:
-      - build:
+      - build
+      - test:
           matrix:
             parameters:
-              install-type: ["fresh_install", "upgrade"]
+              test-mode: ["fresh_install", "upgrade"]
+              install-type: ["rpm", "wheel", "src"]
+          requires:
+            - build

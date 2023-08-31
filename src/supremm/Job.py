@@ -77,6 +77,7 @@ class Job(object):
         self.job_id = job_id
         self.acct = acct
         self._nodecount = acct['nodes']
+
         self._start_datetime = datetimeconvert(acct['start_time'])
         self._end_datetime = datetimeconvert(acct['end_time'])
 
@@ -129,6 +130,11 @@ class Job(object):
         for nodename, nodedata in self._nodes.items():
             if len(nodedata.rawarchives) > 0:
                 yield nodename, nodedata.rawarchives
+
+    def nodenames(self):
+        """ iterator for all nodenames that the job ran on """
+        for nodename in self._nodes.keys():
+            yield nodename
 
     def nodearchives(self):
         """ iterator for the combined archives for the nodes in the job """

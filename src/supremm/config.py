@@ -8,6 +8,7 @@ import glob
 import pkg_resources
 import logging
 
+
 def iscomment(line):
     """ check is line is a c++ style comment """
     if re.search(r"^\s*//", line):
@@ -47,7 +48,7 @@ class Config(object):
         return json.dumps(self._config, indent=4)
 
     @staticmethod
-    def autodetectconfpath():
+    def autodetectconfpath(filename="config.json"):
         """ search known paths for the configuration directory
             List of paths support the three typical install locations
             1) Environment variable SUPREMM_CONFIG_DIR
@@ -63,7 +64,7 @@ class Config(object):
         ]
 
         for path in searchpaths:
-            if os.path.exists(os.path.join(path, "config.json")):
+            if os.path.exists(os.path.join(path, filename)):
                 return os.path.abspath(path)
 
         return None

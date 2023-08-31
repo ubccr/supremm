@@ -1,0 +1,33 @@
+version: "3.9"
+
+services: 
+  prometheus:
+    build:
+      context: ./prometheus
+    hostname: prometheus
+    container_name: prometheus
+    volumes:
+      - type: volume
+        source: tsdb
+        target: /var/lib/prometheus
+    command:
+      - '--storage.tsdb.path=/prometheus'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.config.file=/etc/prometheus/web.yml'
+    network_mode: "host"
+
+  mongod:
+    image:
+      mongo:6.0
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=supremm
+      - MONGO_INITDB_ROOT_PASSWORD=supremm-test123
+    volumes:
+      - type: volume
+        source: mongodb
+        target: /data/db
+    network_mode: "host"
+
+volumes:
+  tsdb:
+  mongodb:

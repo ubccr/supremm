@@ -1,6 +1,6 @@
 """" tests for the pcp archive processor """
 import unittest
-from supremm.indexarchives import PcpArchiveProcessor
+from supremm.datasource.pcp.indexarchives import PcpArchiveProcessor
 
 class TestPcpArchiveProcessor(unittest.TestCase):
     """ Tests for the pcp filename string parser code """
