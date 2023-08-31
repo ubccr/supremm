@@ -1,7 +1,7 @@
 import logging
 
-from supremm.datasource.pcp.pcpdatasource import PCPDatasource, PCP_STR
-from supremm.datasource.prometheus.promdatasource import PromDatasource, PROMETHEUS_STR
+from supremm.datasource.pcp.pcpdatasource import PCPDatasource
+from supremm.datasource.prometheus.promdatasource import PromDatasource
 
 
 class DatasourceFactory():
@@ -9,9 +9,9 @@ class DatasourceFactory():
 
     def __init__(self, preprocs, plugins, resconf):
 
-        if resconf["datasource"] == PCP_STR:
+        if resconf["datasource"] == "pcp":
             self._datasource = PCPDatasource(preprocs, plugins)
-        elif resconf["datasource"] == PROMETHEUS_STR:
+        elif resconf["datasource"] == "prometheus":
             self._datasource = PromDatasource(preprocs, plugins, resconf)
         else:
             logging.error("Invalid datasource in configuration: %s", resconf["datasource"])

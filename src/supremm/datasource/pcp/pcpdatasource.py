@@ -9,9 +9,6 @@ from supremm.datasource.pcp.pcparchive import extract_and_merge_logs
 from supremm.datasource.pcp.pcpsummarize import PCPSummarize
 from supremm.errors import ProcessingError
 
-PCP_STR = "pcp"
-
-
 class PCPDatasource(Datasource):
     """ Instance of a PCP datasource class """
 
@@ -57,7 +54,7 @@ class PCPDatasource(Datasource):
     def summarizejob(self, job, jobmeta, conf, opts):
         preprocessors, analytics = super().summarizejob(job, jobmeta, conf, opts)
 
-        s = PCPSummarize(preprocessors, analytics, job, conf, opts["fail_fast"], PCP_STR)
+        s = PCPSummarize(preprocessors, analytics, job, conf, opts["fail_fast"])
 
         enough_nodes = False
 

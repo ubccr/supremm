@@ -35,8 +35,8 @@ class PCPSummarize(Summarize):
     and managing the calls to the various analytics to process the data
     """
 
-    def __init__(self, preprocessors, analytics, job, config, datasource, fail_fast=False):
-        super().__init__(preprocessors, analytics, job, config, datasource, fail_fast)
+    def __init__(self, preprocessors, analytics, job, config, fail_fast=False):
+        super().__init__(preprocessors, analytics, job, config, fail_fast)
         self.start = time.time()
         self.archives_processed = 0
         self.rangechange = RangeChange(config)
@@ -101,7 +101,7 @@ class PCPSummarize(Summarize):
             "created": time.time(),
             "srcdir": self.job.jobdir,
             "complete": self.complete(),
-            "datasource": self.datasource
+            "datasource": "pcp"
         }
 
         output['created'] = datetime.datetime.utcnow()

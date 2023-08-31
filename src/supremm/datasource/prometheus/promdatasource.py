@@ -8,8 +8,6 @@ from supremm.datasource.prometheus.prominterface import PromClient
 from supremm.datasource.prometheus.promsummarize import PromSummarize
 from supremm.errors import ProcessingError
 
-PROMETHEUS_STR = "prometheus"
-
 
 class PromDatasource(Datasource):
     """ Instance of a Prometheus datasource class """
@@ -57,7 +55,7 @@ class PromDatasource(Datasource):
         # Instantiate preproc, plugins
         preprocessors, analytics = super().summarizejob(job, jobmeta, config, opts)
 
-        s = PromSummarize(preprocessors, analytics, job, config, self.mapping, opts["fail_fast"], PROMETHEUS_STR)
+        s = PromSummarize(preprocessors, analytics, job, config, self.mapping, opts["fail_fast"])
 
         enough_nodes = False
 
