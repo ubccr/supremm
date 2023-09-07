@@ -12,5 +12,6 @@ jq -e .cpuperf.cpldref.avg < $outputfile
 jq -e .uncperf.membw.avg < $outputfile
 jq -e .timeseries.membw < $outputfile
 jq -e .timeseries.simdins < $outputfile
+jq -e .summarization.datasource < $outputfile
 
 rm -f $outputfile

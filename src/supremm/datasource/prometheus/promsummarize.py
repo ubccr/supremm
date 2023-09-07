@@ -55,7 +55,9 @@ class PromSummarize(Summarize):
             "elapsed": time.time() - self.start,
             "created": time.time(),
             "srcdir": self.job.jobdir,
-            "complete": self.complete()}
+            "complete": self.complete(),
+            "datasource": "prometheus",
+        }
 
         output['created'] = datetime.datetime.utcnow()
 
