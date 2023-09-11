@@ -100,23 +100,23 @@ developers. As always, the definitive reference is the source code itself.
 The summarization software processing flow is approximately as follows:
 
 - Initial setup including parsing configuration files, opening database connections, etc.
-- Query an accounting database to get list of jobs to process and list of PCP archives containing data.
+- Query an accounting database to get the list of jobs to process
 - For each job:
-    - retrieve the PCP archives that cover the time period that the job ran;
-    - extract the relevant datapoints from the PCP archives;
+    - retrieve performance data that cover the time period the job ran;
+    - extract the relevant datapoints per timestep;
     - run the data through the **preprocessors**;
     - run the data through the **plugins**;
     - collect the output of the **preprocessors** and **plugins** and store in an output database.
 
 **preprocessors** and **plugins** are both python modules that implement a
 defined interface. The main difference between a preprocessor and a plugin is
-that the preprocessors run first and their output is avialable to the plugin
+that the preprocessors run first and their output is available to the plugin
 code.
 
-Each **plugin** is typically responsible for generating a job-level summmary for a PCP metric or group of PCP metrics. Each module
+Each **plugin** is typically responsible for generating a job-level summmary for one or many performance metrics. Each module
 defines:
 - an identifier for the output data;
-- a list of PCP metrics;
+- a list of required performance metrics;
 - a mode of operation (either only process the first and last datapoints or process all data);
 - an implementation of a processing function that will be called by the framework with the requested datapoints;
 - an implementation of a function that will be called at the end to return the results of the analyis.
@@ -134,8 +134,8 @@ databases (Open XDMoD being the main one).
 If you are interested in doing plugin development, then a suggested starting
 point is to look at some of the existing plugins. The simplest plugins, such as
 the block device plugin (`supremm/plugins/Block.py`) use the framework-provided
-implementation. A more complex example is the Slurm cgroup memory processor
-(`supremm/plugins/SlurmCgroupMemory.py`) that contains logic to selectively
+implementation. A more complex example is the cgroup memory processor
+(`supremm/plugins/CgroupMemory.py`) that contains logic to selectively
 ignore certain datapoints and to do some non-trivial statistics on the data. 
 
 If you are interested in understanding the full processing workflow, then the
