@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0] - 2023-09-11
+
+### Added
+- Add support for Prometheus as a performance data source. (https://github.com/ubccr/supremm/pull/268)
+- Add 'datasource' field to output summarization record. (https://github.com/ubccr/supremm/pull/269)
+- Add better support for the configuration check utility in `supremmconf.py`. (https://github.com/ubccr/supremm/pull/263)
+- Add support for configurable job uniqueness. (https://github.com/ubccr/supremm/pull/265)
+
+### Changed
+- Update from Python 2.7 to Python 3.6.
+- Update template paths to explicitly include the PCP version. (https://github.com/ubccr/supremm/pull/255)
+- Use multithreaded archive indexing by default. (https://github.com/ubccr/supremm/pull/250)
+
+### Fixed
+- Update indexing in plugins to use integer division when processing jobs with greater than 64 nodes. (https://github.com/ubccr/supremm/pull/264)
+- Fix string encoding from byte array to UTF-8 for PCP on RHEL 8. (https://github.com/ubccr/supremm/pull/261)
+
 ## [1.4.1] - 2020-10-14
 
 ### Fixed
