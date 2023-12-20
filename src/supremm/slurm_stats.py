@@ -65,7 +65,12 @@ def durationseconds(info, field):
     time_minutes = getfield(info, field)
     if time_minutes is None:
         return 0
-    return time_minutes * 60
+    if isinstance(time_minutes, int):
+        return time_minutes * 60
+    elif 'number' in time_minutes:
+        return time_minutes['number'] * 60
+    else:
+        raise Exception('syntax error')
 
 def starttime_ts(info):
     """ helper function to get the start time. This follows the same algorithm
@@ -211,7 +216,12 @@ def process_file(entry, config, resconf, dryrun):
         alldata = json.load(jfile)
         with outputter.factory(config, resconf, dry_run=dryrun) as outdb:
             for data in alldata['jobs']:
-                job, mdata = slurm_job_to_supremm(data, resconf['resource_id'])
+                try:
+                    job, mdata = slurm_job_to_supremm(data, resconf['resource_id'])
+                except Exception as e:
+                    print(entry.path)
+                    print(json.dumps(data, indent=4))
+                    raise e
                 if job is None:
                     continue
 
