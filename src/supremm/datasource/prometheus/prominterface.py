@@ -37,7 +37,7 @@ class PromClient():
         """ Query server build info. Test connection to server. """
 
         endpoint = "/api/v1/status/buildinfo"
-        url = "".join(test_url, endpoint)
+        url = "".join([test_url, endpoint])
 
         r = client.get(url)
         if r.status_code != 200:
@@ -80,7 +80,7 @@ class PromClient():
         }
 
         endpoint = "/api/v1/query_range"
-        url = "".join(self._url, endpoint)
+        url = "".join([self._url, endpoint])
 
         r = self._client.get(url, params=params)
         if r.status_code != 200:
@@ -100,7 +100,7 @@ class PromClient():
 
         endpoint = "/api/v1/series"
         urlparse.urlencode(params, doseq=True)
-        url = "".join(self._url, endpoint)
+        url = "".join([self._url, endpoint])
         logging.debug('Prometheus QUERY SERIES META, start=%s end=%s', start, end)
 
         r = self._client.get(url, params=params)
@@ -122,7 +122,8 @@ class PromClient():
         }
 
         urlparse.urlencode(params, doseq=True)
-        url = "".join(self._url, "/api/v1/label/%s/values" % label)
+        endpoint = "/api/v1/label/{}/values".format(label)
+        url = "".join([self._url, endpoint])
         logging.debug('Prometheus QUERY LABEL VALUES, start=%s end=%s', start, end)
 
         # Query data
@@ -147,7 +148,7 @@ class PromClient():
         }
 
         urlparse.urlencode(params, doseq=True)
-        url = "".join(self._url, "/api/v1/label/cgroup/values")
+        url = "".join([self._url, "/api/v1/label/cgroup/values"])
         logging.debug('Prometheus QUERY CGROUP, start=%s end=%s', start, end)
 
         # Query data
