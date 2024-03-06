@@ -60,7 +60,7 @@ class PromClient():
         }
 
         endpoint = "/api/v1/query"
-        url = "".join(self._url, endpoint)
+        url = "".join([self._url, endpoint])
 
         r = self._client.get(url, params=params)
         if r.status_code != 200:
