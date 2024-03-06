@@ -15,14 +15,14 @@ class PromClient():
     """ Client class to interface with Prometheus """
 
     def __init__(self, resconf):
-        self._url = "http://{}".format(resconf['prom_host'])
+        self._url = "{}".format(resconf['prom_url'])
 
         self._client = requests.Session()
         self._client.mount(self._url, self._client.get_adapter(self._url))
         self._client.headers.update({'Content-Type': 'application/x-www-form-urlencoded',
                                      'Accept': 'application/json'})
 
-        if resconf["prom_user"] == "":
+        if resconf['prom_user'] == "":
             self._client.auth = (None, None)
         else:
             self._client.auth = (resconf['prom_user'], resconf['prom_password'])
@@ -37,7 +37,7 @@ class PromClient():
         """ Query server build info. Test connection to server. """
 
         endpoint = "/api/v1/status/buildinfo"
-        url = urlparse.urljoin(test_url, endpoint)
+        url = "".join(test_url, endpoint)
 
         r = client.get(url)
         if r.status_code != 200:
@@ -60,7 +60,7 @@ class PromClient():
         }
 
         endpoint = "/api/v1/query"
-        url = urlparse.urljoin(self._url, endpoint)
+        url = "".join(self._url, endpoint)
 
         r = self._client.get(url, params=params)
         if r.status_code != 200:
@@ -80,7 +80,7 @@ class PromClient():
         }
 
         endpoint = "/api/v1/query_range"
-        url = urlparse.urljoin(self._url, endpoint)
+        url = "".join(self._url, endpoint)
 
         r = self._client.get(url, params=params)
         if r.status_code != 200:
@@ -100,7 +100,7 @@ class PromClient():
 
         endpoint = "/api/v1/series"
         urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self._url, endpoint)
+        url = "".join(self._url, endpoint)
         logging.debug('Prometheus QUERY SERIES META, start=%s end=%s', start, end)
 
         r = self._client.get(url, params=params)
@@ -122,7 +122,7 @@ class PromClient():
         }
 
         urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self._url, "/api/v1/label/%s/values" % label)
+        url = "".join(self._url, "/api/v1/label/%s/values" % label)
         logging.debug('Prometheus QUERY LABEL VALUES, start=%s end=%s', start, end)
 
         # Query data
@@ -147,7 +147,7 @@ class PromClient():
         }
 
         urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self._url, "/api/v1/label/cgroup/values")
+        url = "".join(self._url, "/api/v1/label/cgroup/values")
         logging.debug('Prometheus QUERY CGROUP, start=%s end=%s', start, end)
 
         # Query data
