@@ -318,6 +318,8 @@ WARNING The directory {0} does not exist. Make sure to create and populate this
 directory before running the summarization software.
 """.format(setting[key]))
                     del setting["prom_host"]
+                    del setting["prom_user"]
+                    del setting["prom_password"]
                     break
 
                 elif setting[key] == "prometheus":
