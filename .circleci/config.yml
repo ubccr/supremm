@@ -23,7 +23,7 @@ jobs:
       install-type:
         type: string
     docker:
-      - image: tools-ext-01.ccr.xdmod.org/xdmod-job_performance-10.0.0:rockylinux8-0.1
+      - image: tools-ext-01.ccr.xdmod.org/xdmod-job_performance-10.5.0:rockylinux8-0.1
     environment:
       TERM: xterm
       TERMINFO: /bin/bash
@@ -32,7 +32,7 @@ jobs:
       XDMOD_IS_CORE: yes
       XDMOD_INSTALL_DIR: /xdmod
       XDMOD_TEST_MODE: << parameters.test-mode >>
-      SUPREMM_INSTALL_TYPE: << parameters.install-type >> 
+      SUPREMM_INSTALL_TYPE: << parameters.install-type >>
     steps:
       - checkout
       - run:
