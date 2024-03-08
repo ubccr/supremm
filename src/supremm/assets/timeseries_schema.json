@@ -1,0 +1,82 @@
+{
+    "_id": "timeseries-4",
+    "type": "timeseries",
+    "applies_to_version": 4,
+    "metrics": {
+        "cpuuser": {
+            "units": "CPU %",
+            "description": "CPU User",
+            "help": "The average percentage of time spent in CPU user mode. The average is computed over each time interval."
+        },
+        "membw": {
+            "units": "GB/s",
+            "description": "Memory bandwidth",
+            "help": "The total rate of data transferred to and from main memory. The rate is computed over each time interval. This value is obtained from the hardware counters."
+        },
+        "simdins": {
+            "units": "insts/s",
+            "description": "SIMD instructions",
+            "help": "The total rate of floating point SIMD instructions reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
+        },
+        "sveins": {
+            "units": "insts/s",
+            "description": "SVE instructions",
+            "help": "The total rate of SVE instructions reported by the hardware performance counters on the CPU cores on which the job ran. The number of floating point operations per SVE instruction retired can vary."
+        },
+        "gpu_usage": {
+            "units": "GPU %",
+            "description": "GPU utilization %",
+            "help": "The average percentage of time spent with the GPU active. The average is computed over each time interval."
+        },
+        "clktks": {
+            "units": "insts/s",
+            "description": "Clock Ticks",
+            "help": "The total rate of clock ticks reported by the hardware performance counters on the CPU cores on which the job ran. Note that the meaning of this value is hardware-specific so the data should not in general be compared between HPC resources that have different hardware architectures."
+        },
+        "memused_minus_diskcache": {
+            "units": "GB",
+            "description": "Node Memory RSS",
+            "help": "The total physical memory used by the operating system excluding memory used for caches. This value includes the contribution for <em>all</em> processes including system daemons and all running HPC jobs but does not include the physical memory used by the kernel page and SLAB caches. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)"
+        },
+        "corepower": {
+            "units": "Watts",
+            "help": "The power consumption obtained from hardware measurements built into the CPU or motherboard. This will not include the contribution from other hardware components on the compue node such as periperal cards and power supplies.",
+            "description": "CPU Power"
+        },
+        "power": {
+            "units": "Watts",
+            "help": "The power consumption of the compute nodes obtained from the IPMI DCMI interface. This does not include any associated power usage from other datacenter components such as network switches, parallel filesystems and cooling.",
+            "description": "Node Power"
+        },
+        "memused": {
+            "units": "GB",
+            "description": "Total Node Memory",
+            "help": "The total physical memory used by the operating system. For HPC resources that use a Linux-based operating system this value is obtained from the <code>meminfo</code> file in sysfs for each numa node (i.e. <code>/sys/devices/system/node/nodeX/meminfo</code>)"
+        },
+        "process_mem_usage": {
+            "units": "GB",
+            "description": "Total CGroup Memory",
+            "help": "The total amount of memory used in the memory cgroup that contained the job. The value is obtained from the kernel cgroup metrics."
+        },
+        "ib_lnet": {
+            "units": "MB/s",
+            "description": "Interconnect MPI traffic",
+            "help": "The total rate of data transferred over the parallel interconnect. The rate is computed over each time interval and is the sum of the data sent and received by each node. Some HPC resources also use the interconnect for parallel filesystem traffic; this filesystem traffic is not included in these data."
+        },
+        "lnet": {
+            "units": "MB/s",
+            "description": "Parallel Filesystem traffic",
+            "help": "The total rate of data transferred to and from the parallel filesystem. The rate is computed over each time interval and is the sum of data sent and received by each node."
+        },
+        "block": {
+            "units": "GB/s",
+            "description": "Block Filesystem traffic",
+            "help": "The total rate of data transferred to and from the block devices on each node.  The rate is computed over each time interval and is the sum of data read and written."
+        },
+        "nfs": {
+            "units": "MB/s",
+            "description": "NFS Filesystem traffic",
+            "help": "The total rate of data transferred to and from the parallel filesystem over NFS mounts. The rate is computed over each time interval and is the sum of data sent and received by each node."
+        }
+    }
+}

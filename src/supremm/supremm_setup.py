@@ -13,7 +13,9 @@ import sys
 import signal
 import pkg_resources
 import requests
-
+from pymongo import MongoClient, uri_parser
+from pymongo.errors import ServerSelectionTimeoutError, \
+                           InvalidURI
 
 def promptconfig(display):
     """ prompt user for configuration path """
@@ -419,11 +421,11 @@ following the documentation in the install guide.
 
 An error:
 
-\"{0}\" 
+\"{0}\"
 
 occurred running the mysql command. Please create the tables manually
 following the documentation in the install guide.
-""".format(e.strerror)) 
+""".format(e.strerror))
 
         display.hitanykey("Press ENTER to continue.")
 
@@ -431,48 +433,61 @@ def create_mongodb(display):
     """ Add the schema collection to mongo """
 
     display.newpage("Mongo Database setup")
-
     config = promptconfig(display)
-
-    scriptpath = pkg_resources.resource_filename(__name__, "assets/mongo_setup.js")
-
     dbsettings = config.getsection("outputdatabase")
 
-    mongouri = display.prompt_string("URI", dbsettings['uri'])
+    while True:
+        mongouri = display.prompt_string("URI", dbsettings['uri'])
+        try:
+            uri_parser.parse_uri(mongouri)
+            break
+        except InvalidURI as e:
+            display.print_warning("{}".format(e))
+            display.hitanykey("Press ENTER to try again. (Ctrl+C to exit)")
+            display.newpage()
+            continue
 
     display.print_warning("""
 
 WARNING This operation will write to mongo
 
 """)
-
     dotables = display.prompt("Do you wish to proceed?", ["y", "n"], "n")
 
     if dotables == "y":
-        command = ["mongo", "--quiet", mongouri, scriptpath]
+        update_mongodb_schema(display, mongouri)
+
+    display.hitanykey("Press ENTER to continue.")
+
+def update_mongodb_schema(display, uri):
+
+    for s in ["schema", "timeseries_schema"]:
+        schemafname = "assets/{}.json".format(s)
+        schemafile = pkg_resources.resource_filename(__name__, schemafname)
         try:
-            retval = subprocess.call(command)
-            if retval != 0:
-                display.print_warning("""
+            sjson = open(schemafile, "r")
+            schema = json.load(sjson)
+            schemaid = schema["_id"]
+            sjson.close()
+        except FileNotFoundError:
+            display.print_warning("""
+
+An error occurred. MongoDB schema file not found.
+""")
+            return
+
+        client = MongoClient(uri)
+        try:
+            client.supremm.schema.update({"_id": schemaid}, schema, upsert=True)
+        except ServerSelectionTimeoutError:
+            display.print_warning("""
 
 An error occurred writing to mongo. Please refer to the manual setup
 instructions in the install guide.
 """)
-            else:
-                display.print_text("Sucessfully updated mongo")
-        except OSError as e:
-            display.print_warning("""
+            return
 
-An error:
-
-\"{0}\" 
-
-occurred running the mongo command. Please refer to the manual setup
-instructions in the install guide.
-
-""".format(e.strerror)) 
-
-    display.hitanykey("Press ENTER to continue.")
+    display.print_text("Sucessfully updated mongo")
 
 def signal_handler(sig, _):
     """ clean exit on an INT signal """
