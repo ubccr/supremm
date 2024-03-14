@@ -264,8 +264,8 @@ def configure_resource(display, resource_id, resource, defaults):
                "datasource": "pcp",
                "pcp_log_dir": "/data/" + resource + "/pcp-logs",
                "prom_host": "localhost:9090",
-               "prom_user": "username",
-               "prom_password": "password",
+               "prom_user": "",
+               "prom_password": "",
                "batchscript.path": "/data/" + resource + "/jobscripts",
                "batchscript.timestamp_mode": "start"}
 
@@ -277,7 +277,7 @@ def configure_resource(display, resource_id, resource, defaults):
                     "datasource": "Data collector backend (pcp or prometheus)",
                     "pcp_log_dir": "Directory containing node-level PCP archives",
                     "prom_host": "Hostname for Prometheus server",
-                    "prom_user": "Username for basic authentication to Prometheus server (enter [space] for none)",
+                    "prom_user": "Username for basic authentication to Prometheus server",
                     "prom_password": "Password for basic authentication to Prometheus server",
                     "batchscript.path": "Directory containing job launch scripts (enter [space] for none)",
                     "batchscript.timestamp_mode": "Job launch script timestamp lookup mode ('submit', 'start' or 'none')"}
@@ -329,7 +329,7 @@ directory before running the summarization software.
 
                     key = "prom_user"
                     setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
-                    if setting[key] is not " ":
+                    if setting[key] is not "":
                         key = "prom_password"
                         setting[key] = display.prompt_password(descriptions[key])
                     else:
