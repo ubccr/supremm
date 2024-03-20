@@ -35,7 +35,7 @@ setup(
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     package_data={
-        'supremm': ['assets/modw_supremm.sql', 'assets/mongo_setup.js', '*.pxd', '*.pyx'],
+        'supremm': ['assets/modw_supremm.sql', 'assets/*schema.json', '*.pxd', '*.pyx'],
         'supremm.datasource.pcp.pcpcinterface': ['*.pxd', '*.pyx']
     },
     data_files=[
