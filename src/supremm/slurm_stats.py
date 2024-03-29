@@ -7,11 +7,15 @@ import datetime
 import re
 import gzip
 import os
+import logging
 
 from ClusterShell.NodeSet import NodeSet
 from supremm.config import Config
 from supremm import outputter
+from supremm.scripthelpers import setuplogger
 
+
+import pymongo
 
 RUNLOG_FILE='.slurm_stats.json'
 
@@ -199,6 +203,12 @@ def slurm_job_to_supremm(job, resource_id):
             'idle': { 'cnt': ncpus, 'avg': (job_total_time - job_user_time - job_system_time) / job_total_time }
         }
 
+    JOB_STEP_THRESHOLD = 500
+    if len(out['procDump']['slurm']['steps']) > JOB_STEP_THRESHOLD:
+        out['procDump']['notes'] = 'The job had {} job steps. Only the first {} shown.'.format(len(out['procDump']['slurm']['steps']), JOB_STEP_THRESHOLD)
+        out['procDump']['slurm']['steps'] = out['procDump']['slurm']['steps'][0:100]
+        logging.debug("Had to truncate data for %s", json.dumps(out['acct'], indent=4, default=str))
+
     endproc = datetime.datetime.now(datetime.timezone.utc)
     mdata = {
         "created" : now.timestamp(),
@@ -219,17 +229,24 @@ def process_file(entry, config, resconf, dryrun):
                 try:
                     job, mdata = slurm_job_to_supremm(data, resconf['resource_id'])
                 except Exception as e:
-                    print(entry.path)
-                    print(json.dumps(data, indent=4))
+                    logging.error(entry.path)
+                    logging.error(json.dumps(data, indent=4))
                     raise e
                 if job is None:
                     continue
 
-                outdb.process(job, mdata)
+                try:
+                    outdb.process(job, mdata)
+                except pymongo.errors.DocumentTooLarge as e:
+                    logging.error(entry.path)
+                    logging.error(json.dumps(mdata, indent=4, default=str))
+                    logging.error(json.dumps(job, indent=4, default=str))
+                    raise e
+
                 job_count += 1
 
                 if job_count % 500 == 0:
-                    print(f"Processed {job_count} jobs")
+                    logging.info(f"Processed {job_count} jobs")
 
 
 def getrunlog():
@@ -265,6 +282,9 @@ def main():
 
     args = parser.parse_args()
 
+    log_level = logging.DEBUG if args.verbose else logging.WARNING
+    setuplogger(log_level)
+
     exp = re.compile("^sacct_json_([a-z_]+)_([0-9]{4}-[0-9]{2}-[0-9]{2}).json.gz$")
 
     config = Config('../../config')
@@ -288,14 +308,15 @@ def main():
     for fp in entries:
         entry = fp[0]
         resource = fp[1]
+
         if resource in resmap:
             if entry.stat().st_mtime > last_mtime:
                 process_file(entry, config, resmap[resource], args.dryrun)
                 mlog['last_mtime'] = max(mlog['last_mtime'], entry.stat().st_mtime)
             else:
-                print("Skip old file", entry.path)
+                logging.debug("Skip old file %s", entry.path)
         else:
-            print("Skip unknown resource", entry.path)
+            logging.debug("Skip unknown resource %s", entry.path)
 
 
     if not args.dryrun:
