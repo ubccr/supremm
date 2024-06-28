@@ -40,7 +40,24 @@
             "hostname_mode": "hostname",
             "pcp_log_dir": "/data/pcp-logs/my_cluster_name",
             "script_dir": "/data/jobscripts/my_cluster_name",
+            "datasource": "pcp",
 
+            // Enable specific preprocessors/plugins to run
+            "plugin_whitelist": ["Proc", "Block", "Network", "CpuUsage"]
+        },
+        "my_othercluster_name": {
+            "enabled": true,
+            "resource_id": 2,
+            "batch_system": "XDMoD",
+            "hostname_mode": "hostname",
+            "prom_host": "localhost:9090",
+            "prom_user": "username",
+            "prom_password": "p@$SW0rd",
+            "datasource": "prometheus",
+
+            // Disable specific preprocessors/plugins to run
+            "plugin_blacklist": ["GpuUsage", "GpuPower", "GpuUsageTimeseries"]
+        }
             // fast_index uses an alternative method of indexing job-level pcp archives which can significantly speed
             // up the indexarchives.py script. The tradeoff is that the indexed archive end time is not found and the
             // start time is slightly less accurate. For normal summarization usage this doesn't matter, but set this
