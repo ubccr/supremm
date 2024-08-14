@@ -36,7 +36,7 @@ class PromClient():
     def build_info(client, test_url):
         """ Query server build info. Test connection to server. """
 
-        endpoint = "/api/v1/status/buildinfo"
+        endpoint = "api/v1/status/buildinfo"
         url = urlparse.urljoin(test_url, endpoint)
 
         r = client.get(url)
@@ -59,7 +59,7 @@ class PromClient():
             'time': time,
         }
 
-        endpoint = "/api/v1/query"
+        endpoint = "api/v1/query"
         url = urlparse.urljoin(self._url, endpoint)
 
         r = self._client.get(url, params=params)
@@ -79,7 +79,7 @@ class PromClient():
             'step': '30s'
         }
 
-        endpoint = "/api/v1/query_range"
+        endpoint = "api/v1/query_range"
         url = urlparse.urljoin(self._url, endpoint)
 
         r = self._client.get(url, params=params)
@@ -98,7 +98,7 @@ class PromClient():
             'end': str(end)
         }
 
-        endpoint = "/api/v1/series"
+        endpoint = "api/v1/series"
         urlparse.urlencode(params, doseq=True)
         url = urlparse.urljoin(self._url, endpoint)
         logging.debug('Prometheus QUERY SERIES META, start=%s end=%s', start, end)
@@ -122,7 +122,7 @@ class PromClient():
         }
 
         urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self._url, "/api/v1/label/%s/values" % label)
+        url = urlparse.urljoin(self._url, "api/v1/label/%s/values" % label)
         logging.debug('Prometheus QUERY LABEL VALUES, start=%s end=%s', start, end)
 
         # Query data
@@ -147,7 +147,7 @@ class PromClient():
         }
 
         urlparse.urlencode(params, doseq=True)
-        url = urlparse.urljoin(self._url, "/api/v1/label/cgroup/values")
+        url = urlparse.urljoin(self._url, "api/v1/label/cgroup/values")
         logging.debug('Prometheus QUERY CGROUP, start=%s end=%s', start, end)
 
         # Query data
