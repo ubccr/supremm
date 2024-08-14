@@ -15,7 +15,7 @@ class PromClient():
     """ Client class to interface with Prometheus """
 
     def __init__(self, resconf):
-        self._url = "http://{}".format(resconf['prom_host'])
+        self._url = resconf['prom_url']
 
         self._client = requests.Session()
         self._client.mount(self._url, self._client.get_adapter(self._url))
