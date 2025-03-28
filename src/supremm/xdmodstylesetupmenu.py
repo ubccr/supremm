@@ -4,7 +4,7 @@
 """
 import curses
 
-class XDMoDStyleSetupMenu(object):
+class XDMoDStyleSetupMenu():
     """ Simple menu display interface, intended to have similar look and feel
     to the xdmod-setup menu for the Open XDMoD software """
 
@@ -73,7 +73,7 @@ class XDMoDStyleSetupMenu(object):
             curses.echo()
             answer = str(self.stdscr.getstr(), 'ascii')
             curses.noecho()
-            
+
             if answer == "" and default != None:
                 answer = default
 

@@ -36,7 +36,7 @@ JOB_ARCHIVE_RE = re.compile(
 
 JOB_ID_REGEX = re.compile(r"^(?:(\d+)(?:[_\[](\d+)?\]?)?).*$")
 
-class TimezoneAdjuster(object):
+class TimezoneAdjuster():
     def __init__(self, timezone_name, guess_early=True):
         self.timezone = pytz.timezone(timezone_name) if timezone_name is not None else datetime.now(timezone(timedelta(0))).astimezone().tzinfo
         self.guess_early = guess_early
@@ -49,7 +49,7 @@ class TimezoneAdjuster(object):
             return timestamp - self.timezone.utcoffset(dt, self.guess_early).total_seconds()
 
 
-class PcpArchiveProcessor(object):
+class PcpArchiveProcessor():
     """ Parses a pcp archive and adds the archive information to the index """
 
     def __init__(self, resconf):
@@ -126,7 +126,7 @@ class PcpArchiveProcessor(object):
         return self.tz_adjuster.adjust(start_datetime)
 
 
-class PcpArchiveFinder(object):
+class PcpArchiveFinder():
     """ Helper class that finds all pcp archive files in a directory
         mindate is the minimum datestamp of files that should be processed
     """
@@ -337,7 +337,7 @@ class PcpArchiveFinder(object):
                          datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
 
-class LoadFileIndexUpdater(object):
+class LoadFileIndexUpdater():
     def __init__(self, config, resconf, keep_csv=False, dry_run=False):
         self.config = config
         self.resource_id = resconf["resource_id"]

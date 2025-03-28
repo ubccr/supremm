@@ -21,7 +21,7 @@ def safe_strptime(time_string, fmt):
 
     return converted_time
 
-class JobNode(object):
+class JobNode():
     """ simple container class that contains information about the pcp archives associated
        with a node in the job """
     def __init__(self, nodename, nodeidx):
@@ -66,7 +66,7 @@ def datetimeconvert(intime):
     else:
         return safe_strptime(intime, "%Y-%m-%dT%H:%M:%S")
 
-class Job(object):
+class Job():
     """ Contains the data for a job. """
     # pylint: disable=too-many-instance-attributes
 

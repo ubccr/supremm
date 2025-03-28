@@ -15,7 +15,7 @@ def iscomment(line):
         return True
     return False
 
-class Config(object):
+class Config():
     """ Configuration data management
         The configuration file format is similar to json except lines that begin "//"
         are treated as comments and are ignored. Also the string \n[:space:]// is not permitted

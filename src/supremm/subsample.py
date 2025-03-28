@@ -3,7 +3,7 @@
 import numpy
 
 
-class TimeseriesAccumulator(object):
+class TimeseriesAccumulator():
     """ Stores a subset of time-value pairs for a dataseries """
     MAX_DATAPOINTS = 100
     LEAD_IN_DATAPOINTS = 10
@@ -64,7 +64,7 @@ class TimeseriesAccumulator(object):
         return str(self._data[:, :self._count, :])
 
 
-class RangeConverter(object):
+class RangeConverter():
     """
     Convert data from limited width to 64bit width. Optionally raise an exception if
     the counters spin too fast.

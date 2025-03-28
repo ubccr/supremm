@@ -18,7 +18,7 @@ INGEST_VERSION = 0x000001
 PROCESS_VERSION = 0x000001
 
 
-class DbInsert(object):
+class DbInsert():
     """
     Helper class that adds job accounting records to the database
     """
@@ -110,8 +110,8 @@ class DbArchiveCache(ArchiveCache):
                 self.con.commit()
                 self._hostnamecache[hostname] = 1
 
-            query = """INSERT INTO archive (hostid, filename, start_time_ts, end_time_ts, jobid) 
-                       VALUES( (SELECT id FROM hosts WHERE hostname = %s),%s,%s,%s,%s) 
+            query = """INSERT INTO archive (hostid, filename, start_time_ts, end_time_ts, jobid)
+                       VALUES( (SELECT id FROM hosts WHERE hostname = %s),%s,%s,%s,%s)
                        ON DUPLICATE KEY UPDATE start_time_ts=%s, end_time_ts=%s"""
             cur.execute(query, [hostname, filename, start, end, jobid, start, end])
 
@@ -136,7 +136,7 @@ class DbArchiveCache(ArchiveCache):
         self.con.commit()
 
 
-class DbLogger(object):
+class DbLogger():
     """
     Helper class that marks job records as processed
     """
@@ -152,10 +152,10 @@ class DbLogger(object):
 
         query = """ UPDATE process p, job j
                     SET p.process_version = %s, p.process_timestamp = NOW(), p.process_time = %s
-                    WHERE 
-                        p.jobid = j.id 
-                        AND j.resource_id = %s 
-                        AND j.local_job_id = %s 
+                    WHERE
+                        p.jobid = j.id
+                        AND j.resource_id = %s
+                        AND j.local_job_id = %s
                         AND j.end_time_ts = %s """
 
         data = (version, ptime, resource_id, acct['id'], acct['end_time'])
@@ -195,8 +195,8 @@ class DbAcct(Accounting):
                            `jobhosts` jh,
                            `job` j
                        WHERE
-                           j.id = jh.jobid 
-                           AND jh.jobid = %s 
+                           j.id = jh.jobid
+                           AND jh.jobid = %s
                            AND jh.hostid = h.id
                            AND a.hostid = h.id
                            AND (
@@ -234,11 +234,11 @@ class DbAcct(Accounting):
 
         query = """SELECT
                         j.id,
-                        UNCOMPRESS(j.record) 
-                FROM 
+                        UNCOMPRESS(j.record)
+                FROM
                         `job` j
-                WHERE 
-                        j.resource_id = %s 
+                WHERE
+                        j.resource_id = %s
                         AND j.local_job_id = %s """
 
         data = (self._resource_id, localjobid)
@@ -266,11 +266,11 @@ class DbAcct(Accounting):
 
         query = """SELECT
                         j.id,
-                        UNCOMPRESS(j.record) 
-                FROM 
+                        UNCOMPRESS(j.record)
+                FROM
                         `job` j
-                WHERE 
-                        j.resource_id = %s 
+                WHERE
+                        j.resource_id = %s
                         AND j.end_time_ts BETWEEN unix_timestamp(%s) AND unix_timestamp(%s)
                 """
 
@@ -299,19 +299,19 @@ class DbAcct(Accounting):
             yield self.recordtojob(r, list(hostarchives.keys()), hostarchives)
 
     def get(self, start_time=None, end_time=None):
-        """ 
+        """
         read all unprocessed jobs between start_time and end_time (or all time if start/end not specified)
         """
 
-        query = """SELECT 
+        query = """SELECT
                         j.id,
-                        UNCOMPRESS(j.record) 
-                FROM 
-                        `job` j, 
+                        UNCOMPRESS(j.record)
+                FROM
+                        `job` j,
                         `process` p
-                WHERE 
-                        j.id = p.jobid 
-                        AND j.resource_id = %s 
+                WHERE
+                        j.id = p.jobid
+                        AND j.resource_id = %s
                         AND p.process_version != %s """
 
         data = (self._resource_id, PROCESS_VERSION)
@@ -348,14 +348,14 @@ class DbAcct(Accounting):
 
 
 def ingestall(config):
-    """ 
+    """
     Run account data ingest for all records
     """
     ingest(config, 9223372036854775807, 0)
 
 
 def ingest(config, end_time, start_time=None):
-    """ 
+    """
     Run account data ingest for all records between start_time and end_time
     If start_time is not specified then the start time is based on the
     most recent record last ingested

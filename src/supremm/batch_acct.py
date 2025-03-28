@@ -13,7 +13,7 @@ def special_char_stripper(fp):
    for line in fp:
       yield line.replace('\r', '')
 
-class BatchAcct(object):
+class BatchAcct():
 
   def __init__(self,batch_kind,acct_file,host_name_ext,delimiter=":"):
     if not hasattr(self, 'fields'):
@@ -25,7 +25,7 @@ class BatchAcct(object):
         self.name_ext = '.'+host_name_ext
     else:
         self.name_ext = ""
-    self.delimiter = delimiter 
+    self.delimiter = delimiter
 
   def reader(self,start_time=0, end_time=9223372036854775807, seek=0):
     """reader(start_time=0, end_time=9223372036854775807L, seek=0)
@@ -57,7 +57,7 @@ class BatchAcct(object):
             #print 'before',d
             num_cols = len(d[None])
             for cols in range(num_cols):
-              d['name'] = d['name']+':'+d['status']        
+              d['name'] = d['name']+':'+d['status']
               d['status'] = str(d['nodes'])
               d['nodes'] = d['cores']
               d['cores'] = d[None][0]
@@ -133,7 +133,7 @@ class SGEAcct(BatchAcct):
       ('arid',            int, 'Advance reservation identifier. If the job used resources of an advance reservation then this field contains a positive integer identifier otherwise the value is 0.'),
       ('ar_submission_time', int, 'If the job used resources of an advance reservation then this field contains the submission time (GMT unix time stamp) of the advance reservation, otherwise the value is 0.'),
       )
-    
+
     BatchAcct.__init__(self,'SGE',acct_file,host_name_ext)
 
   def get_host_list_path(self,acct,host_list_dir):
@@ -154,7 +154,7 @@ class SGEAcct(BatchAcct):
 class SLURMAcct(BatchAcct):
 
   def __init__(self,acct_file,host_name_ext):
-    
+
     self.fields = (
       ('id', str, 'Job ID'),
       ('uid', str, 'User UNIX ID'),
@@ -170,7 +170,7 @@ class SLURMAcct(BatchAcct):
       ('nodes', int, 'Nodes requested'),
       ('cores', int, 'CPU cores requested')
       )
-    
+
     BatchAcct.__init__(self,'SLURM',acct_file,host_name_ext)
 
   def get_host_list_path(self,acct,host_list_dir):
@@ -233,7 +233,7 @@ class SLURMNativeAcct(BatchAcct):
 
     if nodelist == "None assigned":
         return []
-    
+
     open_brace_flag = False
     close_brace_flag = False
     host_list = []

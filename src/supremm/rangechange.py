@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy
 
-class DataCache(object):
+class DataCache():
     """ Helper class that remembers the last value that it was passed """
     def __init__(self):
         self.mdata = None
@@ -28,7 +28,7 @@ class DataCache(object):
         else:
             return True
 
-class RangeChange(object):
+class RangeChange():
     """ Convert counters that have < 64 bits to 64 bits """
     def __init__(self, configobj):
         try:

@@ -14,7 +14,7 @@ from supremm.scripthelpers import getdbconnection
 MAX_SCRIPT_LEN = (64 * 1024) - 1
 
 
-class DbHelper(object):
+class DbHelper():
     """ Helper class to interact with the database """
 
     def __init__(self, dwconfig, schema, timestamp_mode):
@@ -38,7 +38,7 @@ class DbHelper(object):
             self.query = "INSERT INTO " + self.tablename + " (resource_id,local_job_id,script) VALUES(%s,%s,%s) ON DUPLICATE KEY UPDATE script = VALUES(script)"
         else:
             self.query = "INSERT INTO " + self.tablename + """ (tg_job_id, resource_id, start_date, script)
-                        SELECT 
+                        SELECT
                             job_id AS tg_job_id,
                             resource_id,
                             DATE(FROM_UNIXTIME(start_time_ts)) AS start_date,
@@ -46,7 +46,7 @@ class DbHelper(object):
                         FROM
                             `modw`.`job_tasks`
                         WHERE
-                            resource_id = %s 
+                            resource_id = %s
                             AND local_job_id_raw = %s"""
 
             if self.timestamp_mode == 'start':
