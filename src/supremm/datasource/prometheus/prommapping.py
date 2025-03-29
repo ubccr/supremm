@@ -62,7 +62,7 @@ class MappingManager():
 
         plabels = []
         for label in p:
-           plabels.append("{}='{{}}'".format(label))
+            plabels.append("{}='{{}}'".format(label))
         plabels = ",".join(plabels)
 
         dlabels = []

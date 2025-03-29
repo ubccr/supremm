@@ -13,8 +13,11 @@ class ArmPowerUsageTimeseries(Plugin):
 
     name = property(lambda x: "corepower")
     mode = property(lambda x: "timeseries")
-    requiredMetrics = property(lambda x: ["perfevent.hwcounters.arm_a64fx__EA_CORE.value", "perfevent.hwcounters.arm_a64fx__EA_L2.value",
-"perfevent.hwcounters.arm_a64fx__EA_MEMORY.value"])
+    requiredMetrics = property(lambda x: [
+        "perfevent.hwcounters.arm_a64fx__EA_CORE.value",
+        "perfevent.hwcounters.arm_a64fx__EA_L2.value",
+        "perfevent.hwcounters.arm_a64fx__EA_MEMORY.value"
+    ])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 

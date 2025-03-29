@@ -364,8 +364,8 @@ INFO Prometheus build version: {}
                     break
 
                 else:
-                   display.print_warning("Invalid datasource specified ({}) (Ctrl+C to exit)".format(setting[key]))
-                   setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
+                    display.print_warning("Invalid datasource specified ({}) (Ctrl+C to exit)".format(setting[key]))
+                    setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
     setting['batchscript'] = {
         'path': setting['batchscript.path'].strip(),

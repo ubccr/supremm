@@ -11,7 +11,8 @@ class CpuUsage(Plugin):
 
     name = property(lambda x: "cpu")
     mode = property(lambda x: "firstlast")
-    requiredMetrics = property(lambda x: [[
+    requiredMetrics = property(lambda x: [
+        [
             "kernel.percpu.cpu.user",
             "kernel.percpu.cpu.idle",
             "kernel.percpu.cpu.nice",
@@ -19,12 +20,14 @@ class CpuUsage(Plugin):
             "kernel.percpu.cpu.wait.total",
             "kernel.percpu.cpu.irq.hard",
             "kernel.percpu.cpu.irq.soft"
-        ], [
+        ],
+        [
             "kernel.percpu.cpu.user",
             "kernel.percpu.cpu.idle",
             "kernel.percpu.cpu.sys",
             "kernel.percpu.cpu.wait.total"
-        ], [
+        ],
+        [
             "kernel.all.cpu.user",
             "kernel.all.cpu.idle",
             "kernel.all.cpu.nice",

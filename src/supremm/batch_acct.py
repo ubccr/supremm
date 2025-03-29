@@ -5,77 +5,81 @@ import os
 import time
 
 def factory(kind, acct_file, host_name_ext=''):
-  if kind == 'SGE':
-    return SGEAcct(acct_file, host_name_ext)
-  elif kind == 'SLURM':
-    return SLURMAcct(acct_file, host_name_ext)
-  elif kind == 'SLURMNative':
-    return SLURMNativeAcct(acct_file, host_name_ext)
+    if kind == 'SGE':
+        return SGEAcct(acct_file, host_name_ext)
+    elif kind == 'SLURM':
+        return SLURMAcct(acct_file, host_name_ext)
+    elif kind == 'SLURMNative':
+        return SLURMNativeAcct(acct_file, host_name_ext)
 
 def special_char_stripper(fp):
-   for line in fp:
-      yield line.replace('\r', '')
+    for line in fp:
+        yield line.replace('\r', '')
 
 class BatchAcct():
 
-  def __init__(self, batch_kind, acct_file, host_name_ext, delimiter=":"):
-    if not hasattr(self, 'fields'):
-      self.fields = []
-    self.batch_kind = batch_kind
-    self.acct_file = acct_file
-    self.field_names = [tup[0] for tup in self.fields]
-    if len(host_name_ext) > 0:
-        self.name_ext = '.'+host_name_ext
-    else:
-        self.name_ext = ""
-    self.delimiter = delimiter
+    def __init__(self, batch_kind, acct_file, host_name_ext, delimiter=":"):
+        if not hasattr(self, 'fields'):
+            self.fields = []
+        self.batch_kind = batch_kind
+        self.acct_file = acct_file
+        self.field_names = [tup[0] for tup in self.fields]
+        if len(host_name_ext) > 0:
+            self.name_ext = '.'+host_name_ext
+        else:
+            self.name_ext = ""
+        self.delimiter = delimiter
 
-  def reader(self, start_time=0, end_time=9223372036854775807, seek=0):
-    """reader(start_time=0, end_time=9223372036854775807L, seek=0)
-    Return an iterator for all jobs that finished between start_time and end_time.
-    """
-    filelist = []
-    if os.path.isdir(self.acct_file):
-        for dir_name, subdir_list, file_list in os.walk(self.acct_file):
-            for fname in file_list:
-                filelist.append(os.path.join(self.acct_file, dir_name, fname))
-    else:
-        filelist = [self.acct_file]
+    def reader(self, start_time=0, end_time=9223372036854775807, seek=0):
+        """reader(start_time=0, end_time=9223372036854775807L, seek=0)
+        Return an iterator for all jobs that finished between start_time and end_time.
+        """
+        filelist = []
+        if os.path.isdir(self.acct_file):
+            for dir_name, subdir_list, file_list in os.walk(self.acct_file):
+                for fname in file_list:
+                    filelist.append(os.path.join(self.acct_file, dir_name, fname))
+        else:
+            filelist = [self.acct_file]
 
-    for fname in filelist:
-        file = open(fname)
-        if seek:
-            file.seek(seek, os.SEEK_SET)
+        for fname in filelist:
+            file = open(fname)
+            if seek:
+                file.seek(seek, os.SEEK_SET)
 
-        for d in csv.DictReader(special_char_stripper(file), delimiter=self.delimiter, fieldnames=self.field_names):
-          try:
-            for n, t, x in self.fields:
-              d[n] = t(d[n])
-          except Exception as e:
-            pass
+            for d in csv.DictReader(
+                special_char_stripper(file),
+                delimiter=self.delimiter,
+                fieldnames=self.field_names
+            ):
+                try:
+                    for n, t, x in self.fields:
+                    d[n] = t(d[n])
+                except Exception as e:
+                    pass
 
-          ## Clean up when colons exist in job name
-          if None in d:
-            num_cols = len(d[None])
-            for cols in range(num_cols):
-              d['name'] = d['name'] + ':' + d['status']
-              d['status'] = str(d['nodes'])
-              d['nodes'] = d['cores']
-              d['cores'] = d[None][0]
-              del d[None][0]
-            d['nodes'] = int(d['nodes'])
-            d['cores'] = int(d['cores'])
-            del d[None]
-            #print 'after',d
-          # Accounting records with pe_taskid != NONE are generated for
-          # sub_tasks of a tightly integrated job and should be ignored.
-          if start_time <= d['end_time'] and d['end_time'] < end_time:
-            if self.batch_kind == 'SGE' and d['pe_taskid'] == 'NONE':
-              yield d
-            elif self.batch_kind == 'SLURM':
-              yield d
+                ## Clean up when colons exist in job name
+              if None in d:
+                num_cols = len(d[None])
+                for cols in range(num_cols):
+                  d['name'] = d['name'] + ':' + d['status']
+                  d['status'] = str(d['nodes'])
+                  d['nodes'] = d['cores']
+                  d['cores'] = d[None][0]
+                  del d[None][0]
+                d['nodes'] = int(d['nodes'])
+                d['cores'] = int(d['cores'])
+                del d[None]
+                #print 'after',d
+              # Accounting records with pe_taskid != NONE are generated for
+              # sub_tasks of a tightly integrated job and should be ignored.
+              if start_time <= d['end_time'] and d['end_time'] < end_time:
+                if self.batch_kind == 'SGE' and d['pe_taskid'] == 'NONE':
+                  yield d
+                elif self.batch_kind == 'SLURM':
+                  yield d
 
-        file.close()
+            file.close()
 
 
   def from_id_with_file_1(self, id, seek=0):

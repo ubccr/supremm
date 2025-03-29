@@ -10,7 +10,10 @@ class NodeMemoryUsage(Plugin):
 
     name = property(lambda x: "nodememory")
     mode = property(lambda x: "all")
-    requiredMetrics = property(lambda x: [["mem.freemem", "mem.physmem"], ["mem.util.free", "hinv.physmem", "mem.util.cached"]])
+    requiredMetrics = property(lambda x: [
+        ["mem.freemem", "mem.physmem"],
+        ["mem.util.free", "hinv.physmem", "mem.util.cached"]
+    ])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -81,11 +84,13 @@ class NodeMemoryUsage(Plugin):
         if len(memused) == 0:
             return {"error": ProcessingError.INSUFFICIENT_DATA}
 
-        result = {"used": calculate_stats(memused),
-                "maxused": calculate_stats(maxmemused),
-                "free": calculate_stats(memfree),
-                "physmem": calculate_stats(physmem),
-                "maxfree": calculate_stats(maxmemfree)}
+        result = {
+            "used": calculate_stats(memused),
+            "maxused": calculate_stats(maxmemused),
+            "free": calculate_stats(memfree),
+            "physmem": calculate_stats(physmem),
+            "maxfree": calculate_stats(maxmemfree)
+        }
 
         if len(memusedminus) > 0:
             result['used_minus_cache'] = calculate_stats(memusedminus)

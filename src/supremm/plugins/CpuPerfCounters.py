@@ -7,41 +7,57 @@ from supremm.errors import ProcessingError
 import numpy
 
 
-SNB_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
-               "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
-               "perfevent.hwcounters.MEM_LOAD_UOPS_RETIRED_L1_HIT.value",
-               "perfevent.hwcounters.SIMD_FP_256_PACKED_DOUBLE.value",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE.value",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE.value",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_X87.value"]
+SNB_METRICS = [
+    "perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+    "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
+    "perfevent.hwcounters.MEM_LOAD_UOPS_RETIRED_L1_HIT.value",
+    "perfevent.hwcounters.SIMD_FP_256_PACKED_DOUBLE.value",
+    "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP_PACKED_DOUBLE.value",
+    "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE.value",
+    "perfevent.hwcounters.FP_COMP_OPS_EXE_X87.value"
+]
 
-NHM_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
-               "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
-               "perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value",
-               "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
+NHM_METRICS = [
+    "perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+    "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
+    "perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value",
+    "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"
+]
 
-NHM_ALT_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
-                   "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
-                   "perfevent.hwcounters.L1D_REPL.value",
-                   "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"]
+NHM_ALT_METRICS = [
+    "perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+    "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
+    "perfevent.hwcounters.L1D_REPL.value",
+    "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_FP.value"
+]
 
-GENERIC_INTEL_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
-                         "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
-                         "perfevent.hwcounters.L1D_REPLACEMENT.value"]
+GENERIC_INTEL_METRICS = [
+    "perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+    "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value",
+    "perfevent.hwcounters.L1D_REPLACEMENT.value"
+]
 
-GENERIC_INTEL_ALT_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
-                             "perfevent.hwcounters.INSTRUCTION_RETIRED.value"]
+GENERIC_INTEL_ALT_METRICS = [
+    "perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+    "perfevent.hwcounters.INSTRUCTION_RETIRED.value"
+]
 
-GENERIC_INTEL_ALT2_METRICS = ["perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
-                              "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value"]
+GENERIC_INTEL_ALT2_METRICS = [
+    "perfevent.hwcounters.UNHALTED_REFERENCE_CYCLES.value",
+    "perfevent.hwcounters.INSTRUCTIONS_RETIRED.value"
+]
 
-ARM64_METRICS = ["perfevent.hwcounters.perf__instructions.value",
-         "perfevent.hwcounters.perf__cycles.value"]
+ARM64_METRICS = [
+    "perfevent.hwcounters.perf__instructions.value",
+    "perfevent.hwcounters.perf__cycles.value"
+]
 
-AMD_INTERLAGOS_METRICS = ["perfevent.hwcounters.CPU_CLK_UNHALTED.value",
-                          "perfevent.hwcounters.RETIRED_INSTRUCTIONS.value",
-                          "perfevent.hwcounters.DATA_CACHE_MISSES_DC_MISS_STREAMING_STORE.value",
-                          "perfevent.hwcounters.RETIRED_SSE_OPS_ALL.value"]
+AMD_INTERLAGOS_METRICS = [
+    "perfevent.hwcounters.CPU_CLK_UNHALTED.value",
+    "perfevent.hwcounters.RETIRED_INSTRUCTIONS.value",
+    "perfevent.hwcounters.DATA_CACHE_MISSES_DC_MISS_STREAMING_STORE.value",
+    "perfevent.hwcounters.RETIRED_SSE_OPS_ALL.value"
+]
 
 class CpuPerfCounters(Plugin):
     """ Compute various performance counter derived metrics """
