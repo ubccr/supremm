@@ -4,10 +4,10 @@
 """
 
 import logging
-import os
 import time
 import traceback
 import multiprocessing as mp
+
 from supremm.config import Config
 from supremm.account import DbAcct
 from supremm.xdmodaccount import XDMoDAcct

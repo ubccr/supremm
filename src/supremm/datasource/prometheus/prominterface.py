@@ -1,12 +1,8 @@
-import os
+import datetime
 import logging
 import urllib.parse as urlparse
-import datetime
 
-import numpy as np
 import requests
-
-from supremm.config import Config
 
 CHUNK_SIZE = 4 # HOURS
 

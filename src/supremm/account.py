@@ -2,7 +2,6 @@
 """
 Abstraction of the job accouting data
 """
-import datetime
 import json
 import sys
 

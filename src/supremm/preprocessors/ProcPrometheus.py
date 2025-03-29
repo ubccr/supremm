@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 """ Proc information pre-processor """
-
-import re
-
 from supremm.preprocessors.Proc import Proc
 from supremm.linuxhelpers import parsecpusallowed
 

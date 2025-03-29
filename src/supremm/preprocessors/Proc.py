@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """ Proc information pre-processor """
-
 import re
-import itertools
 from collections import Counter
 
 from supremm.plugin import PreProcessor

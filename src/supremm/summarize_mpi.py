@@ -2,9 +2,7 @@
 """
     Main script for converting host-based pcp archives to job-level summaries.
 """
-import os
 import logging
-import shutil
 import traceback
 import time
 import json

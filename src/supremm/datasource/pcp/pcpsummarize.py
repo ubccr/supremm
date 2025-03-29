@@ -5,7 +5,6 @@ import datetime
 import logging
 import time
 import traceback
-from ctypes import c_uint
 
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
@@ -13,7 +12,6 @@ from supremm.summarize import Summarize
 from supremm.datasource.pcp.pcpcinterface import pcpcinterface
 
 import cpmapi as c_pmapi
-import numpy
 from pcp import pmapi
 
 

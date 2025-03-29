@@ -1,12 +1,10 @@
-import os
 import time
 import logging
 import datetime
 
 import requests
-import numpy as np
 
-from supremm.datasource.prometheus.prominterface import PromClient, Context
+from supremm.datasource.prometheus.prominterface import Context
 from supremm.plugin import NodeMetadata
 from supremm.summarize import Summarize
 

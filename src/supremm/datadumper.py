@@ -1,7 +1,6 @@
 """ X """
 import pickle as pickle
 import os
-import numpy
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

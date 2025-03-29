@@ -9,7 +9,6 @@ import os
 import shutil
 import subprocess
 import math
-import time
 import traceback
 import sys
 
@@ -37,7 +36,7 @@ def adjust_job_start_end(job):
      Note that the job start and end archives are keyed on the local_job_id, which
      may not be globally unique. For example if a job gets requeued on the same
      compute node with the same local_job_id. To exclude the job start/end archives
-     from other runs of the job, the adjustment is only performed if the 
+     from other runs of the job, the adjustment is only performed if the
      start/end archives are within 30 seconds of the accounting times.
     """
 
@@ -124,7 +123,7 @@ def getextractcmdline(startdate, enddate, inputarchives, outputarchive):
 
 def genoutputdir(job, conf, resconf):
     """ compute the per job archive directory path based on config options """
-    
+
     if 'job_output_dir' in resconf:
         jobdir = resconf['job_output_dir']
     else:
@@ -215,7 +214,7 @@ def pmlogextract(job, conf, resconf, opts):
                 job.record_error(errmsg)
             else:
                 job.addnodearchive(nodename, node_archive)
-    
+
     # We care about errors, but also how many nodes didn't have archives at all
     nodes_missing = job.nodecount - nodes_seen
     node_error -= nodes_missing
