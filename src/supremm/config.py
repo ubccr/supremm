@@ -5,8 +5,9 @@ import json
 import configparser
 import re
 import glob
-import pkg_resources
 import logging
+
+import pkg_resources
 
 
 def iscomment(line):

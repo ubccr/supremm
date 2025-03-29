@@ -1,11 +1,14 @@
 """ Implementation for account reader that gets data from the XDMoD datawarehouse """
-from pymysql import OperationalError, ProgrammingError
+import logging
+
 from supremm.config import Config
 from supremm.accounting import Accounting, ArchiveCache
 from supremm.scripthelpers import getdbconnection
 from supremm.Job import Job
 from supremm.errors import ProcessingError
-import logging
+
+from pymysql import OperationalError, ProgrammingError
+
 
 class XDMoDAcct(Accounting):
     """ account reader that gets data from xdmod datawarehouse """

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """ CPU Usage metrics """
-
+from supremm.errors import ProcessingError
 from supremm.plugin import Plugin
 from supremm.statistics import calculate_stats
-from supremm.errors import ProcessingError
+
 import numpy
 
 class CpuUsage(Plugin):

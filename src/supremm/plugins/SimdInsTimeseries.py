@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """ Timeseries generator module """
+from collections import Counter
 
 from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
 from supremm.errors import ProcessingError
+
 import numpy
-from collections import Counter
 
 SNB_METRICS = ["perfevent.hwcounters.SIMD_FP_256_PACKED_DOUBLE.value",
                "perfevent.hwcounters.FP_COMP_OPS_EXE_SSE_SCALAR_DOUBLE.value",

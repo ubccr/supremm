@@ -2,17 +2,17 @@
 """
 Abstraction of the job accouting data
 """
+import datetime
+import json
+import sys
 
 from supremm.accounting import Accounting, ArchiveCache
-import pymysql as mdb
 from supremm import batch_acct
 from supremm.Job import Job
 from supremm.config import Config
 from supremm.lariat import LariatManager
 
-import datetime
-import json
-import sys
+import pymysql as mdb
 
 INGEST_VERSION = 0x000001
 PROCESS_VERSION = 0x000001

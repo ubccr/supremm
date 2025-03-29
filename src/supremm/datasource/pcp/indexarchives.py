@@ -1,29 +1,26 @@
 #!/usr/bin/env python3
 """ Script that indexes the pc archives for a given resource.
 """
-
+import argparse
+import csv
+import functools
 import logging
 import math
+import re
+import os
+import tempfile
+import time
+from datetime import datetime, timedelta, timezone
+from multiprocessing import Pool
 
 import pytz
 from pcp import pmapi
 import cpmapi as c_pmapi
-import time
-
-from supremm.config import Config
-from supremm.scripthelpers import parsetime, setuplogger
 
 from supremm.account import DbArchiveCache
+from supremm.config import Config
+from supremm.scripthelpers import parsetime, setuplogger
 from supremm.xdmodaccount import XDMoDArchiveCache
-
-import os
-from datetime import datetime, timedelta, timezone
-import re
-from multiprocessing import Pool
-import functools
-import tempfile
-import csv
-import argparse
 
 
 def datetime_to_timestamp(dt):

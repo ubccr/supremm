@@ -1,14 +1,16 @@
 """ definition of the plugin API and implementations of some base classes that
     include common functions """
 
+import os
+import pkgutil
 from abc import ABCMeta, abstractmethod, abstractproperty
+from collections import Counter
+
+from supremm.errors import ProcessingError
 from supremm.statistics import calculate_stats
 from supremm.subsample import TimeseriesAccumulator
-from supremm.errors import ProcessingError
-import os
+
 import numpy
-import pkgutil
-from collections import Counter
 
 def loadplugins(plugindir=None, namespace="plugins"):
     """ Load all of the modules from the plugins directory and instantiate the

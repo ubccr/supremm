@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
+import copy
+import configparser
 import json
 import os
-import tempfile
-import copy
-from supremm.scripthelpers import getdbconnection
-from supremm.config import Config
-from supremm.xdmodstylesetupmenu import XDMoDStyleSetupMenu
-import configparser
+import signal
 import socket
 import subprocess
 import sys
-import signal
+import tempfile
+
+from supremm.config import Config
+from supremm.scripthelpers import getdbconnection
+from supremm.xdmodstylesetupmenu import XDMoDStyleSetupMenu
+
 import pkg_resources
 import requests
 

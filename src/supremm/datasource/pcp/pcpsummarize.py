@@ -1,21 +1,20 @@
 #!/usr/bin/env python
 """ Summarize module for PCP datasource """
-
+import copy
 import datetime
-
-from ctypes import c_uint
-from pcp import pmapi
-import cpmapi as c_pmapi
-import time
 import logging
+import time
 import traceback
+from ctypes import c_uint
+
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
 from supremm.summarize import Summarize
 from supremm.datasource.pcp.pcpcinterface import pcpcinterface
 
+import cpmapi as c_pmapi
 import numpy
-import copy
+from pcp import pmapi
 
 
 class ArchiveMeta(NodeMetadata):

@@ -1,12 +1,12 @@
 #!/usr/bin env python
 """ common functions used in the command line scripts """
-
 import re
+import sys
 import datetime
+import logging
+
 import pymysql
 import pymysql.cursors
-import sys
-import logging
 
 def parsetime(strtime):
     """ Try to be flexible in the time formats supported:

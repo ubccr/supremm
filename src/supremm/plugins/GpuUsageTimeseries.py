@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """ Timeseries generator module """
+from collections import Counter
 
 from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
+
 import numpy
-from collections import Counter
 
 class GpuUsageTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """

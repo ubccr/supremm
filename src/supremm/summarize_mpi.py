@@ -2,14 +2,14 @@
 """
     Main script for converting host-based pcp archives to job-level summaries.
 """
-# pylint: disable=import-error
 import os
+import logging
 import shutil
 import traceback
+import time
+import json
+import sys
 
-from mpi4py import MPI
-
-import logging
 from supremm.config import Config
 from supremm.account import DbAcct
 from supremm.xdmodaccount import XDMoDAcct
@@ -19,11 +19,8 @@ from supremm.proc_common import getoptions, override_defaults, filter_plugins
 from supremm.scripthelpers import setuplogger
 from supremm.datasource.factory import DatasourceFactory
 
-import sys
-import time
 import psutil
-import json
-
+from mpi4py import MPI
 
 def processjobs(config, opts, procid, comm):
     """ main function that does the work. One run of this function per process """
