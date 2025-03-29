@@ -11,7 +11,10 @@ class TaccCatastrophe(Plugin):
 
     name = property(lambda x: "catastrophe")
     mode = property(lambda x: "all")
-    requiredMetrics = property(lambda x: [ ["taccstats_perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value"], ["taccstats_perfevent.hwcounters.L1D_REPLACEMENT.value"] ])
+    requiredMetrics = property(lambda x: [
+        ["taccstats_perfevent.hwcounters.MEM_LOAD_RETIRED_L1D_HIT.value"],
+        ["taccstats_perfevent.hwcounters.L1D_REPLACEMENT.value"]
+    ])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -23,7 +26,7 @@ class TaccCatastrophe(Plugin):
     def process(self, nodemeta, timestamp, data, description):
 
         if nodemeta.nodename not in self._data:
-            self._data[nodemeta.nodename] = { "x": [], "t": [] }
+            self._data[nodemeta.nodename] = {"x": [], "t": []}
             self._values[nodemeta.nodename] = RangeConverter(48, False)
 
         info = self._data[nodemeta.nodename]

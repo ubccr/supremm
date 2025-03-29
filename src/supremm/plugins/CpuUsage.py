@@ -123,7 +123,7 @@ class CpuUsage(Plugin):
 
         results['all'] = {"cnt": coreindex}
 
-        effective = numpy.compress(allowedcores[1, :] < 0.95, allowedcores , axis=1)
+        effective = numpy.compress(allowedcores[1, :] < 0.95, allowedcores, axis=1)
         effectiveresults = {
             'all': len(effective[i, :])
         }

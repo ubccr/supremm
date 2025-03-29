@@ -224,7 +224,7 @@ class XDMoDAcct(Accounting):
 
         logging.info("Using time interval: %s - %s", start, end)
 
-        process_selectors=[]
+        process_selectors = []
         # ALL & NONE will select the same jobs, simplify the query
         if opts['process_all']:
             logging.info("Processing all jobs")
@@ -254,7 +254,7 @@ class XDMoDAcct(Accounting):
 
         # Add a "AND ( cond1 OR cond2 ...) clause
         if len(process_selectors) > 0:
-            job_selector=" OR ".join(process_selectors)
+            job_selector = " OR ".join(process_selectors)
             job_selector = " AND( " + job_selector + " )"
             query += job_selector
 
@@ -294,7 +294,7 @@ class XDMoDAcct(Accounting):
         cur = self.con.cursor()
         cur.execute(query, data)
 
-        rows_returned=cur.rowcount
+        rows_returned = cur.rowcount
         logging.info("Processing %s jobs", rows_returned)
 
         for record in cur:

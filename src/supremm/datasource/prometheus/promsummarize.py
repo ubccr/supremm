@@ -19,7 +19,7 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self,  preprocessors, analytics, job, config, mapping, fail_fast=False):
+    def __init__(self, preprocessors, analytics, job, config, mapping, fail_fast=False):
         super(PromSummarize, self).__init__(preprocessors, analytics, job, config, fail_fast)
         self.start = time.time()
 

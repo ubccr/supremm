@@ -58,7 +58,7 @@ class PCPDatasource(Datasource):
 
         enough_nodes = False
 
-        if 0 == jobmeta.result or (job.nodecount !=0 and (jobmeta.missingnodes / job.nodecount < 0.05)):
+        if 0 == jobmeta.result or (job.nodecount != 0 and (jobmeta.missingnodes / job.nodecount < 0.05)):
             enough_nodes = True
             logging.info("Success for %s files in %s (%s/%s)", job.job_id, job.jobdir, jobmeta.missingnodes, job.nodecount)
             s.process()
