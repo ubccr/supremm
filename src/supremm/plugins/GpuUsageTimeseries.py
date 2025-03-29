@@ -35,7 +35,7 @@ class GpuUsageTimeseries(Plugin):
 
         avg_usage = numpy.mean(data[0])
         insertat = self._data.adddata(hostidx, timestamp, avg_usage)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = data[0]
 
         return True

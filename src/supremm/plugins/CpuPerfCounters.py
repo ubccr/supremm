@@ -61,7 +61,7 @@ class CpuPerfCounters(Plugin):
 
     def process(self, nodemeta, timestamp, data, description):
 
-        if self._job.getdata('perf')['active'] != True:
+        if not self._job.getdata('perf')['active']:
             self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
             return False
 
@@ -83,7 +83,7 @@ class CpuPerfCounters(Plugin):
 
     def results(self):
 
-        if self._error != None:
+        if self._error is not None:
             return {"error": self._error}
 
         nhosts = len(self._data)

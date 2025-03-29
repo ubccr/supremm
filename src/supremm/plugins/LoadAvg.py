@@ -48,7 +48,7 @@ class LoadAvg(Plugin):
                 meanval.append(loaddata.mean())
                 maxval.append(loaddata.max)
 
-                if hinv != None and nodename in hinv:
+                if hinv is not None and nodename in hinv:
                     meanvalpercore.append(loaddata.mean() / hinv[nodename]['cores'])
                     maxvalpercore.append(loaddata.max / hinv[nodename]['cores'])
 

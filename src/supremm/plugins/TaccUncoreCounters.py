@@ -44,7 +44,7 @@ class TaccUncoreCounters(Plugin):
 
     def results(self):
 
-        if self._error != None:
+        if self._error is not None:
             return {"error": self._error}
 
         nhosts = len(self._data)

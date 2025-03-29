@@ -34,7 +34,7 @@ class ArmPowerUsageTimeseries(Plugin):
 
     def process(self, nodemeta, timestamp, data, description):
 
-        if self._job.getdata('perf')['active'] != True:
+        if not self._job.getdata('perf')['active']:
             self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
             return False
 

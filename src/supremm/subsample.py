@@ -32,7 +32,7 @@ class TimeseriesAccumulator():
             idx = self._append(hostidx, timestamp, value)
             return idx
 
-        if self._samplewindow == None:
+        if self._samplewindow is None:
             # compute sample window based on the first host to pass the post
             leadin = self._data[hostidx, TimeseriesAccumulator.LEAD_IN_DATAPOINTS, 0] - self._data[hostidx, 0, 0]
             self._samplewindow = (self._totaltime - (2.0 * leadin)) / (TimeseriesAccumulator.MAX_DATAPOINTS - 2 * TimeseriesAccumulator.LEAD_IN_DATAPOINTS)
@@ -80,7 +80,7 @@ class RangeConverter():
         """ add updated data and return stored value """
         value = numpy.array(indata)
 
-        if self._last != None:
+        if self._last is not None:
             delta = (value - self._last) % self._range
 
             if self._checkoverflow:

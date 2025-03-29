@@ -35,7 +35,7 @@ class TotalMemUsageTimeseries(Plugin):
 
         nodemem_gb = numpy.sum(data[0]) / 1048576.0
         insertat = self._data.adddata(hostidx, timestamp, nodemem_gb)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = data[0] / 1048576.0
 
         return True

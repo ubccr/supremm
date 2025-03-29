@@ -19,7 +19,7 @@ class PCPDatasource(Datasource):
         jobmeta = super().presummarize(job, conf, resconf, opts)
 
         # Error with general presummarize, don't try datasource specific checks
-        if jobmeta.result != 0 and jobmeta.error != None:
+        if jobmeta.result != 0 and jobmeta.error is not None:
             return jobmeta
         else:
             mergestart = time.time()
@@ -62,14 +62,14 @@ class PCPDatasource(Datasource):
             enough_nodes = True
             logging.info("Success for %s files in %s (%s/%s)", job.job_id, job.jobdir, jobmeta.missingnodes, job.nodecount)
             s.process()
-        elif jobmeta.error == None and job.nodecount != 0 and (jobmeta.missingnodes / job.nodecount >= 0.5):
+        elif jobmeta.error is None and job.nodecount != 0 and (jobmeta.missingnodes / job.nodecount >= 0.5):
             # Don't overwrite existing error
             # Don't have enough node data to even try summarization
             jobmeta.mdata["skipped_pmlogextract_error"] = True
             logging.info("Skipping %s, skipped_pmlogextract_error", job.job_id)
             jobmeta.error = ProcessingError.PMLOGEXTRACT_ERROR
 
-        if opts['tag'] != None:
+        if opts['tag'] is not None:
             jobmeta.mdata['tag'] = opts['tag']
 
         if jobmeta.missingnodes > 0:

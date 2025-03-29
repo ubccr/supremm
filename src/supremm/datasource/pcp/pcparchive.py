@@ -204,7 +204,7 @@ def pmlogextract(job, conf, resconf, opts):
             proc = subprocess.Popen(pcp_cmd, stderr=subprocess.PIPE)
             (_, errdata) = proc.communicate()
 
-            if errdata != None and len(errdata) > 0:
+            if errdata is not None and len(errdata) > 0:
                 logging.warning(errdata)
                 job.record_error(errdata)
 

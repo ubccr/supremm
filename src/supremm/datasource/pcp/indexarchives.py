@@ -134,7 +134,7 @@ class PcpArchiveFinder():
     def __init__(self, mindate, maxdate, all=False):
         self.mindate = mindate if not all else None
         self.maxdate = maxdate if not all else None
-        if self.mindate != None:
+        if self.mindate is not None:
             self.minmonth = datetime(year=mindate.year, month=mindate.month, day=1) - timedelta(days=1)
         else:
             self.minmonth = None
@@ -152,10 +152,10 @@ class PcpArchiveFinder():
                      false if the name is a date that is < the reference
         """
         mtch = self.sregex.match(subdir)
-        if mtch == None:
+        if mtch is None:
             return None
 
-        if self.minmonth == None:
+        if self.minmonth is None:
             return True
 
         subdirdate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=1)
@@ -165,21 +165,21 @@ class PcpArchiveFinder():
     def filenameok(self, filename):
         """ parse filename to get the datestamp and compare with the reference datestamp
         """
-        if self.mindate == None:
+        if self.mindate is None:
             return True
 
         mtch = self.fregex.match(filename)
-        if mtch == None:
+        if mtch is None:
             logging.error(
                 "Unparsable filename %s processing anyway.", filename)
             return True
 
-        if mtch.group(4) != None and mtch.group(5) != None:
+        if mtch.group(4) is not None and mtch.group(5) is not None:
             filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)), hour=int(mtch.group(4)), minute=int(mtch.group(5)))
         else:
             filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)))
 
-        if self.maxdate == None:
+        if self.maxdate is None:
             return filedate > self.mindate
         else:
             return filedate > self.mindate and filedate < self.maxdate
@@ -193,7 +193,7 @@ class PcpArchiveFinder():
             yyyy = int(year)
             mm = int(month)
 
-            if day == None:
+            if day is None:
                 # Some datetime arithmetic to get the last day of the month
                 tmpdate = datetime(year=yyyy, month=mm, day=28, hour=23, minute=59, second=59) + timedelta(days=4)
                 dirdate = tmpdate - timedelta(days=tmpdate.day)
@@ -203,7 +203,7 @@ class PcpArchiveFinder():
         except ValueError:
             return None
 
-        if self.mindate == None:
+        if self.mindate is None:
             return True
 
         return dirdate > self.mindate

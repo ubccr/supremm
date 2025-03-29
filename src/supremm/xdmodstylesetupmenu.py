@@ -63,7 +63,7 @@ class XDMoDStyleSetupMenu():
 
         self.stdscr.addstr(self.row, 0, text)
         self.stdscr.addstr(" (" + ",".join(options) + ") ")
-        if default != None:
+        if default is not None:
             self.stdscr.addstr("[" + default + "] ")
 
         self.nextrow()
@@ -74,7 +74,7 @@ class XDMoDStyleSetupMenu():
             answer = str(self.stdscr.getstr(), 'ascii')
             curses.noecho()
 
-            if answer == "" and default != None:
+            if answer == "" and default is not None:
                 answer = default
 
         return answer
@@ -108,7 +108,7 @@ class XDMoDStyleSetupMenu():
     def prompt_string(self, text, default):
         """ prompt user to enter text """
         self.stdscr.addstr(self.row, 0, text)
-        if default != None:
+        if default is not None:
             self.stdscr.addstr(" [" + str(default) + "] ")
         else:
             self.stdscr.addstr(" ")
@@ -117,7 +117,7 @@ class XDMoDStyleSetupMenu():
         curses.echo()
 
         answer = str(self.stdscr.getstr(), 'ascii')
-        if answer == "" and default != None:
+        if answer == "" and default is not None:
             answer = default
 
         curses.noecho()
@@ -140,7 +140,7 @@ class XDMoDStyleSetupMenu():
     def newpage(self, title=None):
         """ Clear the screen and display a title. If the title is absent, then
             the previous title is reused.  """
-        if title != None:
+        if title is not None:
             self.page_title = title
         self.erase()
         self.stdscr.addstr(self.row, 0, self.page_title)
@@ -175,7 +175,7 @@ class XDMoDStyleSetupMenu():
 
             for item in items:
                 if answer == item[0]:
-                    if item[2] == None:
+                    if item[2] is None:
                         done = True
                     else:
                         item[2](self)

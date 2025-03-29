@@ -35,7 +35,7 @@ def getdbconnection(configsection, as_dict=False, defaultargs={}):
 
         dbargs = defaultargs.copy()
         # Convert the external configuration names to python PEP-249 config names
-        translate = {"host": "host", 
+        translate = {"host": "host",
                      "defaultsfile": "read_default_file",
                      "user": "user",
                      "pass": "passwd",
@@ -58,7 +58,7 @@ def setuplogger(consolelevel, filename=None, filelevel=None):
     """ setup the python root logger to log to the console with defined log
         level. Optionally also log to file with the provided level """
 
-    if filelevel == None:
+    if filelevel is None:
         filelevel = consolelevel
 
     if sys.version.startswith("2.7"):
@@ -69,7 +69,7 @@ def setuplogger(consolelevel, filename=None, filelevel=None):
 
     formatter = logging.Formatter('%(asctime)s.%(msecs)03d [%(levelname)s] %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
 
-    if filename != None:
+    if filename is not None:
         filehandler = logging.FileHandler(filename)
         filehandler.setLevel(filelevel)
         filehandler.setFormatter(formatter)

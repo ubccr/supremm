@@ -161,7 +161,7 @@ class PromSummarize(Summarize):
         logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
 
         reqMetrics = self.mapping.getmetricstofetch(preproc.requiredMetrics)
-        if False == reqMetrics:
+        if not reqMetrics:
             logging.warning("Skipping %s (%s)." % (type(preproc).__name__, preproc.name))
             preproc.hostend()
             return
@@ -172,7 +172,7 @@ class PromSummarize(Summarize):
         while not done:
             try:
                 result = next(results)
-                if False == self.runpreproccall(preproc, result, ctx, mdata):
+                if not self.runpreproccall(preproc, result, ctx, mdata):
                     break
             except StopIteration:
                 done = True
@@ -194,7 +194,7 @@ class PromSummarize(Summarize):
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
         reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
-        if False == reqMetrics:
+        if not reqMetrics:
             logging.warning("Skipping %s (%s)." % (type(analytic).__name__, analytic.name))
             analytic.status = "failure"
             return
@@ -213,7 +213,7 @@ class PromSummarize(Summarize):
             analytic.status = "failure"
             raise exp
 
-        if False == self.runcallback(analytic, result, ctx, mdata):
+        if not self.runcallback(analytic, result, ctx, mdata):
             analytic.status = "failure"
             return
 
@@ -229,7 +229,7 @@ class PromSummarize(Summarize):
             analytic.status = "failure"
             raise exp
 
-        if False == self.runcallback(analytic, result, ctx, mdata):
+        if not self.runcallback(analytic, result, ctx, mdata):
             analytic.status = "failure"
             return
 
@@ -242,7 +242,7 @@ class PromSummarize(Summarize):
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
         reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
-        if False == reqMetrics:
+        if not reqMetrics:
             logging.warning("Skipping %s (%s)." % (type(analytic).__name__, analytic.name))
             analytic.status = "failure"
             return
@@ -253,7 +253,7 @@ class PromSummarize(Summarize):
         while not done:
             try:
                 result = next(results)
-                if False == self.runcallback(analytic, result, ctx, mdata):
+                if not self.runcallback(analytic, result, ctx, mdata):
                     break
             except StopIteration:
                 done = True
@@ -290,7 +290,7 @@ class PromSummarize(Summarize):
 
             ts = ctx.timestamp
             try:
-                if False == analytic.process(mdata, ts, data, description):
+                if not analytic.process(mdata, ts, data, description):
                     break
             except Exception as exc:
                 logging.exception("%s %s @ %s", self.job.job_id, analytic.name, ts)

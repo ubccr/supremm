@@ -118,7 +118,7 @@ class MongoOutput():
         self._outdb[self._collection].update({"_id": summary["_id"]}, summary, upsert=True)
 
     def __exit__(self, exception_type, exception_val, trace):
-        if self._client != None:
+        if self._client is not None:
             self._outdb = None
             self._client.close()
             self._client = None

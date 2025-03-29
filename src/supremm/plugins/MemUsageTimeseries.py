@@ -35,7 +35,7 @@ class MemUsageTimeseries(Plugin):
 
         nodemem_kb = numpy.sum(data[0]) - numpy.sum(data[1]) - numpy.sum(data[2])
         insertat = self._data.adddata(hostidx, timestamp, nodemem_kb / 1048576.0)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = (data[0] - data[1] - data[2]) / 1048576.0
 
         return True

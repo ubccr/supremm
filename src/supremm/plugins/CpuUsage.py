@@ -12,17 +12,17 @@ class CpuUsage(Plugin):
     name = property(lambda x: "cpu")
     mode = property(lambda x: "firstlast")
     requiredMetrics = property(lambda x: [[
-            "kernel.percpu.cpu.user", 
-            "kernel.percpu.cpu.idle", 
+            "kernel.percpu.cpu.user",
+            "kernel.percpu.cpu.idle",
             "kernel.percpu.cpu.nice",
-            "kernel.percpu.cpu.sys", 
+            "kernel.percpu.cpu.sys",
             "kernel.percpu.cpu.wait.total",
             "kernel.percpu.cpu.irq.hard",
             "kernel.percpu.cpu.irq.soft"
         ], [
-            "kernel.percpu.cpu.user", 
-            "kernel.percpu.cpu.idle", 
-            "kernel.percpu.cpu.sys", 
+            "kernel.percpu.cpu.user",
+            "kernel.percpu.cpu.idle",
+            "kernel.percpu.cpu.sys",
             "kernel.percpu.cpu.wait.total"
         ], [
             "kernel.all.cpu.user",
@@ -81,13 +81,13 @@ class CpuUsage(Plugin):
             except ValueError:
                 # typically happens if the linux pmda crashes during the job
                 return {"error": ProcessingError.INSUFFICIENT_DATA}
- 
+
         results = {}
         for i, name in enumerate(self._outnames):
             results[name] = calculate_stats(ratios[i, :])
- 
+
         results['all'] = {"cnt": self._totalcores}
- 
+
         return results
 
 
@@ -96,7 +96,7 @@ class CpuUsage(Plugin):
 
         proc = self._job.getdata('proc')
 
-        if proc == None:
+        if proc is None:
             return {"error": ProcessingError.CPUSET_UNKNOWN}, {"error": ProcessingError.CPUSET_UNKNOWN}
 
         cpusallowed = self._job.getdata('proc')['cpusallowed']
@@ -132,7 +132,7 @@ class CpuUsage(Plugin):
                 effectiveresults[name] = calculate_stats(effective[i, :])
 
         return results, effectiveresults
-        
+
 
     def results(self):
 
@@ -142,7 +142,7 @@ class CpuUsage(Plugin):
             return {"error": ProcessingError.INSUFFICIENT_DATA}
 
         if self._ncpumetrics == 7:
-            self._outnames = ["user", "idle", "nice", "system", "iowait", "irq", "softirq"] 
+            self._outnames = ["user", "idle", "nice", "system", "iowait", "irq", "softirq"]
         elif self._ncpumetrics == 4:
             self._outnames = ["user", "idle", "system", "iowait"]
         else:
@@ -154,6 +154,6 @@ class CpuUsage(Plugin):
         else:
             jobcpus = nodecpus
             effcpus = nodecpus
-            
+
 
         return {"nodecpus": nodecpus, "jobcpus": jobcpus, "effcpus": effcpus}

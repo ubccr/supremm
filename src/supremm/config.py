@@ -24,10 +24,10 @@ class Config():
 
     def __init__(self, confpath=None):
 
-        if confpath == None:
+        if confpath is None:
             confpath = self.autodetectconfpath()
 
-        if confpath is None or os.path.isdir(confpath) == False:
+        if confpath is None or not os.path.isdir(confpath):
             raise Exception("Missing configuration path %s" % confpath)
 
         conffile = os.path.join(confpath, "config.json")
@@ -101,7 +101,7 @@ class Config():
     def process_include(self, sectionname, url):
         """ process an include directive (only xdmod parsing is supported) """
         if url.startswith("xdmod://"):
-            if self._xdmodconfig == None:
+            if self._xdmodconfig is None:
                 self.parsexdmod()
 
             xdmodsection = url[8:]
@@ -119,7 +119,7 @@ class Config():
     def resourceconfigs(self):
         """ Iterator over enabled resources """
         for resname, resdata in self._config['resources'].items():
-            if "enabled" in resdata and resdata['enabled'] == False:
+            if "enabled" in resdata and not resdata['enabled']:
                 continue
             resdata['name'] = resname
             yield (resname, resdata)

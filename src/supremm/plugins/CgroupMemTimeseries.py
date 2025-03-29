@@ -60,7 +60,7 @@ class CgroupMemTimeseries(Plugin):
             return True
 
         insertat = self._data.adddata(hostidx, timestamp, nodemem_gb)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = nodemem_gb
 
         return True

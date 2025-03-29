@@ -23,7 +23,7 @@ class DataCache():
     def docallback(self, analytic):
         """ call the analytic with the paramerters from the most recent call to
             process (if any) """
-        if self.timestamp != None:
+        if self.timestamp is not None:
             return analytic.process(self.mdata, self.timestamp, self.data, self.description)
         else:
             return True

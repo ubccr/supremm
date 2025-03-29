@@ -35,7 +35,7 @@ def processjobs(config, opts, procid, comm):
     logging.debug("Loaded %s plugins", len(allplugins))
 
     for r, resconf in config.resourceconfigs():
-        if opts['resource'] == None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
+        if opts['resource'] is None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
             logging.info("Processing resource %s", r)
         else:
             continue
@@ -142,7 +142,7 @@ def processjobs(config, opts, procid, comm):
                     mpirecvtime = recvtime-midtime
                     if (mpisendtime+mpirecvtime) > 2:
                         logging.warning("MPI send/recv took %s/%s", mpisendtime, mpirecvtime)
-                    if job != None:
+                    if job is not None:
                         logging.debug("Rank: %s, Starting: %s", procid, job.job_id)
                         process_job(config, dbif, job, m, opts, plugins, preprocs, resconf, datasource)
                         logging.debug("Rank: %s, Finished: %s", procid, job.job_id)

@@ -31,7 +31,7 @@ class CpuUserTimeseries(Plugin):
 
     def process(self, nodemeta, timestamp, data, description):
 
-        if self._cpusallowed == None:
+        if self._cpusallowed is None:
             self.initcpus()
 
         if len(data[0]) == 0:
@@ -55,7 +55,7 @@ class CpuUserTimeseries(Plugin):
                 self._hostdevnames[hostidx] = dict((str(k), v) for k, v in zip(description[0][0], description[0][1]))
 
         insertat = self._data.adddata(hostidx, timestamp, numpy.mean(cpudata)/10.0)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = cpudata / 10.0
 
         return True

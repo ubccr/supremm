@@ -40,7 +40,7 @@ class PowerUsageTimeseries(Plugin):
             self._hostdata[nodemeta.nodeindex] = 1
 
         datum = self.computetimepoint(data)
-        if datum != None:
+        if datum is not None:
             self._data.adddata(nodemeta.nodeindex, timestamp, datum)
 
         return True

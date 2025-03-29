@@ -222,7 +222,7 @@ class DbAcct(Accounting):
         j = Job(record['id'], record['id'], record)
         j.set_nodes(hostlist)
 
-        if hostarchivemapping != None:
+        if hostarchivemapping is not None:
             j.set_rawarchives(hostarchivemapping)
 
         return j
@@ -276,7 +276,7 @@ class DbAcct(Accounting):
 
         data = (self._resource_id, start, end)
 
-        if onlynew != None and onlynew != False:
+        if onlynew is not None and not onlynew:
             query += " AND (p.process_version != %s OR p.process_version IS NULL)"
             data = data + (Accounting.PROCESS_VERSION, )
 
@@ -315,10 +315,10 @@ class DbAcct(Accounting):
                         AND p.process_version != %s """
 
         data = (self._resource_id, PROCESS_VERSION)
-        if start_time != None:
+        if start_time is not None:
             query += " AND end_time_ts >= %s "
             data = data + (start_time, )
-        if end_time != None:
+        if end_time is not None:
             query += " AND end_time_ts < %s "
             data = data + (end_time, )
         query += " ORDER BY end_time_ts ASC"
@@ -369,9 +369,9 @@ def ingest(config, end_time, start_time=None):
         if resource['batch_system'] == "XDMoD":
             continue
 
-        if start_time == None:
+        if start_time is None:
             start_time = dbif.getmostrecent(resource['resource_id'])
-            if start_time == None:
+            if start_time is None:
                 start_time = 0
             else:
                 start_time = start_time - (7 * 24 * 3600)
@@ -385,7 +385,7 @@ def ingest(config, end_time, start_time=None):
 
         for acct in acctreader.reader(start_time, end_time):
 
-            if lariat != None:
+            if lariat is not None:
                 acct['lariat'] = lariat.find(acct['id'], acct['start_time'], acct['end_time'])
 
             record = []
@@ -398,7 +398,7 @@ def ingest(config, end_time, start_time=None):
             if 'host_list_dir' in resource:
                 hostlist = acctreader.get_host_list_path(acct, resource['host_list_dir'])
                 hostnames = []
-                if hostlist != None:
+                if hostlist is not None:
                     with open(hostlist, "r") as fp:
                         if resource['hostname_mode'] == "fqdn" and resource['host_name_ext'] != "":
                             hostnames = [x.strip() + "." + resource['host_name_ext'] for x in fp]

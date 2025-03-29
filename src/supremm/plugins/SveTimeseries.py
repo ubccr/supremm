@@ -27,7 +27,7 @@ class SveTimeseries(Plugin):
 
     def process(self, nodemeta, timestamp, data, description):
 
-        if self._job.getdata('perf')['active'] != True:
+        if not self._job.getdata('perf')['active']:
             self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
             return False
 
@@ -47,7 +47,7 @@ class SveTimeseries(Plugin):
             flops = 4.0 * data[0] + 2.0 * data[1] + data[2] + data[3]
 
         insertat = self._data.adddata(hostidx, timestamp, numpy.sum(flops))
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = flops
 
             if insertat > 1:
@@ -59,7 +59,7 @@ class SveTimeseries(Plugin):
 
     def results(self):
 
-        if self._error != None:
+        if self._error is not None:
             return {"error": self._error}
 
         values = self._data.get()

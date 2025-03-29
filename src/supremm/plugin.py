@@ -14,7 +14,7 @@ def loadplugins(plugindir=None, namespace="plugins"):
     """ Load all of the modules from the plugins directory and instantiate the
         classes within. """
 
-    if plugindir == None:
+    if plugindir is None:
         plugindir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plugins")
 
     analytics = []
@@ -38,7 +38,7 @@ def loadpreprocessors(preprocdir=None):
         There is no dependency management as of yet so a preproc cannot require
         another preproc.
     """
-    if preprocdir == None:
+    if preprocdir is None:
         preprocdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "preprocessors")
 
     return loadplugins(preprocdir, "preprocessors")
@@ -226,7 +226,7 @@ class DeviceBasedPlugin(Plugin, metaclass=ABCMeta):
 
     def results(self):
 
-        if self._error != None:
+        if self._error is not None:
             return {"error": self._error}
 
         if len(self._data) == 0:
@@ -276,7 +276,7 @@ class DeviceInstanceBasedPlugin(Plugin, metaclass=ABCMeta):
 
     def results(self):
 
-        if self._error != None:
+        if self._error is not None:
             return {"error": self._error}
 
         if len(self._data) == 0:
@@ -292,7 +292,7 @@ class DeviceInstanceBasedPlugin(Plugin, metaclass=ABCMeta):
 
 
 class RateConvertingTimeseriesPlugin(Plugin, metaclass=ABCMeta):
-    """ 
+    """
     A base abstract class for generating a timeseries summary for values that should
     be converted to rates, one per node.
     The plugin name,  list of required metrics and generator function must be provided by the implementation
@@ -316,7 +316,7 @@ class RateConvertingTimeseriesPlugin(Plugin, metaclass=ABCMeta):
             self._hostdata[nodemeta.nodeindex] = 1
 
         datum = self.computetimepoint(data)
-        if datum != None:
+        if datum is not None:
             self._data.adddata(nodemeta.nodeindex, timestamp, datum)
 
     def results(self):
