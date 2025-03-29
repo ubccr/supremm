@@ -276,7 +276,7 @@ class DbAcct(Accounting):
 
         data = (self._resource_id, start, end)
 
-        if onlynew is not None and not onlynew:
+        if onlynew is not None and onlynew:
             query += " AND (p.process_version != %s OR p.process_version IS NULL)"
             data = data + (Accounting.PROCESS_VERSION, )
 
