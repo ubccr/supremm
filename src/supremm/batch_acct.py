@@ -193,12 +193,12 @@ def isodate(s):
     return int(time.mktime(time.strptime(s, '%Y-%m-%dT%H:%M:%S')))
 
 class SLURMNativeAcct(BatchAcct):
-  """ Process accounting data produced by the sacct command with the following """
-  """ flags. """
-  """ SLURM_TIME_FORMAT=%s """
-  """ sacct --allusers --parsable2 --noheader --allocations --allclusters      """
-  """     --format jobid,cluster,partition,account,group,gid,user,uid,submit,eligible,start,end,exitcode,State,nnodes,ncpus,reqcpus,nodelist,jobname,timelimit,reqmem """
-  """     --state CA,CD,F,NF,TO """
+    """ Process accounting data produced by the sacct command with the following flags.
+    SLURM_TIME_FORMAT=%s
+    sacct --allusers --parsable2 --noheader --allocations --allclusters
+         --format jobid,cluster,partition,account,group,gid,user,uid,submit,eligible,start,end,exitcode,State,nnodes,ncpus,reqcpus,nodelist,jobname,timelimit,reqmem
+         --state CA,CD,F,NF,TO
+    """
 
     def __init__(self, acct_file, host_name_ext):
 
