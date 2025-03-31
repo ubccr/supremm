@@ -54,7 +54,7 @@ class BatchAcct():
             ):
                 try:
                     for n, t, x in self.fields:
-                    d[n] = t(d[n])
+                        d[n] = t(d[n])
                 except Exception as e:
                     pass
 

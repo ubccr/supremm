@@ -79,7 +79,7 @@ def main():
         try:
             item = section[opts['item']]
         except KeyError:
-            logging.error("Item '%s' not defined in section '%s'." % (opts['item'], opts['section'])
+            logging.error("Item '%s' not defined in section '%s'." % (opts['item'], opts['section']))
             sys.exit(1)
 
         if isinstance(item, dict):
