@@ -67,7 +67,7 @@ def getoptions():
 
     return (retdata, args)
 
-class MockJob(object):
+class MockJob():
     """ Object that has the same external API as the Job object """
     def __init__(self, archivelist, opts=None):
         self.node_archives = archivelist

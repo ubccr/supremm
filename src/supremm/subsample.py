@@ -3,7 +3,7 @@
 import numpy
 
 
-class TimeseriesAccumulator(object):
+class TimeseriesAccumulator():
     """ Stores a subset of time-value pairs for a dataseries """
     MAX_DATAPOINTS = 100
     LEAD_IN_DATAPOINTS = 10
@@ -32,7 +32,7 @@ class TimeseriesAccumulator(object):
             idx = self._append(hostidx, timestamp, value)
             return idx
 
-        if self._samplewindow == None:
+        if self._samplewindow is None:
             # compute sample window based on the first host to pass the post
             leadin = self._data[hostidx, TimeseriesAccumulator.LEAD_IN_DATAPOINTS, 0] - self._data[hostidx, 0, 0]
             self._samplewindow = (self._totaltime - (2.0 * leadin)) / (TimeseriesAccumulator.MAX_DATAPOINTS - 2 * TimeseriesAccumulator.LEAD_IN_DATAPOINTS)
@@ -64,7 +64,7 @@ class TimeseriesAccumulator(object):
         return str(self._data[:, :self._count, :])
 
 
-class RangeConverter(object):
+class RangeConverter():
     """
     Convert data from limited width to 64bit width. Optionally raise an exception if
     the counters spin too fast.
@@ -80,7 +80,7 @@ class RangeConverter(object):
         """ add updated data and return stored value """
         value = numpy.array(indata)
 
-        if self._last != None:
+        if self._last is not None:
             delta = (value - self._last) % self._range
 
             if self._checkoverflow:

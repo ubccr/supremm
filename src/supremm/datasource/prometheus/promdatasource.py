@@ -60,18 +60,18 @@ class PromDatasource(Datasource):
         enough_nodes = False
 
         # missingnodes will always == nodecount if there is a Prometheus error
-        if 0 == jobmeta.result or (job.nodecount !=0 and (jobmeta.missingnodes / job.nodecount < 0.05)):
+        if 0 == jobmeta.result or (job.nodecount != 0 and (jobmeta.missingnodes / job.nodecount < 0.05)):
             enough_nodes = True
             logging.info("Success for prometheus presummarize checks, job %s (%s/%s)", job.job_id, jobmeta.missingnodes, job.nodecount)
             s.process()
-        elif jobmeta.error == None and job.nodecount != 0 and (jobmeta.missingnodes / job.nodecount >= 0.5):
+        elif jobmeta.error is None and job.nodecount != 0 and (jobmeta.missingnodes / job.nodecount >= 0.5):
             # Don't overwrite existing error
             # Don't have enough node data to even try summarization
             jobmeta.mdata["skipped_prom_error"] = True
             logging.info("Skipping %s, skipped_prom_error", job.job_id)
             jobmeta.error = ProcessingError.PROMETHEUS_CONNECTION
 
-        if opts['tag'] != None:
+        if opts['tag'] is not None:
             jobmeta.mdata['tag'] = opts['tag']
 
         if jobmeta.missingnodes > 0:
@@ -104,7 +104,7 @@ def parse_scrape_interval(interval):
 
     scrape_interval = 0
     for time in times:
-        t =  re.findall('\d+|\D+', time)
+        t = re.findall('\d+|\D+', time)
         try:
             result = int(t[0])
         except ValueError:

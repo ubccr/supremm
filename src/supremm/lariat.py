@@ -5,7 +5,7 @@ import os
 import json
 import logging
 
-class LariatManager(object):
+class LariatManager():
     """ find and cache the lariat data for a job """
     def __init__(self, lariatpath):
         self.lariatpath = lariatpath

@@ -21,7 +21,7 @@ def safe_strptime(time_string, fmt):
 
     return converted_time
 
-class JobNode(object):
+class JobNode():
     """ simple container class that contains information about the pcp archives associated
        with a node in the job """
     def __init__(self, nodename, nodeidx):
@@ -66,7 +66,7 @@ def datetimeconvert(intime):
     else:
         return safe_strptime(intime, "%Y-%m-%dT%H:%M:%S")
 
-class Job(object):
+class Job():
     """ Contains the data for a job. """
     # pylint: disable=too-many-instance-attributes
 
@@ -139,7 +139,7 @@ class Job(object):
     def nodearchives(self):
         """ iterator for the combined archives for the nodes in the job """
         for nodename, nodedata in self._nodes.items():
-            if nodedata.archive != None:
+            if nodedata.archive is not None:
                 yield nodename, nodedata.nodeindex, nodedata.archive
 
     def has_any_archives(self):
@@ -171,7 +171,7 @@ class Job(object):
         num_archives = 0
 
         for _, nodedata in self._nodes.items():
-            if nodedata.archive != None:
+            if nodedata.archive is not None:
                 num_archives += 1
 
         if float(num_archives)/float(self._nodecount) > 0.95:
@@ -185,9 +185,9 @@ class Job(object):
         begin or end is None then the default time from the accounting
         data is used
         """
-        if begin != None:
+        if begin is not None:
             self._nodebegin[node] = begin
-        if end != None:
+        if end is not None:
             self._nodeend[node] = end
 
     def getnodebegin(self, node):

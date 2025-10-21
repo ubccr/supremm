@@ -25,7 +25,7 @@ class GpuUsage(Plugin):
             return False
 
         if nodemeta.nodename not in self._data:
-            if self.statnames == None:
+            if self.statnames is None:
                 self.statnames = ['gpuactive', 'memused']
                 if len(data) == 3:
                     self.statnames.append('memactive')
@@ -54,7 +54,7 @@ class GpuUsage(Plugin):
                 for statname in self.statnames:
                     result[devicename][statname].append(data[statname].mean()[i])
                     result[devicename][statname + "max"].append(data[statname].max[i])
-            
+
         output = {}
         for device, data in result.items():
             output[device] = {}

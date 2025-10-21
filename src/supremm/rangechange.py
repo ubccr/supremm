@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy
 
-class DataCache(object):
+class DataCache():
     """ Helper class that remembers the last value that it was passed """
     def __init__(self):
         self.mdata = None
@@ -23,12 +23,12 @@ class DataCache(object):
     def docallback(self, analytic):
         """ call the analytic with the paramerters from the most recent call to
             process (if any) """
-        if self.timestamp != None:
+        if self.timestamp is not None:
             return analytic.process(self.mdata, self.timestamp, self.data, self.description)
         else:
             return True
 
-class RangeChange(object):
+class RangeChange():
     """ Convert counters that have < 64 bits to 64 bits """
     def __init__(self, configobj):
         try:

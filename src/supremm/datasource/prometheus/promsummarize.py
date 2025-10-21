@@ -1,12 +1,10 @@
-import os
 import time
 import logging
 import datetime
 
 import requests
-import numpy as np
 
-from supremm.datasource.prometheus.prominterface import PromClient, Context
+from supremm.datasource.prometheus.prominterface import Context
 from supremm.plugin import NodeMetadata
 from supremm.summarize import Summarize
 
@@ -21,7 +19,7 @@ class NodeMeta(NodeMetadata):
     nodeindex = property(lambda self: self._nodeidx)
 
 class PromSummarize(Summarize):
-    def __init__(self,  preprocessors, analytics, job, config, mapping, fail_fast=False):
+    def __init__(self, preprocessors, analytics, job, config, mapping, fail_fast=False):
         super(PromSummarize, self).__init__(preprocessors, analytics, job, config, fail_fast)
         self.start = time.time()
 
@@ -161,7 +159,7 @@ class PromSummarize(Summarize):
         logging.debug("Processing %s (%s)" % (type(preproc).__name__, preproc.name))
 
         reqMetrics = self.mapping.getmetricstofetch(preproc.requiredMetrics)
-        if False == reqMetrics:
+        if not reqMetrics:
             logging.warning("Skipping %s (%s)." % (type(preproc).__name__, preproc.name))
             preproc.hostend()
             return
@@ -172,7 +170,7 @@ class PromSummarize(Summarize):
         while not done:
             try:
                 result = next(results)
-                if False == self.runpreproccall(preproc, result, ctx, mdata):
+                if not self.runpreproccall(preproc, result, ctx, mdata):
                     break
             except StopIteration:
                 done = True
@@ -194,7 +192,7 @@ class PromSummarize(Summarize):
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
         reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
-        if False == reqMetrics:
+        if not reqMetrics:
             logging.warning("Skipping %s (%s)." % (type(analytic).__name__, analytic.name))
             analytic.status = "failure"
             return
@@ -213,7 +211,7 @@ class PromSummarize(Summarize):
             analytic.status = "failure"
             raise exp
 
-        if False == self.runcallback(analytic, result, ctx, mdata):
+        if not self.runcallback(analytic, result, ctx, mdata):
             analytic.status = "failure"
             return
 
@@ -229,7 +227,7 @@ class PromSummarize(Summarize):
             analytic.status = "failure"
             raise exp
 
-        if False == self.runcallback(analytic, result, ctx, mdata):
+        if not self.runcallback(analytic, result, ctx, mdata):
             analytic.status = "failure"
             return
 
@@ -242,7 +240,7 @@ class PromSummarize(Summarize):
         logging.debug("Processing %s (%s)" % (type(analytic).__name__, analytic.name))
 
         reqMetrics = self.mapping.getmetricstofetch(analytic.requiredMetrics)
-        if False == reqMetrics:
+        if not reqMetrics:
             logging.warning("Skipping %s (%s)." % (type(analytic).__name__, analytic.name))
             analytic.status = "failure"
             return
@@ -253,7 +251,7 @@ class PromSummarize(Summarize):
         while not done:
             try:
                 result = next(results)
-                if False == self.runcallback(analytic, result, ctx, mdata):
+                if not self.runcallback(analytic, result, ctx, mdata):
                     break
             except StopIteration:
                 done = True
@@ -290,7 +288,7 @@ class PromSummarize(Summarize):
 
             ts = ctx.timestamp
             try:
-                if False == analytic.process(mdata, ts, data, description):
+                if not analytic.process(mdata, ts, data, description):
                     break
             except Exception as exc:
                 logging.exception("%s %s @ %s", self.job.job_id, analytic.name, ts)

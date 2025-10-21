@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """ Timeseries generator module """
+import re
+from collections import Counter
 
+from supremm.errors import ProcessingError, NotApplicableError
 from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
-from supremm.errors import ProcessingError, NotApplicableError
+
 import numpy
-from collections import Counter
-import re
+
 
 class CgroupMemTimeseries(Plugin):
     """ Generate timeseries summary for memory usage viewed from CGroup
@@ -60,7 +62,7 @@ class CgroupMemTimeseries(Plugin):
             return True
 
         insertat = self._data.adddata(hostidx, timestamp, nodemem_gb)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = nodemem_gb
 
         return True

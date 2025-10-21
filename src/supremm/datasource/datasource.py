@@ -33,14 +33,14 @@ class Datasource(ABC):
         jobmeta = JobMeta()
 
         # Filter jobs by options
-        if job.nodecount > 1 and opts['min_parallel_duration'] != None and job.walltime < opts['min_parallel_duration']:
+        if job.nodecount > 1 and opts['min_parallel_duration'] is not None and job.walltime < opts['min_parallel_duration']:
             jobmeta.result = 1
             jobmeta.mdata["skipped_parallel_too_short"] = True
             jobmeta.error = ProcessingError.PARALLEL_TOO_SHORT
             # Was "skipped"
             jobmeta.missingnodes = job.nodecount
             logging.info("Skipping %s, skipped_parallel_too_short", job.job_id)
-        elif opts['min_duration'] != None and job.walltime < opts['min_duration']:
+        elif opts['min_duration'] is not None and job.walltime < opts['min_duration']:
             jobmeta.result = 1
             jobmeta.mdata["skipped_too_short"] = True
             jobmeta.error = ProcessingError.TIME_TOO_SHORT
@@ -58,7 +58,7 @@ class Datasource(ABC):
             jobmeta.error = ProcessingError.JOB_TOO_BIG
             jobmeta.missingnodes = job.nodecount
             logging.info("Skipping %s, skipped_job_too_big", job.job_id)
-        elif opts['max_nodetime'] != None and (job.nodecount * job.walltime) > opts['max_nodetime']:
+        elif opts['max_nodetime'] is not None and (job.nodecount * job.walltime) > opts['max_nodetime']:
             jobmeta.result = 1
             jobmeta.mdata["skipped_job_nodehours"] = True
             jobmeta.error = ProcessingError.JOB_TOO_MANY_NODEHOURS

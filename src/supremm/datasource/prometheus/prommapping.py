@@ -62,7 +62,7 @@ class MappingManager():
 
         plabels = []
         for label in p:
-           plabels.append("{}='{{}}'".format(label))
+            plabels.append("{}='{{}}'".format(label))
         plabels = ",".join(plabels)
 
         dlabels = []
@@ -175,7 +175,7 @@ class MappingManager():
                         logging.warning("Query not built for metric %s", m)
                         return False
                     else:
-                        if False == self._client.ispresent(query, self.start, self.end):
+                        if not self._client.ispresent(query, self.start, self.end):
                             logging.warning("No data available for metric %s", m)
                             return False
 

@@ -2,14 +2,12 @@
 """
     Main script for converting host-based pcp archives to job-level summaries.
 """
-# pylint: disable=import-error
-import os
-import shutil
-import traceback
-
-from mpi4py import MPI
-
 import logging
+import traceback
+import time
+import json
+import sys
+
 from supremm.config import Config
 from supremm.account import DbAcct
 from supremm.xdmodaccount import XDMoDAcct
@@ -19,11 +17,8 @@ from supremm.proc_common import getoptions, override_defaults, filter_plugins
 from supremm.scripthelpers import setuplogger
 from supremm.datasource.factory import DatasourceFactory
 
-import sys
-import time
 import psutil
-import json
-
+from mpi4py import MPI
 
 def processjobs(config, opts, procid, comm):
     """ main function that does the work. One run of this function per process """
@@ -35,7 +30,7 @@ def processjobs(config, opts, procid, comm):
     logging.debug("Loaded %s plugins", len(allplugins))
 
     for r, resconf in config.resourceconfigs():
-        if opts['resource'] == None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
+        if opts['resource'] is None or opts['resource'] == r or opts['resource'] == str(resconf['resource_id']):
             logging.info("Processing resource %s", r)
         else:
             continue
@@ -142,7 +137,7 @@ def processjobs(config, opts, procid, comm):
                     mpirecvtime = recvtime-midtime
                     if (mpisendtime+mpirecvtime) > 2:
                         logging.warning("MPI send/recv took %s/%s", mpisendtime, mpirecvtime)
-                    if job != None:
+                    if job is not None:
                         logging.debug("Rank: %s, Starting: %s", procid, job.job_id)
                         process_job(config, dbif, job, m, opts, plugins, preprocs, resconf, datasource)
                         logging.debug("Rank: %s, Finished: %s", procid, job.job_id)

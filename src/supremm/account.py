@@ -2,23 +2,22 @@
 """
 Abstraction of the job accouting data
 """
+import json
+import sys
 
 from supremm.accounting import Accounting, ArchiveCache
-import pymysql as mdb
 from supremm import batch_acct
 from supremm.Job import Job
 from supremm.config import Config
 from supremm.lariat import LariatManager
 
-import datetime
-import json
-import sys
+import pymysql as mdb
 
 INGEST_VERSION = 0x000001
 PROCESS_VERSION = 0x000001
 
 
-class DbInsert(object):
+class DbInsert():
     """
     Helper class that adds job accounting records to the database
     """
@@ -110,8 +109,8 @@ class DbArchiveCache(ArchiveCache):
                 self.con.commit()
                 self._hostnamecache[hostname] = 1
 
-            query = """INSERT INTO archive (hostid, filename, start_time_ts, end_time_ts, jobid) 
-                       VALUES( (SELECT id FROM hosts WHERE hostname = %s),%s,%s,%s,%s) 
+            query = """INSERT INTO archive (hostid, filename, start_time_ts, end_time_ts, jobid)
+                       VALUES( (SELECT id FROM hosts WHERE hostname = %s),%s,%s,%s,%s)
                        ON DUPLICATE KEY UPDATE start_time_ts=%s, end_time_ts=%s"""
             cur.execute(query, [hostname, filename, start, end, jobid, start, end])
 
@@ -136,7 +135,7 @@ class DbArchiveCache(ArchiveCache):
         self.con.commit()
 
 
-class DbLogger(object):
+class DbLogger():
     """
     Helper class that marks job records as processed
     """
@@ -152,10 +151,10 @@ class DbLogger(object):
 
         query = """ UPDATE process p, job j
                     SET p.process_version = %s, p.process_timestamp = NOW(), p.process_time = %s
-                    WHERE 
-                        p.jobid = j.id 
-                        AND j.resource_id = %s 
-                        AND j.local_job_id = %s 
+                    WHERE
+                        p.jobid = j.id
+                        AND j.resource_id = %s
+                        AND j.local_job_id = %s
                         AND j.end_time_ts = %s """
 
         data = (version, ptime, resource_id, acct['id'], acct['end_time'])
@@ -195,8 +194,8 @@ class DbAcct(Accounting):
                            `jobhosts` jh,
                            `job` j
                        WHERE
-                           j.id = jh.jobid 
-                           AND jh.jobid = %s 
+                           j.id = jh.jobid
+                           AND jh.jobid = %s
                            AND jh.hostid = h.id
                            AND a.hostid = h.id
                            AND (
@@ -222,7 +221,7 @@ class DbAcct(Accounting):
         j = Job(record['id'], record['id'], record)
         j.set_nodes(hostlist)
 
-        if hostarchivemapping != None:
+        if hostarchivemapping is not None:
             j.set_rawarchives(hostarchivemapping)
 
         return j
@@ -234,11 +233,11 @@ class DbAcct(Accounting):
 
         query = """SELECT
                         j.id,
-                        UNCOMPRESS(j.record) 
-                FROM 
+                        UNCOMPRESS(j.record)
+                FROM
                         `job` j
-                WHERE 
-                        j.resource_id = %s 
+                WHERE
+                        j.resource_id = %s
                         AND j.local_job_id = %s """
 
         data = (self._resource_id, localjobid)
@@ -266,17 +265,17 @@ class DbAcct(Accounting):
 
         query = """SELECT
                         j.id,
-                        UNCOMPRESS(j.record) 
-                FROM 
+                        UNCOMPRESS(j.record)
+                FROM
                         `job` j
-                WHERE 
-                        j.resource_id = %s 
+                WHERE
+                        j.resource_id = %s
                         AND j.end_time_ts BETWEEN unix_timestamp(%s) AND unix_timestamp(%s)
                 """
 
         data = (self._resource_id, start, end)
 
-        if onlynew != None and onlynew != False:
+        if onlynew is not None and onlynew:
             query += " AND (p.process_version != %s OR p.process_version IS NULL)"
             data = data + (Accounting.PROCESS_VERSION, )
 
@@ -299,26 +298,26 @@ class DbAcct(Accounting):
             yield self.recordtojob(r, list(hostarchives.keys()), hostarchives)
 
     def get(self, start_time=None, end_time=None):
-        """ 
+        """
         read all unprocessed jobs between start_time and end_time (or all time if start/end not specified)
         """
 
-        query = """SELECT 
+        query = """SELECT
                         j.id,
-                        UNCOMPRESS(j.record) 
-                FROM 
-                        `job` j, 
+                        UNCOMPRESS(j.record)
+                FROM
+                        `job` j,
                         `process` p
-                WHERE 
-                        j.id = p.jobid 
-                        AND j.resource_id = %s 
+                WHERE
+                        j.id = p.jobid
+                        AND j.resource_id = %s
                         AND p.process_version != %s """
 
         data = (self._resource_id, PROCESS_VERSION)
-        if start_time != None:
+        if start_time is not None:
             query += " AND end_time_ts >= %s "
             data = data + (start_time, )
-        if end_time != None:
+        if end_time is not None:
             query += " AND end_time_ts < %s "
             data = data + (end_time, )
         query += " ORDER BY end_time_ts ASC"
@@ -348,14 +347,14 @@ class DbAcct(Accounting):
 
 
 def ingestall(config):
-    """ 
+    """
     Run account data ingest for all records
     """
     ingest(config, 9223372036854775807, 0)
 
 
 def ingest(config, end_time, start_time=None):
-    """ 
+    """
     Run account data ingest for all records between start_time and end_time
     If start_time is not specified then the start time is based on the
     most recent record last ingested
@@ -369,9 +368,9 @@ def ingest(config, end_time, start_time=None):
         if resource['batch_system'] == "XDMoD":
             continue
 
-        if start_time == None:
+        if start_time is None:
             start_time = dbif.getmostrecent(resource['resource_id'])
-            if start_time == None:
+            if start_time is None:
                 start_time = 0
             else:
                 start_time = start_time - (7 * 24 * 3600)
@@ -385,7 +384,7 @@ def ingest(config, end_time, start_time=None):
 
         for acct in acctreader.reader(start_time, end_time):
 
-            if lariat != None:
+            if lariat is not None:
                 acct['lariat'] = lariat.find(acct['id'], acct['start_time'], acct['end_time'])
 
             record = []
@@ -398,7 +397,7 @@ def ingest(config, end_time, start_time=None):
             if 'host_list_dir' in resource:
                 hostlist = acctreader.get_host_list_path(acct, resource['host_list_dir'])
                 hostnames = []
-                if hostlist != None:
+                if hostlist is not None:
                     with open(hostlist, "r") as fp:
                         if resource['hostname_mode'] == "fqdn" and resource['host_name_ext'] != "":
                             hostnames = [x.strip() + "." + resource['host_name_ext'] for x in fp]

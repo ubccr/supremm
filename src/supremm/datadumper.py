@@ -1,12 +1,11 @@
 """ X """
 import pickle as pickle
 import os
-import numpy
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-class PlotInterface(object):
+class PlotInterface():
 
     def plot_timeseries(self, times, values):
         pass
@@ -62,8 +61,8 @@ class ImageOutput(PlotInterface):
         self.fig.tight_layout()
         self.fig.savefig(self.outfilename, format='png', transparent=True)
 
-    
-class Dumper(object):
+
+class Dumper():
 
     def __init__(self, filename='data.dat'):
         self.filename = filename
@@ -96,7 +95,7 @@ class Dumper(object):
         with open(self.filename, 'rb') as fp:
             self.data = pickle.load(fp)
 
-class Plotter(object):
+class Plotter():
 
     def __init__(self, title="Autoperiod", filename='output.pdf', figsize=(4, 3), verbose=False):
         self.title = title

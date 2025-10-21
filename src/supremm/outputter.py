@@ -1,11 +1,8 @@
-
-import sys
-import os
-from pymongo import MongoClient
-from pymongo.errors import InvalidDocument
 import json
 
-class factory(object):
+from pymongo import MongoClient
+
+class factory():
     """ output class generator helper """
     def __init__(self, config, resconf, dry_run=False):
         outconf = config.getsection("outputdatabase")
@@ -31,7 +28,7 @@ class factory(object):
         return self._impl.__exit__(exception_type, exception_val, trace)
 
 
-class FileOutput(object):
+class FileOutput():
     """
     Dumps output into a file in one of two fashions
     1. Fragment - dumps snippets of json (currently one json object per job) into
@@ -88,7 +85,7 @@ class FileOutput(object):
                 json.dump(self._jsonarray, f, indent=4, default=str)
 
 
-class MongoOutput(object):
+class MongoOutput():
     """ Support for mongodb output """
     def __init__(self, outconf, resconf):
         self._uri = outconf['uri']
@@ -118,13 +115,13 @@ class MongoOutput(object):
         self._outdb[self._collection].update({"_id": summary["_id"]}, summary, upsert=True)
 
     def __exit__(self, exception_type, exception_val, trace):
-        if self._client != None:
+        if self._client is not None:
             self._outdb = None
             self._client.close()
             self._client = None
 
 
-class StdoutOutput(object):
+class StdoutOutput():
     """
     Simple outputter that dumps the job summary to stdout. Intended for debug purposes.
     """
@@ -145,7 +142,7 @@ class StdoutOutput(object):
         pass
 
 
-class NullOutput(object):
+class NullOutput():
     """
     Outputter used when configured outputter is a database (Mongo) but the dry-run option is set.
     Discards all data.

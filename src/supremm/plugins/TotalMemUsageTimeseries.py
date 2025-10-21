@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """ Timeseries generator module """
+from collections import Counter
 
 from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
+
 import numpy
-from collections import Counter
 
 class TotalMemUsageTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """
@@ -35,7 +36,7 @@ class TotalMemUsageTimeseries(Plugin):
 
         nodemem_gb = numpy.sum(data[0]) / 1048576.0
         insertat = self._data.adddata(hostidx, timestamp, nodemem_gb)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = data[0] / 1048576.0
 
         return True

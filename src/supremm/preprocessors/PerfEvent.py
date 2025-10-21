@@ -25,7 +25,7 @@ class PerfEvent(PreProcessor):
 
     def process(self, timestamp, data, description):
 
-        if self.perfactive == False:
+        if not self.perfactive:
             return False
 
         if len(data) == 1 and data[0].shape == (1, 2) and data[0][:, 0].size > 0:

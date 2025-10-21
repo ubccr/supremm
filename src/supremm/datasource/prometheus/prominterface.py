@@ -1,12 +1,8 @@
-import os
+import datetime
 import logging
 import urllib.parse as urlparse
-import datetime
 
-import numpy as np
 import requests
-
-from supremm.config import Config
 
 CHUNK_SIZE = 4 # HOURS
 
@@ -325,7 +321,9 @@ class Context():
                         return None
 
             if fmt == "analytic":
-                descriptions.append( (np.arange(0, len(metric_descriptions)), metric_descriptions) )
+                descriptions.append(
+                    (np.arange(0, len(metric_descriptions)), metric_descriptions)
+                )
             elif fmt == "preproc":
                 descriptions.append({idx: md for idx, md in enumerate(metric_descriptions)})
 

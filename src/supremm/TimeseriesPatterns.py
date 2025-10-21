@@ -170,15 +170,25 @@ def _calculate_autoperiod(nodes, metric, resource, jobid):
             continue
 
         if times_interp is None:
-            times_interp = np.linspace(min(node['all_times']), max(node['all_times']),
-                                        len(node['all_times']))
+            times_interp = np.linspace(
+                min(node['all_times']),
+                max(node['all_times']),
+                len(node['all_times'])
+            )
             summed_values = np.interp(times_interp, node['all_times'], node['all_data'][metric])
         else:
             if summed_values is None:
-                summed_values = np.interp(times_interp, node['all_times'], node['all_data'][metric])
+                summed_values = np.interp(
+                    times_interp,
+                    node['all_times'],
+                    node['all_data'][metric]
+                )
             else:
-                summed_values += np.interp(times_interp, node['all_times'],
-                                                    node['all_data'][metric])
+                summed_values += np.interp(
+                    times_interp,
+                    node['all_times'],
+                    node['all_data'][metric]
+                )
 
     autoperiod = Autoperiod(
         *convert_to_rates(times_interp, summed_values),

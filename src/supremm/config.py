@@ -5,8 +5,9 @@ import json
 import configparser
 import re
 import glob
-import pkg_resources
 import logging
+
+import pkg_resources
 
 
 def iscomment(line):
@@ -15,7 +16,7 @@ def iscomment(line):
         return True
     return False
 
-class Config(object):
+class Config():
     """ Configuration data management
         The configuration file format is similar to json except lines that begin "//"
         are treated as comments and are ignored. Also the string \n[:space:]// is not permitted
@@ -24,10 +25,10 @@ class Config(object):
 
     def __init__(self, confpath=None):
 
-        if confpath == None:
+        if confpath is None:
             confpath = self.autodetectconfpath()
 
-        if confpath is None or os.path.isdir(confpath) == False:
+        if confpath is None or not os.path.isdir(confpath):
             raise Exception("Missing configuration path %s" % confpath)
 
         conffile = os.path.join(confpath, "config.json")
@@ -101,7 +102,7 @@ class Config(object):
     def process_include(self, sectionname, url):
         """ process an include directive (only xdmod parsing is supported) """
         if url.startswith("xdmod://"):
-            if self._xdmodconfig == None:
+            if self._xdmodconfig is None:
                 self.parsexdmod()
 
             xdmodsection = url[8:]
@@ -119,7 +120,7 @@ class Config(object):
     def resourceconfigs(self):
         """ Iterator over enabled resources """
         for resname, resdata in self._config['resources'].items():
-            if "enabled" in resdata and resdata['enabled'] == False:
+            if "enabled" in resdata and not resdata['enabled']:
                 continue
             resdata['name'] = resname
             yield (resname, resdata)

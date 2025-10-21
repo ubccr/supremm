@@ -31,7 +31,7 @@ def getoptions():
 
     for opt in opts:
         if opt[0] in ("-d", "--debug"):
-            retdata['log'] = logging.DEBUG 
+            retdata['log'] = logging.DEBUG
         if opt[0] in ("-c", "--config"):
             retdata['config'] = opt[1]
         if opt[0] in ("-s", "--section"):
@@ -55,7 +55,7 @@ def main():
     setuplogger(opts['log'])
 
     if opts['config']:
-        logging.debug("Using specified path: {}".format(opts['config']))
+        logging.debug("Using specified path: %s" % opts['config'])
     else:
         logging.debug("Automatically detecting configuration path.")
 
@@ -66,25 +66,25 @@ def main():
         sys.exit(1)
 
     if not opts['section']:
-       print(conf)
-       sys.exit(0)
+        print(conf)
+        sys.exit(0)
 
     try:
         section = conf.getsection(opts['section'])
     except KeyError:
-        logging.error("Section '{}' not defined in configuration file.".format(opts['section']))
+        logging.error("Section '%s' not defined in configuration file." % opts['section'])
         sys.exit(1)
 
     if opts['item']:
         try:
             item = section[opts['item']]
         except KeyError:
-            logging.error("Item '{}' not defined in section '{}'.".format(opts['item'], opts['section']))
+            logging.error("Item '%s' not defined in section '%s'." % (opts['item'], opts['section']))
             sys.exit(1)
 
         if isinstance(item, dict):
             item = json.dumps(item, indent=4)
- 
+
         print(item)
 
     else:

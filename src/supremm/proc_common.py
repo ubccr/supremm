@@ -5,8 +5,6 @@
 import sys
 from getopt import getopt
 import os
-import time
-import datetime
 import logging
 
 from supremm.scripthelpers import parsetime
@@ -174,7 +172,7 @@ def getoptions(has_mpi):
         if opt[0] == '--dump-proclist':
             retdata['dump_proclist'] = True
         if opt[0] in ("-D", "--delete"):
-            retdata['dodelete'] = True if opt[1].upper().startswith("T") else False
+            retdata['dodelete'] = bool(opt[1].upper().startswith("T"))
         if opt[0] in ("-E", "--extract-only"):
             retdata['extractonly'] = True
         if opt[0] in ("-o", "--output"):
@@ -195,8 +193,8 @@ def getoptions(has_mpi):
     if retdata['process_bad'] and retdata['process_old'] and retdata['process_notdone'] and retdata['process_current']:
         retdata['process_all'] = True
 
-    if not (starttime == None and endtime == None):
-        if starttime == None or endtime == None:
+    if not (starttime is None and endtime is None):
+        if starttime is None or endtime is None:
             usage(has_mpi)
             sys.exit(1)
         retdata.update({"mode": "timerange", "start": starttime, "end": endtime, "resource": resource})
@@ -215,15 +213,15 @@ def getoptions(has_mpi):
             logging.error("Cannot process all jobs without a time range")
             sys.exit(1)
 
-    if localjobid == None and resource == None:
+    if localjobid is None and resource is None:
         retdata.update({"mode": "all"})
         return retdata
 
-    if localjobid != None and resource != None:
+    if localjobid is not None and resource is not None:
         retdata.update({"mode": "single", "local_job_id": localjobid, "resource": resource, "job_output_dir": joboutdir})
         return retdata
 
-    if resource != None:
+    if resource is not None:
         retdata.update({"mode": "resource", "resource": resource})
         return retdata
 
@@ -244,7 +242,7 @@ def instantiatePlugins(plugins, job):
 
 def override_defaults(resconf, opts):
     """ Commandline options that override the configuration file settings """
-    if 'job_output_dir' in opts and opts['job_output_dir'] != None:
+    if 'job_output_dir' in opts and opts['job_output_dir'] is not None:
         resconf['job_output_dir'] = opts['job_output_dir']
 
     return resconf

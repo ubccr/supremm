@@ -24,13 +24,13 @@ class MemoryUsage(Plugin):
             first and last rather than storing all of the meory measurements for
             the job, we use the RollingStats() class to keep track of the mean
             values. Since we don't know which data point is the last one, we update
-            the RollingStats with the value from the previous timestep at each timestep.  
+            the RollingStats with the value from the previous timestep at each timestep.
         """
 
         if nodemeta.nodeindex not in self._data:
-            self._data[nodemeta.nodeindex] = {'usedval': None, 
-                                              'used': RollingStats(), 
-                                              'usedminusval': None, 
+            self._data[nodemeta.nodeindex] = {'usedval': None,
+                                              'used': RollingStats(),
+                                              'usedminusval': None,
                                               'usedminus': RollingStats()}
             return True
 
@@ -39,10 +39,10 @@ class MemoryUsage(Plugin):
 
         hdata = self._data[nodemeta.nodeindex]
 
-        if hdata['usedval'] != None:
+        if hdata['usedval'] is not None:
             hdata['used'].append(hdata['usedval'])
             hdata['usedminus'].append(hdata['usedminusval'])
-            
+
         hdata['usedval'] = sum(data[0])
         hdata['usedminusval'] = (sum(data[0]) - sum(data[1]) - sum(data[2]))
 

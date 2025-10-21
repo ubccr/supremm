@@ -4,7 +4,7 @@ import numpy
 import scipy.stats
 
 
-class Integrator(object):
+class Integrator():
     """ Helper class to itegrate data """
     def __init__(self, x):
         self._x0 = x
@@ -61,10 +61,10 @@ def calculate_stats(v):
     return res
 
 
-class RollingStats(object):
+class RollingStats():
     """ Uses Welford's method [1] to compute the mean and stddev of
         a series for data without storing all datapoints.
-    
+
         Data should be added to the class instance using the append()
         function and the summary statistics can be accessed using get()
 
@@ -76,7 +76,7 @@ class RollingStats(object):
         self._count = 0
 
     def append(self, x):
-        """ append a datum. """ 
+        """ append a datum. """
         self._count += 1
 
         if self._count == 1:

@@ -1,11 +1,14 @@
 """ Implementation for account reader that gets data from the XDMoD datawarehouse """
-from pymysql import OperationalError, ProgrammingError
+import logging
+
 from supremm.config import Config
 from supremm.accounting import Accounting, ArchiveCache
 from supremm.scripthelpers import getdbconnection
 from supremm.Job import Job
 from supremm.errors import ProcessingError
-import logging
+
+from pymysql import OperationalError, ProgrammingError
+
 
 class XDMoDAcct(Accounting):
     """ account reader that gets data from xdmod datawarehouse """
@@ -119,10 +122,10 @@ class XDMoDAcct(Accounting):
             """
 
         self.hostquery = """
-            SELECT 
+            SELECT
                 tt.hostname, tt.filename
             FROM (
-            SELECT 
+            SELECT
                 h.hostname, ap.filename, na.start_time_ts
             FROM
                 modw_supremm.`archive_paths` ap,
@@ -139,9 +142,9 @@ class XDMoDAcct(Accounting):
                     OR (j.end_time_ts BETWEEN na.start_time_ts AND na.end_time_ts)
                     OR (j.start_time_ts < na.start_time_ts
                     AND j.end_time_ts > na.end_time_ts))
-                    AND ap.id = na.archive_id 
-            UNION 
-            SELECT 
+                    AND ap.id = na.archive_id
+            UNION
+            SELECT
                 h.hostname, ap.filename, ja.start_time_ts
             FROM
                 modw_supremm.`archive_paths` ap,
@@ -221,7 +224,7 @@ class XDMoDAcct(Accounting):
 
         logging.info("Using time interval: %s - %s", start, end)
 
-        process_selectors=[]
+        process_selectors = []
         # ALL & NONE will select the same jobs, simplify the query
         if opts['process_all']:
             logging.info("Processing all jobs")
@@ -251,7 +254,7 @@ class XDMoDAcct(Accounting):
 
         # Add a "AND ( cond1 OR cond2 ...) clause
         if len(process_selectors) > 0:
-            job_selector=" OR ".join(process_selectors)
+            job_selector = " OR ".join(process_selectors)
             job_selector = " AND( " + job_selector + " )"
             query += job_selector
 
@@ -268,30 +271,30 @@ class XDMoDAcct(Accounting):
         query += " AND p.process_version IS NULL"
 
         data = (self._resource_id, )
-        if start != None:
+        if start is not None:
             query += " AND jf.end_time_ts >= %s "
             data = data + (start, )
-        if end != None:
+        if end is not None:
             query += " AND jf.end_time_ts < %s "
             data = data + (end, )
         query += " ORDER BY jf.end_time_ts ASC"
 
-        for job in  self.executequery(query, data):
+        for job in self.executequery(query, data):
             yield job
 
     def executequery(self, query, data):
         """ run the sql queries and yield a job object for each result """
-        if self.con == None:
+        if self.con is None:
             self.con = getdbconnection(self.dbsettings, True)
-        if self.hostcon == None:
+        if self.hostcon is None:
             self.hostcon = getdbconnection(self.dbsettings, False)
-        if self.nodenamecon == None:
+        if self.nodenamecon is None:
             self.nodenamecon = getdbconnection(self.dbsettings, False)
 
         cur = self.con.cursor()
         cur.execute(query, data)
 
-        rows_returned=cur.rowcount
+        rows_returned = cur.rowcount
         logging.info("Processing %s jobs", rows_returned)
 
         for record in cur:
@@ -327,19 +330,19 @@ class XDMoDAcct(Accounting):
     def markasdone(self, job, success, elapsedtime, error=None):
         """ log a job as being processed (either successfully or not) """
         query = """
-            INSERT INTO modw_supremm.`process` 
+            INSERT INTO modw_supremm.`process`
                 (jobid, process_version, process_timestamp, process_time) VALUES (%s, %s, NOW(), %s)
             ON DUPLICATE KEY UPDATE process_version = %s, process_timestamp = NOW(), process_time = %s
             """
 
-        if error != None:
+        if error is not None:
             version = -1000 - error
         else:
             version = Accounting.PROCESS_VERSION if success else -1 * Accounting.PROCESS_VERSION
 
         data = (job.job_pk_id, version, elapsedtime, version, elapsedtime)
 
-        if self.madcon == None:
+        if self.madcon is None:
             self.madcon = getdbconnection(self.dbsettings, False, {'autocommit': True})
 
         cur = self.madcon.cursor()
@@ -396,7 +399,7 @@ class XDMoDArchiveCache(ArchiveCache):
             filenamequery = "(SELECT id FROM `modw_supremm`.`archive_paths` WHERE `filename` = %s)"
             filenameparam = filename
 
-        if jobid != None:
+        if jobid is not None:
             query = """INSERT INTO `modw_supremm`.`archives_joblevel`
                             (archive_id, host_id, local_jobid, local_job_array_index, local_job_id_raw, start_time_ts, end_time_ts)
                        VALUES (

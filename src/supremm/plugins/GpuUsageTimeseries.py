@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """ Timeseries generator module """
+from collections import Counter
 
 from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
+
 import numpy
-from collections import Counter
 
 class GpuUsageTimeseries(Plugin):
     """ Generate the CPU usage as a timeseries data """
@@ -35,7 +36,7 @@ class GpuUsageTimeseries(Plugin):
 
         avg_usage = numpy.mean(data[0])
         insertat = self._data.adddata(hostidx, timestamp, avg_usage)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = data[0]
 
         return True

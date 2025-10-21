@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ processing error class is defined so that common errors can be assigned short codes """
 
-class ProcessingError(object):
+class ProcessingError():
     """ Container class for processing errors """
     RAW_COUNTER_UNAVAILABLE = 1
     JOB_TOO_SHORT = 2

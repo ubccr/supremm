@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
+import copy
+import configparser
 import json
 import os
-import tempfile
-import copy
-from supremm.scripthelpers import getdbconnection
-from supremm.config import Config
-from supremm.xdmodstylesetupmenu import XDMoDStyleSetupMenu
-import configparser
+import signal
 import socket
 import subprocess
 import sys
-import signal
+import tempfile
+
+from supremm.config import Config
+from supremm.scripthelpers import getdbconnection
+from supremm.xdmodstylesetupmenu import XDMoDStyleSetupMenu
+
 import pkg_resources
 import requests
 
@@ -18,7 +20,7 @@ import requests
 def promptconfig(display):
     """ prompt user for configuration path """
     config = None
-    while config == None:
+    while config is None:
         confpath = display.prompt_string("Enter path to configuration files", Config.autodetectconfpath())
         try:
             config = Config(confpath)
@@ -216,7 +218,7 @@ def writeconfig(display, confpath, outconfig, mycnf):
 
     promptwritefile(display, os.path.join(confpath, "config.json"), json.dumps(outconfig, indent=4))
 
-    if mycnf != None:
+    if mycnf is not None:
         mycnfpath = os.path.expanduser(outconfig['datawarehouse']['defaultsfile'])
         promptwritefile(display, mycnfpath, mycnf)
 
@@ -226,7 +228,7 @@ def generatetempconfig(confdata, mycnf):
 
     tmpconfdata = copy.deepcopy(confdata)
 
-    if mycnf != None:
+    if mycnf is not None:
         mycnfpath = os.path.join(confpath, "my.cnf")
         tmpconfdata['datawarehouse']['defaultsfile'] = mycnfpath
         with open(mycnfpath, "w") as tmpmycnf:
@@ -300,7 +302,7 @@ def configure_resource(display, resource_id, resource, defaults):
 
         setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
-        if key == "enabled" and setting[key] == False:
+        if key == "enabled" and not setting[key]:
             return {"resource_id": resource_id, "enabled": False}
 
         if key == "datasource":
@@ -362,8 +364,8 @@ INFO Prometheus build version: {}
                     break
 
                 else:
-                   display.print_warning("Invalid datasource specified ({}) (Ctrl+C to exit)".format(setting[key]))
-                   setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
+                    display.print_warning("Invalid datasource specified ({}) (Ctrl+C to exit)".format(setting[key]))
+                    setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
     setting['batchscript'] = {
         'path': setting['batchscript.path'].strip(),
@@ -419,11 +421,11 @@ following the documentation in the install guide.
 
 An error:
 
-\"{0}\" 
+\"{0}\"
 
 occurred running the mysql command. Please create the tables manually
 following the documentation in the install guide.
-""".format(e.strerror)) 
+""".format(e.strerror))
 
         display.hitanykey("Press ENTER to continue.")
 
@@ -465,12 +467,12 @@ instructions in the install guide.
 
 An error:
 
-\"{0}\" 
+\"{0}\"
 
 occurred running the mongo command. Please refer to the manual setup
 instructions in the install guide.
 
-""".format(e.strerror)) 
+""".format(e.strerror))
 
     display.hitanykey("Press ENTER to continue.")
 

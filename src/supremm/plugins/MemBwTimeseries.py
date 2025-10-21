@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """ Timeseries generator module """
+from collections import Counter
 
 from supremm.plugin import Plugin
 from supremm.subsample import TimeseriesAccumulator
 from supremm.errors import ProcessingError
+
 import numpy
-from collections import Counter
 
 SNB_METRICS = ["perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_RD.value",
                "perfevent.hwcounters.snbep_unc_imc0__UNC_M_CAS_COUNT_WR.value",
@@ -46,7 +47,7 @@ class MemBwTimeseries(Plugin):
 
     def process(self, nodemeta, timestamp, data, description):
 
-        if self._job.getdata('perf')['active'] != True:
+        if not self._job.getdata('perf')['active']:
             self._error = ProcessingError.RAW_COUNTER_UNAVAILABLE
             return False
 
@@ -63,7 +64,7 @@ class MemBwTimeseries(Plugin):
         membw = 64.0 * numpy.sum(data[0:]) / 1024.0 / 1024.0 / 1024.0
 
         insertat = self._data.adddata(hostidx, timestamp, membw)
-        if insertat != None:
+        if insertat is not None:
             self._hostdata[hostidx][insertat] = membw
 
             if insertat > 1:
@@ -75,7 +76,7 @@ class MemBwTimeseries(Plugin):
 
     def results(self):
 
-        if self._error != None:
+        if self._error is not None:
             return {"error": self._error}
 
         values = self._data.get()

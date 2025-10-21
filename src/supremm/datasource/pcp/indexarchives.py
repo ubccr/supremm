@@ -1,29 +1,26 @@
 #!/usr/bin/env python3
 """ Script that indexes the pc archives for a given resource.
 """
-
+import argparse
+import csv
+import functools
 import logging
 import math
+import re
+import os
+import tempfile
+import time
+from datetime import datetime, timedelta, timezone
+from multiprocessing import Pool
 
 import pytz
 from pcp import pmapi
 import cpmapi as c_pmapi
-import time
-
-from supremm.config import Config
-from supremm.scripthelpers import parsetime, setuplogger
 
 from supremm.account import DbArchiveCache
+from supremm.config import Config
+from supremm.scripthelpers import parsetime, setuplogger
 from supremm.xdmodaccount import XDMoDArchiveCache
-
-import os
-from datetime import datetime, timedelta, timezone
-import re
-from multiprocessing import Pool
-import functools
-import tempfile
-import csv
-import argparse
 
 
 def datetime_to_timestamp(dt):
@@ -36,7 +33,7 @@ JOB_ARCHIVE_RE = re.compile(
 
 JOB_ID_REGEX = re.compile(r"^(?:(\d+)(?:[_\[](\d+)?\]?)?).*$")
 
-class TimezoneAdjuster(object):
+class TimezoneAdjuster():
     def __init__(self, timezone_name, guess_early=True):
         self.timezone = pytz.timezone(timezone_name) if timezone_name is not None else datetime.now(timezone(timedelta(0))).astimezone().tzinfo
         self.guess_early = guess_early
@@ -49,7 +46,7 @@ class TimezoneAdjuster(object):
             return timestamp - self.timezone.utcoffset(dt, self.guess_early).total_seconds()
 
 
-class PcpArchiveProcessor(object):
+class PcpArchiveProcessor():
     """ Parses a pcp archive and adds the archive information to the index """
 
     def __init__(self, resconf):
@@ -126,7 +123,7 @@ class PcpArchiveProcessor(object):
         return self.tz_adjuster.adjust(start_datetime)
 
 
-class PcpArchiveFinder(object):
+class PcpArchiveFinder():
     """ Helper class that finds all pcp archive files in a directory
         mindate is the minimum datestamp of files that should be processed
     """
@@ -134,7 +131,7 @@ class PcpArchiveFinder(object):
     def __init__(self, mindate, maxdate, all=False):
         self.mindate = mindate if not all else None
         self.maxdate = maxdate if not all else None
-        if self.mindate != None:
+        if self.mindate is not None:
             self.minmonth = datetime(year=mindate.year, month=mindate.month, day=1) - timedelta(days=1)
         else:
             self.minmonth = None
@@ -152,10 +149,10 @@ class PcpArchiveFinder(object):
                      false if the name is a date that is < the reference
         """
         mtch = self.sregex.match(subdir)
-        if mtch == None:
+        if mtch is None:
             return None
 
-        if self.minmonth == None:
+        if self.minmonth is None:
             return True
 
         subdirdate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=1)
@@ -165,21 +162,21 @@ class PcpArchiveFinder(object):
     def filenameok(self, filename):
         """ parse filename to get the datestamp and compare with the reference datestamp
         """
-        if self.mindate == None:
+        if self.mindate is None:
             return True
 
         mtch = self.fregex.match(filename)
-        if mtch == None:
+        if mtch is None:
             logging.error(
                 "Unparsable filename %s processing anyway.", filename)
             return True
 
-        if mtch.group(4) != None and mtch.group(5) != None:
+        if mtch.group(4) is not None and mtch.group(5) is not None:
             filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)), hour=int(mtch.group(4)), minute=int(mtch.group(5)))
         else:
             filedate = datetime(year=int(mtch.group(1)), month=int(mtch.group(2)), day=int(mtch.group(3)))
 
-        if self.maxdate == None:
+        if self.maxdate is None:
             return filedate > self.mindate
         else:
             return filedate > self.mindate and filedate < self.maxdate
@@ -193,7 +190,7 @@ class PcpArchiveFinder(object):
             yyyy = int(year)
             mm = int(month)
 
-            if day == None:
+            if day is None:
                 # Some datetime arithmetic to get the last day of the month
                 tmpdate = datetime(year=yyyy, month=mm, day=28, hour=23, minute=59, second=59) + timedelta(days=4)
                 dirdate = tmpdate - timedelta(days=tmpdate.day)
@@ -203,7 +200,7 @@ class PcpArchiveFinder(object):
         except ValueError:
             return None
 
-        if self.mindate == None:
+        if self.mindate is None:
             return True
 
         return dirdate > self.mindate
@@ -337,7 +334,7 @@ class PcpArchiveFinder(object):
                          datetime.fromtimestamp(starttime) + timedelta(seconds=(currtime - starttime) / hostcount * len(hosts)))
 
 
-class LoadFileIndexUpdater(object):
+class LoadFileIndexUpdater():
     def __init__(self, config, resconf, keep_csv=False, dry_run=False):
         self.config = config
         self.resource_id = resconf["resource_id"]

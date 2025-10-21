@@ -1,21 +1,18 @@
 #!/usr/bin/env python
 """ Summarize module for PCP datasource """
-
+import copy
 import datetime
-
-from ctypes import c_uint
-from pcp import pmapi
-import cpmapi as c_pmapi
-import time
 import logging
+import time
 import traceback
+
 from supremm.plugin import NodeMetadata
 from supremm.rangechange import RangeChange, DataCache
 from supremm.summarize import Summarize
 from supremm.datasource.pcp.pcpcinterface import pcpcinterface
 
-import numpy
-import copy
+import cpmapi as c_pmapi
+from pcp import pmapi
 
 
 class ArchiveMeta(NodeMetadata):
@@ -188,7 +185,7 @@ class PCPSummarize(Summarize):
             try:
                 result = ctx.pmFetch(metric_id_array)
 
-                if False == self.runpreproccall(preproc, result, mtypes, ctx, mdata, metric_id_array):
+                if not self.runpreproccall(preproc, result, mtypes, ctx, mdata, metric_id_array):
                     # A return value of false from process indicates the computation
                     # failed and no more data should be sent.
                     done = True
@@ -232,7 +229,7 @@ class PCPSummarize(Summarize):
             try:
                 result = ctx.pmFetch(metric_id_array)
 
-                if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
+                if not self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
                     # A return value of false from process indicates the computation
                     # failed and no more data should be sent.
                     done = True
@@ -245,7 +242,7 @@ class PCPSummarize(Summarize):
                     analytic.status = "failure"
                     raise exp
             finally:
-                if result != None:
+                if result is not None:
                     ctx.pmFreeResult(result)
 
         analytic.status = "complete"
@@ -275,7 +272,7 @@ class PCPSummarize(Summarize):
             result = ctx.pmFetch(metric_id_array)
             firstimestamp = copy.deepcopy(result.contents.timestamp)
 
-            if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
+            if not self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
                 analytic.status = "failure"
                 ctx.pmFreeResult(result)
                 return
@@ -283,14 +280,14 @@ class PCPSummarize(Summarize):
             ctx.pmFreeResult(result)
             result = None
 
-            if self.rangechange.passthrough == False:
+            if not self.rangechange.passthrough:
                 # need to process every timestamp and only pass the last one to the plugin
                 done = False
                 datacache = DataCache()
                 while not done:
                     try:
                         result = ctx.pmFetch(metric_id_array)
-                        if False == self.runcallback(datacache, result, mtypes, ctx, mdata, metric_id_array):
+                        if not self.runcallback(datacache, result, mtypes, ctx, mdata, metric_id_array):
                             # A return value of false from process indicates the computation
                             # failed and no more data should be sent.
                             done = True
@@ -302,11 +299,11 @@ class PCPSummarize(Summarize):
                             analytic.status = "failure"
                             raise exp
                     finally:
-                        if result != None:
+                        if result is not None:
                             ctx.pmFreeResult(result)
                             result = None
 
-                if False == datacache.docallback(analytic):
+                if not datacache.docallback(analytic):
                     analytic.status = "failure"
                     return
 
@@ -321,7 +318,7 @@ class PCPSummarize(Summarize):
                     result = None
                     return
 
-                if False == self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
+                if not self.runcallback(analytic, result, mtypes, ctx, mdata, metric_id_array):
                     analytic.status = "failure"
                     ctx.pmFreeResult(result)
                     result = None
@@ -329,7 +326,7 @@ class PCPSummarize(Summarize):
 
             analytic.status = "complete"
 
-            if result != None:
+            if result is not None:
                 ctx.pmFreeResult(result)
                 result = None
 

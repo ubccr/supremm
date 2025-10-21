@@ -10,7 +10,10 @@ class NodeMemoryUsage(Plugin):
 
     name = property(lambda x: "nodememory")
     mode = property(lambda x: "all")
-    requiredMetrics = property(lambda x: [["mem.freemem", "mem.physmem"], ["mem.util.free", "hinv.physmem", "mem.util.cached"]])
+    requiredMetrics = property(lambda x: [
+        ["mem.freemem", "mem.physmem"],
+        ["mem.util.free", "hinv.physmem", "mem.util.cached"]
+    ])
     optionalMetrics = property(lambda x: [])
     derivedMetrics = property(lambda x: [])
 
@@ -35,19 +38,19 @@ class NodeMemoryUsage(Plugin):
 
         hdata = self._data[nodemeta.nodeindex]
 
-        if hdata['freeval'] != None:
+        if hdata['freeval'] is not None:
             hdata['free'].append(hdata['freeval'])
 
         if len(data[0]) > 0:
             hdata['freeval'] = data[0][0]
 
-        if hdata['physmem'] == None and len(data[1]) > 0:
+        if hdata['physmem'] is None and len(data[1]) > 0:
             hdata['physmem'] = data[1][0]
             if len(data) == 3:
                 hdata['physmem'] *= 1024.0
 
         if len(data) == 3:
-            if hdata['cached'] == None:
+            if hdata['cached'] is None:
                 hdata['cached'] = RollingStats()
 
             hdata['cached'].append(data[0][0] + data[2][0])
@@ -69,23 +72,25 @@ class NodeMemoryUsage(Plugin):
                 memfree.append(memdata['free'].mean())
                 maxmemfree.append(memdata['free'].max)
 
-                if memdata['physmem'] != None:
+                if memdata['physmem'] is not None:
                     memused.append(memdata['physmem'] - memdata['free'].mean())
                     maxmemused.append(memdata['physmem'] - memdata['free'].min)
                     physmem.append(memdata['physmem'])
 
-                    if memdata['cached'] != None:
+                    if memdata['cached'] is not None:
                         memusedminus.append(memdata['physmem'] - memdata['cached'].mean())
                         maxmemusedminus.append(memdata['physmem'] - memdata['cached'].min)
 
         if len(memused) == 0:
             return {"error": ProcessingError.INSUFFICIENT_DATA}
 
-        result = {"used": calculate_stats(memused),
-                "maxused": calculate_stats(maxmemused),
-                "free": calculate_stats(memfree),
-                "physmem": calculate_stats(physmem),
-                "maxfree": calculate_stats(maxmemfree)}
+        result = {
+            "used": calculate_stats(memused),
+            "maxused": calculate_stats(maxmemused),
+            "free": calculate_stats(memfree),
+            "physmem": calculate_stats(physmem),
+            "maxfree": calculate_stats(maxmemfree)
+        }
 
         if len(memusedminus) > 0:
             result['used_minus_cache'] = calculate_stats(memusedminus)
