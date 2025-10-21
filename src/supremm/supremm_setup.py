@@ -261,7 +261,7 @@ def configure_resource(display, resource_id, resource, defaults):
                "host_name_ext": get_hostname_ext(),
                "datasource": "pcp",
                "pcp_log_dir": "/data/" + resource + "/pcp-logs",
-               "prom_host": "localhost:9090",
+               "prom_url": "localhost",
                "prom_user": "username",
                "prom_password": "password",
                "batchscript.path": "/data/" + resource + "/jobscripts",
@@ -274,7 +274,7 @@ def configure_resource(display, resource_id, resource, defaults):
                     "host_name_ext": "domain name for resource",
                     "datasource": "Data collector backend (pcp or prometheus)",
                     "pcp_log_dir": "Directory containing node-level PCP archives",
-                    "prom_host": "Hostname for Prometheus server",
+                    "prom_url": "URL for Prometheus server",
                     "prom_user": "Username for basic authentication to Prometheus server (enter [space] for none)",
                     "prom_password": "Password for basic authentication to Prometheus server",
                     "batchscript.path": "Directory containing job launch scripts (enter [space] for none)",
@@ -315,12 +315,12 @@ def configure_resource(display, resource_id, resource, defaults):
 WARNING The directory {0} does not exist. Make sure to create and populate this
 directory before running the summarization software.
 """.format(setting[key]))
-                    del setting["prom_host"]
+                    del setting["prom_url"]
                     break
 
                 elif setting[key] == "prometheus":
-                    key = "prom_host"
                     del setting["pcp_log_dir"]
+                    key = "prom_url"
                     setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
 
                     key = "prom_user"
@@ -333,14 +333,14 @@ directory before running the summarization software.
                         setting["prom_password"] = ""
 
                     # Naive test connection to prometheus
-                    url = "http://{}/api/v1/status/buildinfo".format(setting["prom_host"])
+                    url = "{}/api/v1/status/buildinfo".format(setting["prom_url"])
                     try:
                         build_info = requests.get(url, auth=(setting["prom_user"], setting["prom_password"]))
                     except requests.exceptions.RequestException as exc:
                         display.print_warning("""
-WARNING Unable to reach prometheus server at http://{}.
+WARNING Unable to reach prometheus server at {}.
 Make sure the server is running and is accessible before running the summarization software.
-""".format(setting["prom_host"]))
+""".format(url))
                         break
 
                     if build_info.status_code == 401:
@@ -352,8 +352,8 @@ Please try another username and password.
 
                     elif build_info.status_code != 200:
                         display.print_warning("""
-WARNING Status code {} returned from Prometheus at http://{}.
-""".format(build_info.status_code, setting["prom_host"]))
+WARNING Status code {} returned from Prometheus at {}.
+""".format(build_info.status_code, setting["prom_url"]))
                         break
 
                     display.print_text("""
