@@ -33,8 +33,8 @@ Software Build Requirements
 ---------------------------
 
 This section provides instructions on how to create an RPM or source packages for
-software development or debugging. The instructions for installing the released
-packages are available on the [main website](https://supremm.xdmod.org/supremm-processing-install.html).
+software development or debugging. Installation instructions for the released
+packages are available [here](https://supremm.xdmod.org/supremm-processing-install.html).
 
 ### Rocky Linux 8
 
@@ -44,7 +44,7 @@ Install the EPEL repository configuration:
 
 Enable the PowerTools repository (for Cython dependencies):
 
-    sed -i 's/enabled=0/enabled=1/' /etc/yum.repos.d/Rocky-PowerTools.repo
+    dnf config-manager --set-enabled powertools
 
 Install the build dependencies:
 
