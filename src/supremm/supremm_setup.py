@@ -13,7 +13,9 @@ import sys
 import signal
 import pkg_resources
 import requests
-
+from pymongo import MongoClient, uri_parser
+from pymongo.errors import ServerSelectionTimeoutError, \
+                           InvalidURI
 
 def promptconfig(display):
     """ prompt user for configuration path """
@@ -262,8 +264,8 @@ def configure_resource(display, resource_id, resource, defaults):
                "datasource": "pcp",
                "pcp_log_dir": "/data/" + resource + "/pcp-logs",
                "prom_host": "localhost:9090",
-               "prom_user": "username",
-               "prom_password": "password",
+               "prom_user": "",
+               "prom_password": "",
                "batchscript.path": "/data/" + resource + "/jobscripts",
                "batchscript.timestamp_mode": "start"}
 
@@ -275,7 +277,7 @@ def configure_resource(display, resource_id, resource, defaults):
                     "datasource": "Data collector backend (pcp or prometheus)",
                     "pcp_log_dir": "Directory containing node-level PCP archives",
                     "prom_host": "Hostname for Prometheus server",
-                    "prom_user": "Username for basic authentication to Prometheus server (enter [space] for none)",
+                    "prom_user": "Username for basic authentication to Prometheus server",
                     "prom_password": "Password for basic authentication to Prometheus server",
                     "batchscript.path": "Directory containing job launch scripts (enter [space] for none)",
                     "batchscript.timestamp_mode": "Job launch script timestamp lookup mode ('submit', 'start' or 'none')"}
@@ -316,6 +318,8 @@ WARNING The directory {0} does not exist. Make sure to create and populate this
 directory before running the summarization software.
 """.format(setting[key]))
                     del setting["prom_host"]
+                    del setting["prom_user"]
+                    del setting["prom_password"]
                     break
 
                 elif setting[key] == "prometheus":
@@ -325,7 +329,7 @@ directory before running the summarization software.
 
                     key = "prom_user"
                     setting[key] = display.prompt_input(descriptions[key], resdefault.get(key, setting[key]))
-                    if setting[key] is not " ":
+                    if setting[key] is not "":
                         key = "prom_password"
                         setting[key] = display.prompt_password(descriptions[key])
                     else:
@@ -419,11 +423,11 @@ following the documentation in the install guide.
 
 An error:
 
-\"{0}\" 
+\"{0}\"
 
 occurred running the mysql command. Please create the tables manually
 following the documentation in the install guide.
-""".format(e.strerror)) 
+""".format(e.strerror))
 
         display.hitanykey("Press ENTER to continue.")
 
@@ -431,48 +435,61 @@ def create_mongodb(display):
     """ Add the schema collection to mongo """
 
     display.newpage("Mongo Database setup")
-
     config = promptconfig(display)
-
-    scriptpath = pkg_resources.resource_filename(__name__, "assets/mongo_setup.js")
-
     dbsettings = config.getsection("outputdatabase")
 
-    mongouri = display.prompt_string("URI", dbsettings['uri'])
+    while True:
+        mongouri = display.prompt_string("URI", dbsettings['uri'])
+        try:
+            uri_parser.parse_uri(mongouri)
+            break
+        except InvalidURI as e:
+            display.print_warning("{}".format(e))
+            display.hitanykey("Press ENTER to try again. (Ctrl+C to exit)")
+            display.newpage()
+            continue
 
     display.print_warning("""
 
 WARNING This operation will write to mongo
 
 """)
-
     dotables = display.prompt("Do you wish to proceed?", ["y", "n"], "n")
 
     if dotables == "y":
-        command = ["mongo", "--quiet", mongouri, scriptpath]
+        update_mongodb_schema(display, mongouri)
+
+    display.hitanykey("Press ENTER to continue.")
+
+def update_mongodb_schema(display, uri):
+
+    for s in ["schema", "timeseries_schema"]:
+        schemafname = "assets/{}.json".format(s)
+        schemafile = pkg_resources.resource_filename(__name__, schemafname)
         try:
-            retval = subprocess.call(command)
-            if retval != 0:
-                display.print_warning("""
+            sjson = open(schemafile, "r")
+            schema = json.load(sjson)
+            schemaid = schema["_id"]
+            sjson.close()
+        except FileNotFoundError:
+            display.print_warning("""
+
+An error occurred. MongoDB schema file not found.
+""")
+            return
+
+        client = MongoClient(uri)
+        try:
+            client.supremm.schema.update({"_id": schemaid}, schema, upsert=True)
+        except ServerSelectionTimeoutError:
+            display.print_warning("""
 
 An error occurred writing to mongo. Please refer to the manual setup
 instructions in the install guide.
 """)
-            else:
-                display.print_text("Sucessfully updated mongo")
-        except OSError as e:
-            display.print_warning("""
+            return
 
-An error:
-
-\"{0}\" 
-
-occurred running the mongo command. Please refer to the manual setup
-instructions in the install guide.
-
-""".format(e.strerror)) 
-
-    display.hitanykey("Press ENTER to continue.")
+    display.print_text("Sucessfully updated mongo")
 
 def signal_handler(sig, _):
     """ clean exit on an INT signal """
